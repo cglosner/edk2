@@ -295,22 +295,22 @@ void __asan_report_store_n_noabort(UINTN addr, UINTN size)
   SerialOutput2 (fun_name);                                               \
   SerialOutput (" is called:\n");                                         \
   SerialOutput ("Return IP address is ");                                 \
-  Num2Str64bit ((unsigned long)__builtin_return_address(0),NumStr);       \
+  Num2Str64bit ((UINTN)__builtin_return_address(0),NumStr);       \
   SerialOutput (NumStr);                                                  \
   SerialOutput ("\n");                                                    \
-  Num2Str64bit ((unsigned long)__builtin_return_address(1),NumStr);       \
+  Num2Str64bit ((UINTN)__builtin_return_address(1),NumStr);       \
   SerialOutput (NumStr);                                                  \
   SerialOutput ("\n");                                                    \
-  Num2Str64bit ((unsigned long)__builtin_return_address(2),NumStr);       \
+  Num2Str64bit ((UINTN)__builtin_return_address(2),NumStr);       \
   SerialOutput (NumStr);                                                  \
   SerialOutput ("\n");                                                    \
-  Num2Str64bit ((unsigned long)__builtin_return_address(3),NumStr);       \
+  Num2Str64bit ((UINTN)__builtin_return_address(3),NumStr);       \
   SerialOutput (NumStr);                                                  \
   SerialOutput ("\n");                                                    \
-  Num2Str64bit ((unsigned long)__builtin_return_address(4),NumStr);       \
+  Num2Str64bit ((UINTN)__builtin_return_address(4),NumStr);       \
   SerialOutput (NumStr);                                                  \
   SerialOutput ("\n");                                                    \
-  Num2Str64bit ((unsigned long)__builtin_return_address(5),NumStr);       \
+  Num2Str64bit ((UINTN)__builtin_return_address(5),NumStr);       \
   SerialOutput (NumStr);                                                  \
   SerialOutput ("\n");                                                    \
 }
@@ -318,14 +318,14 @@ void __asan_report_store_n_noabort(UINTN addr, UINTN size)
 //
 // Note: Using __builtin_return_address(1~n) in below code might cause CPU exception
 // because the call stack during running don't always have n deep in fact. You can just 
-// remove the "Num2Str64bit ((unsigned long)__builtin_return_address(n),NumStr)" in 
+// remove the "Num2Str64bit ((UINTN)__builtin_return_address(n),NumStr)" in 
 // below macro.
 // But I still leave the __builtin_return_address(1~n) here to permit the execution 
 // stop intentionally when memory check fails, because I more hope to trace the call 
 // stack details info.
 // 
 #define DEFINE_ASAN_LOAD(size)                      \
-void __asan_load##size(unsigned long addr)          \
+void __asan_load##size(UINTN addr)          \
 {                                                   \
   CHAR8 NumStr[19];                                 \
   if (asan_inited && !asan_is_deactivated){         \
@@ -344,31 +344,31 @@ void __asan_load##size(unsigned long addr)          \
               SerialOutput (NumStr);                                                \
               SerialOutput (" is called\n");                                         \
               SerialOutput ("Return IP address is ");                                 \
-              Num2Str64bit ((unsigned long)__builtin_return_address(0),NumStr);       \
+              Num2Str64bit ((UINTN)__builtin_return_address(0),NumStr);       \
               SerialOutput (NumStr);                                                  \
               SerialOutput ("\n");                                                    \
-              Num2Str64bit ((unsigned long)__builtin_return_address(1),NumStr);       \
+              Num2Str64bit ((UINTN)__builtin_return_address(1),NumStr);       \
               SerialOutput (NumStr);                                                  \
               SerialOutput ("\n");                                                    \
-              Num2Str64bit ((unsigned long)__builtin_return_address(2),NumStr);       \
+              Num2Str64bit ((UINTN)__builtin_return_address(2),NumStr);       \
               SerialOutput (NumStr);                                                  \
               SerialOutput ("\n");                                                    \
-              Num2Str64bit ((unsigned long)__builtin_return_address(3),NumStr);       \
+              Num2Str64bit ((UINTN)__builtin_return_address(3),NumStr);       \
               SerialOutput (NumStr);                                                  \
               SerialOutput ("\n");                                                    \
-              Num2Str64bit ((unsigned long)__builtin_return_address(4),NumStr);       \
+              Num2Str64bit ((UINTN)__builtin_return_address(4),NumStr);       \
               SerialOutput (NumStr);                                                  \
               SerialOutput ("\n");                                                    \
-              Num2Str64bit ((unsigned long)__builtin_return_address(5),NumStr);       \
+              Num2Str64bit ((UINTN)__builtin_return_address(5),NumStr);       \
               SerialOutput (NumStr);                                                  \
               SerialOutput ("\n");                                                    \
-              Num2Str64bit ((unsigned long)__builtin_return_address(6),NumStr);       \
+              Num2Str64bit ((UINTN)__builtin_return_address(6),NumStr);       \
               SerialOutput (NumStr);                                                  \
               SerialOutput ("\n");                                                    \
-              Num2Str64bit ((unsigned long)__builtin_return_address(7),NumStr);       \
+              Num2Str64bit ((UINTN)__builtin_return_address(7),NumStr);       \
               SerialOutput (NumStr);                                                  \
               SerialOutput ("\n");                                                    \
-              Num2Str64bit ((unsigned long)__builtin_return_address(8),NumStr);       \
+              Num2Str64bit ((UINTN)__builtin_return_address(8),NumStr);       \
               SerialOutput (NumStr);                                                  \
               SerialOutput ("\nAccess Address= ");                                    \
               Num2Str64bit (addr, NumStr);                                            \
@@ -391,7 +391,7 @@ void __asan_load##size(unsigned long addr)          \
 
 
 #define DEFINE_ASAN_STORE(size)                     \
-void __asan_store##size(unsigned long addr)         \
+void __asan_store##size(UINTN addr)         \
 {                                                   \
   CHAR8 NumStr[19];                                 \
   if (asan_inited && !asan_is_deactivated){         \
@@ -410,31 +410,31 @@ void __asan_store##size(unsigned long addr)         \
               SerialOutput (NumStr);                                                \
               SerialOutput (" is called\n");                                          \
               SerialOutput ("Return IP address is ");                                 \
-              Num2Str64bit ((unsigned long)__builtin_return_address(0),NumStr);       \
+              Num2Str64bit ((UINTN)__builtin_return_address(0),NumStr);       \
               SerialOutput (NumStr);                                                  \
               SerialOutput ("\n");                                                    \
-              Num2Str64bit ((unsigned long)__builtin_return_address(1),NumStr);       \
+              Num2Str64bit ((UINTN)__builtin_return_address(1),NumStr);       \
               SerialOutput (NumStr);                                                  \
               SerialOutput ("\n");                                                    \
-              Num2Str64bit ((unsigned long)__builtin_return_address(2),NumStr);       \
+              Num2Str64bit ((UINTN)__builtin_return_address(2),NumStr);       \
               SerialOutput (NumStr);                                                  \
               SerialOutput ("\n");                                                    \
-              Num2Str64bit ((unsigned long)__builtin_return_address(3),NumStr);       \
+              Num2Str64bit ((UINTN)__builtin_return_address(3),NumStr);       \
               SerialOutput (NumStr);                                                  \
               SerialOutput ("\n");                                                    \
-              Num2Str64bit ((unsigned long)__builtin_return_address(4),NumStr);       \
+              Num2Str64bit ((UINTN)__builtin_return_address(4),NumStr);       \
               SerialOutput (NumStr);                                                  \
               SerialOutput ("\n");                                                    \
-              Num2Str64bit ((unsigned long)__builtin_return_address(5),NumStr);       \
+              Num2Str64bit ((UINTN)__builtin_return_address(5),NumStr);       \
               SerialOutput (NumStr);                                                  \
               SerialOutput ("\n");                                                    \
-              Num2Str64bit ((unsigned long)__builtin_return_address(6),NumStr);       \
+              Num2Str64bit ((UINTN)__builtin_return_address(6),NumStr);       \
               SerialOutput (NumStr);                                                  \
               SerialOutput ("\n");                                                    \
-              Num2Str64bit ((unsigned long)__builtin_return_address(7),NumStr);       \
+              Num2Str64bit ((UINTN)__builtin_return_address(7),NumStr);       \
               SerialOutput (NumStr);                                                  \
               SerialOutput ("\n");                                                    \
-              Num2Str64bit ((unsigned long)__builtin_return_address(8),NumStr);       \
+              Num2Str64bit ((UINTN)__builtin_return_address(8),NumStr);       \
               SerialOutput (NumStr);                                                  \
               SerialOutput ("\nAccess Address= ");                                    \
               Num2Str64bit (addr, NumStr);                                            \
@@ -456,7 +456,7 @@ void __asan_store##size(unsigned long addr)         \
 }
 
 #define DEFINE_ASAN_LOAD_NOABORT(size)                \
-void __asan_load##size##_noabort(unsigned long addr)  \
+void __asan_load##size##_noabort(UINTN addr)  \
 {                                                   \
   CHAR8 NumStr[19];                                 \
   if (asan_inited && !asan_is_deactivated){         \
@@ -475,28 +475,28 @@ void __asan_load##size##_noabort(unsigned long addr)  \
               SerialOutput (NumStr);                                                \
               SerialOutput ("_noabort is called\n");                                  \
               SerialOutput ("Return IP address is ");                                 \
-              Num2Str64bit ((unsigned long)__builtin_return_address(0),NumStr);       \
+              Num2Str64bit ((UINTN)__builtin_return_address(0),NumStr);       \
               SerialOutput (NumStr);                                                  \
               SerialOutput ("\n");                                                    \
-              Num2Str64bit ((unsigned long)__builtin_return_address(1),NumStr);       \
+              Num2Str64bit ((UINTN)__builtin_return_address(1),NumStr);       \
               SerialOutput (NumStr);                                                  \
               SerialOutput ("\n");                                                    \
-              Num2Str64bit ((unsigned long)__builtin_return_address(2),NumStr);       \
+              Num2Str64bit ((UINTN)__builtin_return_address(2),NumStr);       \
               SerialOutput (NumStr);                                                  \
               SerialOutput ("\n");                                                    \
-              Num2Str64bit ((unsigned long)__builtin_return_address(3),NumStr);       \
+              Num2Str64bit ((UINTN)__builtin_return_address(3),NumStr);       \
               SerialOutput (NumStr);                                                  \
               SerialOutput ("\n");                                                    \
-              Num2Str64bit ((unsigned long)__builtin_return_address(4),NumStr);       \
+              Num2Str64bit ((UINTN)__builtin_return_address(4),NumStr);       \
               SerialOutput (NumStr);                                                  \
               SerialOutput ("\n");                                                    \
-              Num2Str64bit ((unsigned long)__builtin_return_address(5),NumStr);       \
+              Num2Str64bit ((UINTN)__builtin_return_address(5),NumStr);       \
               SerialOutput (NumStr);                                                  \
               SerialOutput ("\n");                                                    \
-              Num2Str64bit ((unsigned long)__builtin_return_address(6),NumStr);       \
+              Num2Str64bit ((UINTN)__builtin_return_address(6),NumStr);       \
               SerialOutput (NumStr);                                                  \
               SerialOutput ("\n");                                                    \
-              Num2Str64bit ((unsigned long)__builtin_return_address(7),NumStr);       \
+              Num2Str64bit ((UINTN)__builtin_return_address(7),NumStr);       \
               SerialOutput (NumStr);                                                  \
               SerialOutput ("\n");                                                    \
               SerialOutput ("Access Address= ");                                   \
@@ -520,7 +520,7 @@ void __asan_load##size##_noabort(unsigned long addr)  \
 
 
 #define DEFINE_ASAN_STORE_NOABORT(size)                 \
-void __asan_store##size##_noabort(unsigned long addr)   \
+void __asan_store##size##_noabort(UINTN addr)   \
 {                                                   \
   CHAR8 NumStr[19];                                 \
   if (asan_inited && !asan_is_deactivated){         \
@@ -539,28 +539,28 @@ void __asan_store##size##_noabort(unsigned long addr)   \
               SerialOutput (NumStr);                                                \
               SerialOutput ("_noabort is called\n");                                  \
               SerialOutput ("Return IP address is ");                                 \
-              Num2Str64bit ((unsigned long)__builtin_return_address(0),NumStr);       \
+              Num2Str64bit ((UINTN)__builtin_return_address(0),NumStr);       \
               SerialOutput (NumStr);                                                  \
               SerialOutput ("\n");                                                    \
-              Num2Str64bit ((unsigned long)__builtin_return_address(1),NumStr);       \
+              Num2Str64bit ((UINTN)__builtin_return_address(1),NumStr);       \
               SerialOutput (NumStr);                                                  \
               SerialOutput ("\n");                                                    \
-              Num2Str64bit ((unsigned long)__builtin_return_address(2),NumStr);       \
+              Num2Str64bit ((UINTN)__builtin_return_address(2),NumStr);       \
               SerialOutput (NumStr);                                                  \
               SerialOutput ("\n");                                                    \
-              Num2Str64bit ((unsigned long)__builtin_return_address(3),NumStr);       \
+              Num2Str64bit ((UINTN)__builtin_return_address(3),NumStr);       \
               SerialOutput (NumStr);                                                  \
               SerialOutput ("\n");                                                    \
-              Num2Str64bit ((unsigned long)__builtin_return_address(4),NumStr);       \
+              Num2Str64bit ((UINTN)__builtin_return_address(4),NumStr);       \
               SerialOutput (NumStr);                                                  \
               SerialOutput ("\n");                                                    \
-              Num2Str64bit ((unsigned long)__builtin_return_address(5),NumStr);       \
+              Num2Str64bit ((UINTN)__builtin_return_address(5),NumStr);       \
               SerialOutput (NumStr);                                                  \
               SerialOutput ("\n");                                                    \
-              Num2Str64bit ((unsigned long)__builtin_return_address(6),NumStr);       \
+              Num2Str64bit ((UINTN)__builtin_return_address(6),NumStr);       \
               SerialOutput (NumStr);                                                  \
               SerialOutput ("\n");                                                    \
-              Num2Str64bit ((unsigned long)__builtin_return_address(7),NumStr);       \
+              Num2Str64bit ((UINTN)__builtin_return_address(7),NumStr);       \
               SerialOutput (NumStr);                                                  \
               SerialOutput ("\n");                                                    \
               SerialOutput ("Access Address= ");                                      \
@@ -677,7 +677,7 @@ UINTN __asan_region_is_poisoned(UINTN beg, UINTN size) {
 }
 
 
-void __asan_loadN_noabort(unsigned long addr, UINTN size)
+void __asan_loadN_noabort(UINTN addr, UINTN size)
 {
   CHAR8 NumStr[19];
 
@@ -698,19 +698,19 @@ void __asan_loadN_noabort(unsigned long addr, UINTN size)
     SerialOutput (NumStr);
     SerialOutput (" is called\n");
     SerialOutput ("Return IP address is ");
-    Num2Str64bit ((unsigned long)__builtin_return_address(0),NumStr);
+    Num2Str64bit ((UINTN)__builtin_return_address(0),NumStr);
     SerialOutput (NumStr);
     SerialOutput ("\n");
-    Num2Str64bit ((unsigned long)__builtin_return_address(1),NumStr);
+    Num2Str64bit ((UINTN)__builtin_return_address(1),NumStr);
     SerialOutput (NumStr);
     SerialOutput ("\n");
-    Num2Str64bit ((unsigned long)__builtin_return_address(2),NumStr);
+    Num2Str64bit ((UINTN)__builtin_return_address(2),NumStr);
     SerialOutput (NumStr);
     SerialOutput ("\n");
-    Num2Str64bit ((unsigned long)__builtin_return_address(3),NumStr);
+    Num2Str64bit ((UINTN)__builtin_return_address(3),NumStr);
     SerialOutput (NumStr);
     SerialOutput ("\n");
-    Num2Str64bit ((unsigned long)__builtin_return_address(4),NumStr);
+    Num2Str64bit ((UINTN)__builtin_return_address(4),NumStr);
     SerialOutput (NumStr);
     SerialOutput ("\nAccess Address= ");
     Num2Str64bit (addr, NumStr);
@@ -728,7 +728,7 @@ void __asan_loadN_noabort(unsigned long addr, UINTN size)
   }
 }
 
-void __asan_storeN_noabort(unsigned long addr, UINTN size)
+void __asan_storeN_noabort(UINTN addr, UINTN size)
 {
   CHAR8 NumStr[19];
   if (asan_is_deactivated || !asan_inited){
@@ -748,19 +748,19 @@ void __asan_storeN_noabort(unsigned long addr, UINTN size)
     SerialOutput (NumStr);
     SerialOutput (" is called\n");
     SerialOutput ("Return IP address is ");
-    Num2Str64bit ((unsigned long)__builtin_return_address(0),NumStr);
+    Num2Str64bit ((UINTN)__builtin_return_address(0),NumStr);
     SerialOutput (NumStr);
     SerialOutput ("\n");
-    Num2Str64bit ((unsigned long)__builtin_return_address(1),NumStr);
+    Num2Str64bit ((UINTN)__builtin_return_address(1),NumStr);
     SerialOutput (NumStr);
     SerialOutput ("\n");
-    Num2Str64bit ((unsigned long)__builtin_return_address(2),NumStr);
+    Num2Str64bit ((UINTN)__builtin_return_address(2),NumStr);
     SerialOutput (NumStr);
     SerialOutput ("\n");
-    Num2Str64bit ((unsigned long)__builtin_return_address(3),NumStr);
+    Num2Str64bit ((UINTN)__builtin_return_address(3),NumStr);
     SerialOutput (NumStr);
     SerialOutput ("\n");
-    Num2Str64bit ((unsigned long)__builtin_return_address(4),NumStr);
+    Num2Str64bit ((UINTN)__builtin_return_address(4),NumStr);
     SerialOutput (NumStr);
     SerialOutput ("\nAccess Address= ");
     Num2Str64bit (addr, NumStr);
@@ -778,7 +778,7 @@ void __asan_storeN_noabort(unsigned long addr, UINTN size)
   }
 }
 
-void __asan_loadN(unsigned long addr, UINTN size)
+void __asan_loadN(UINTN addr, UINTN size)
 {
   CHAR8 NumStr[19];
   if (asan_is_deactivated || !asan_inited){
@@ -798,19 +798,19 @@ void __asan_loadN(unsigned long addr, UINTN size)
     SerialOutput (NumStr);
     SerialOutput (" is called\n");
     SerialOutput ("Return IP address is ");
-    Num2Str64bit ((unsigned long)__builtin_return_address(0),NumStr);
+    Num2Str64bit ((UINTN)__builtin_return_address(0),NumStr);
     SerialOutput (NumStr);
     SerialOutput ("\n");
-    Num2Str64bit ((unsigned long)__builtin_return_address(1),NumStr);
+    Num2Str64bit ((UINTN)__builtin_return_address(1),NumStr);
     SerialOutput (NumStr);
     SerialOutput ("\n");
-    Num2Str64bit ((unsigned long)__builtin_return_address(2),NumStr);
+    Num2Str64bit ((UINTN)__builtin_return_address(2),NumStr);
     SerialOutput (NumStr);
     SerialOutput ("\n");
-    Num2Str64bit ((unsigned long)__builtin_return_address(3),NumStr);
+    Num2Str64bit ((UINTN)__builtin_return_address(3),NumStr);
     SerialOutput (NumStr);
     SerialOutput ("\n");
-    Num2Str64bit ((unsigned long)__builtin_return_address(4),NumStr);
+    Num2Str64bit ((UINTN)__builtin_return_address(4),NumStr);
     SerialOutput (NumStr);
     SerialOutput ("\nAccess Address= ");
     Num2Str64bit (addr, NumStr);
@@ -828,7 +828,7 @@ void __asan_loadN(unsigned long addr, UINTN size)
   }
 }
 
-void __asan_storeN(unsigned long addr, UINTN size)
+void __asan_storeN(UINTN addr, UINTN size)
 {
   CHAR8 NumStr[19];
   if (asan_is_deactivated || !asan_inited){
@@ -848,19 +848,19 @@ void __asan_storeN(unsigned long addr, UINTN size)
     SerialOutput (NumStr);
     SerialOutput (" is called\n");
     SerialOutput ("Return IP address is ");
-    Num2Str64bit ((unsigned long)__builtin_return_address(0),NumStr);
+    Num2Str64bit ((UINTN)__builtin_return_address(0),NumStr);
     SerialOutput (NumStr);
     SerialOutput ("\n");
-    Num2Str64bit ((unsigned long)__builtin_return_address(1),NumStr);
+    Num2Str64bit ((UINTN)__builtin_return_address(1),NumStr);
     SerialOutput (NumStr);
     SerialOutput ("\n");
-    Num2Str64bit ((unsigned long)__builtin_return_address(2),NumStr);
+    Num2Str64bit ((UINTN)__builtin_return_address(2),NumStr);
     SerialOutput (NumStr);
     SerialOutput ("\n");
-    Num2Str64bit ((unsigned long)__builtin_return_address(3),NumStr);
+    Num2Str64bit ((UINTN)__builtin_return_address(3),NumStr);
     SerialOutput (NumStr);
     SerialOutput ("\n");
-    Num2Str64bit ((unsigned long)__builtin_return_address(4),NumStr);
+    Num2Str64bit ((UINTN)__builtin_return_address(4),NumStr);
     SerialOutput (NumStr);
     SerialOutput ("\nAccess Address= ");
     Num2Str64bit (addr, NumStr);

@@ -1275,7 +1275,7 @@ PlatformQemuInitializeRamForS3 (
     //
     //
     //
-    LowerMemorySize = GetSystemMemorySizeBelow4gb ();
+    LowerMemorySize = PlatformInfoHob->LowMemory;
     AsanShadowMemorySize = LowerMemorySize>>3;
     AsanShadowMemoryStart = LowerMemorySize/8;
     BuildMemoryAllocationHob (

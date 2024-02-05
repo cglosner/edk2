@@ -578,6 +578,9 @@ void __ubsan_handle_pointer_overflow_abort(UINTN *Data, UINTN Base, UINTN Result
 
 }
 
+void __ubsan_handle_float_cast_overflow(UINTN *Data, UINTN From) {
+
+}
 
 void __sanitizer_cov_trace_pc(void)
 {
