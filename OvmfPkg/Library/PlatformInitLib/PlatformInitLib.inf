@@ -56,9 +56,14 @@
 [LibraryClasses.X64]
   TdxLib
 
+[Guids]
+  gAsanInfoGuid
+
 [Pcd]
   gEfiMdePkgTokenSpaceGuid.PcdPciExpressBaseAddress
   gEfiMdeModulePkgTokenSpaceGuid.PcdUse1GPageTable
+  gEfiMdeModulePkgTokenSpaceGuid.AsanShadowMemoryStart
+  gEfiMdeModulePkgTokenSpaceGuid.AsanShadowMemorySize
 
 [FixedPcd]
   gUefiOvmfPkgTokenSpaceGuid.PcdOvmfWorkAreaBase

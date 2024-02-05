@@ -40,6 +40,7 @@ Module Name:
 #include <Library/QemuFwCfgLib.h>
 #include <Library/QemuFwCfgSimpleParserLib.h>
 #include <Library/TdxLib.h>
+#include <Library/Asan.h>
 
 #include <Library/PlatformInitLib.h>
 
@@ -1125,6 +1126,10 @@ PlatformQemuInitializeRamForS3 (
   IN EFI_HOB_PLATFORM_INFO  *PlatformInfoHob
   )
 {
+  UINT64                      LowerMemorySize;
+  UINT64                      AsanShadowMemorySize;
+  UINT64                      AsanShadowMemoryStart;
+  ASAN_INFO                   AsanInfo;
   if (PlatformInfoHob->S3Supported && (PlatformInfoHob->BootMode != BOOT_ON_S3_RESUME)) {
     //
     // This is the memory range that will be used for PEI on S3 resume
@@ -1266,7 +1271,35 @@ PlatformQemuInitializeRamForS3 (
         PlatformInfoHob->S3Supported ? EfiACPIMemoryNVS : EfiBootServicesData
         );
     }
-
  #endif
+    //
+    //
+    //
+    LowerMemorySize = GetSystemMemorySizeBelow4gb ();
+    AsanShadowMemorySize = LowerMemorySize>>3;
+    AsanShadowMemoryStart = LowerMemorySize/8;
+    BuildMemoryAllocationHob (
+      AsanShadowMemoryStart,
+      AsanShadowMemorySize,
+      EfiRuntimeServicesData
+      );
+
+    DEBUG ((EFI_D_INFO, "LowerMemorySize = 0x%x\n", LowerMemorySize));
+    DEBUG ((EFI_D_INFO, "AsanShadowMemoryStart = 0x%x\n", AsanShadowMemoryStart));
+    DEBUG ((EFI_D_INFO, "AsanShadowMemorySize = 0x%x\n", AsanShadowMemorySize));
+    ZeroMem ((VOID *) (UINTN) AsanShadowMemoryStart, AsanShadowMemorySize);
+
+    //
+    // Build HOB for AsanInfo
+    //
+    AsanInfo.AsanShadowMemorySize = AsanShadowMemorySize;
+    AsanInfo.AsanShadowMemoryStart = AsanShadowMemoryStart;
+    AsanInfo.AsanInited = 1;
+    AsanInfo.AsanActivated = 1;
+    BuildGuidDataHob (
+      &gAsanInfoGuid,
+      &AsanInfo,
+      sizeof (ASAN_INFO)
+      );
   }
 }

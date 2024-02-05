@@ -173,7 +173,12 @@ DEFINE DTC_BIN                 = ENV(DTC_PREFIX)dtc
 #                             Required to build platforms or ACPI tables:
 #                               Intel(r) ACPI Compiler from
 #                               https://acpica.org/downloads
-#
+#   CLANGSAN  -Linux-  Requires:
+#                             Clang 9 or above from http://releases.llvm.org/
+#                        Optional:
+#                             Required to build platforms or ACPI tables:
+#                               Intel(r) ACPI Compiler from
+#                               https://acpica.org/downloads
 #   CLANGPDB -Linux, Windows, Mac-  Requires:
 #                             Clang 9 or above from http://releases.llvm.org/
 #                        Optional:
@@ -2075,6 +2080,115 @@ DEFINE CLANGDWARF_RISCV64_DLINK_FLAGS       = DEF(CLANGDWARF_RISCV64_TARGET) DEF
   NOOPT_CLANGDWARF_RISCV64_DLINK_FLAGS = DEF(CLANGDWARF_RISCV64_DLINK_FLAGS) -fuse-ld=lld -Wl,--no-pie,--no-relax
 RELEASE_CLANGDWARF_RISCV64_CC_FLAGS    = DEF(CLANGDWARF_RISCV64_CC_FLAGS) $(PLATFORM_FLAGS) -flto -O3
 RELEASE_CLANGDWARF_RISCV64_DLINK_FLAGS = DEF(CLANGDWARF_RISCV64_DLINK_FLAGS) -flto -Wl,-O3 -fuse-ld=lld -Wl,--no-pie,--no-relax
+
+####################################################################################
+#
+# CLANGSAN - This configuration is used to compile under Windows/Linux/Mac to produce
+#  ELF binaries using LLVM/Clang/LLD with Link Time Optimization enabled
+#
+####################################################################################
+*_CLANGSAN_*_*_FAMILY             = GCC
+*_CLANGSAN_*_*_BUILDRULEFAMILY    = SANITIZER
+
+*_CLANGSAN_*_MAKE_PATH            = ENV(CLANG_HOST_BIN)make
+*_CLANGSAN_*_*_DLL                = ENV(CLANGSAN_DLL)
+*_CLANGSAN_*_ASL_PATH             = DEF(UNIX_IASL_BIN)
+
+*_CLANGSAN_*_APP_FLAGS            =
+*_CLANGSAN_*_ASL_FLAGS            = DEF(IASL_FLAGS)
+*_CLANGSAN_*_ASL_OUTFLAGS         = DEF(IASL_OUTFLAGS)
+
+DEFINE CLANGSAN_IA32_PREFIX       = ENV(CLANG_BIN)
+DEFINE CLANGSAN_X64_PREFIX        = ENV(CLANG_BIN)
+
+# LLVM/CLANG doesn't support -n link option. So, it can't share the same IA32_X64_DLINK_COMMON flag.
+# LLVM/CLANG doesn't support common page size. So, it can't share the same GccBase.lds script.
+DEFINE CLANGSAN_IA32_X64_DLINK_COMMON   = -nostdlib -Wl,-q,--gc-sections -z max-page-size=0x40
+DEFINE CLANGSAN_DLINK2_FLAGS_COMMON     = -Wl,--script=$(EDK_TOOLS_PATH)/Scripts/ClangBase.lds
+DEFINE CLANGSAN_IA32_X64_ASLDLINK_FLAGS = DEF(CLANGSAN_IA32_X64_DLINK_COMMON) -Wl,--defsym=PECOFF_HEADER_SIZE=0 DEF(CLANGSAN_DLINK2_FLAGS_COMMON) -Wl,--entry,ReferenceAcpiTable -u ReferenceAcpiTable
+DEFINE CLANGSAN_IA32_X64_DLINK_FLAGS    = DEF(CLANGSAN_IA32_X64_DLINK_COMMON) -Wl,--entry,$(IMAGE_ENTRY_POINT) -u $(IMAGE_ENTRY_POINT) -Wl,-Map,$(DEST_DIR_DEBUG)/$(BASE_NAME).map,--whole-archive -Wl,-z,notext
+DEFINE CLANGSAN_IA32_DLINK2_FLAGS       = -Wl,--defsym=PECOFF_HEADER_SIZE=0x220 DEF(CLANGSAN_DLINK2_FLAGS_COMMON)
+DEFINE CLANGSAN_X64_DLINK2_FLAGS        = -Wl,--defsym=PECOFF_HEADER_SIZE=0x228 DEF(CLANGSAN_DLINK2_FLAGS_COMMON)
+
+DEFINE CLANGSAN_IA32_TARGET             = -target i686-pc-linux-gnu
+DEFINE CLANGSAN_X64_TARGET              = -target x86_64-pc-linux-gnu
+
+DEFINE CLANGSAN_WARNING_OVERRIDES    = -Wno-parentheses-equality -Wno-empty-body -Wno-unused-const-variable -Wno-varargs -Wno-unknown-warning-option -Wno-unused-but-set-variable -Wno-unused-const-variable -Wno-unaligned-access -Wno-unneeded-internal-declaration
+DEFINE CLANGSAN_ALL_CC_FLAGS         = DEF(GCC48_ALL_CC_FLAGS) DEF(CLANGSAN_WARNING_OVERRIDES) -fno-stack-protector -mms-bitfields -Wno-address -Wno-shift-negative-value -Wno-unknown-pragmas -Wno-incompatible-library-redeclaration -fno-asynchronous-unwind-tables -mno-sse -mno-mmx -msoft-float -mno-implicit-float  -ftrap-function=undefined_behavior_has_been_optimized_away_by_clang -funsigned-char -fno-ms-extensions -Wno-null-dereference
+
+###########################
+# CLANGSAN IA32 definitions
+###########################
+*_CLANGSAN_IA32_CC_PATH              = DEF(CLANGSAN_IA32_PREFIX)clang
+*_CLANGSAN_IA32_SLINK_PATH           = DEF(CLANGSAN_IA32_PREFIX)llvm-ar
+*_CLANGSAN_IA32_DLINK_PATH           = DEF(CLANGSAN_IA32_PREFIX)clang
+*_CLANGSAN_IA32_ASLDLINK_PATH        = DEF(CLANGSAN_IA32_PREFIX)clang
+*_CLANGSAN_IA32_ASM_PATH             = DEF(CLANGSAN_IA32_PREFIX)clang
+*_CLANGSAN_IA32_PP_PATH              = DEF(CLANGSAN_IA32_PREFIX)clang
+*_CLANGSAN_IA32_VFRPP_PATH           = DEF(CLANGSAN_IA32_PREFIX)clang
+*_CLANGSAN_IA32_ASLCC_PATH           = DEF(CLANGSAN_IA32_PREFIX)clang
+*_CLANGSAN_IA32_ASLPP_PATH           = DEF(CLANGSAN_IA32_PREFIX)clang
+*_CLANGSAN_IA32_RC_PATH              = DEF(CLANGSAN_IA32_PREFIX)llvm-objcopy
+
+*_CLANGSAN_IA32_ASLCC_FLAGS          = DEF(GCC_ASLCC_FLAGS) -m32 -fno-lto DEF(CLANGSAN_IA32_TARGET)
+*_CLANGSAN_IA32_ASLDLINK_FLAGS       = DEF(CLANGSAN_IA32_X64_ASLDLINK_FLAGS) -Wl,-m,elf_i386 -fuse-ld=lld -no-pie
+*_CLANGSAN_IA32_ASM_FLAGS            = DEF(GCC5_ASM_FLAGS) -m32 -march=i386 DEF(CLANGSAN_IA32_TARGET)
+*_CLANGSAN_IA32_RC_FLAGS             = DEF(GCC_IA32_RC_FLAGS)
+*_CLANGSAN_IA32_OBJCOPY_FLAGS        =
+*_CLANGSAN_IA32_NASM_FLAGS           = -f elf32
+*_CLANGSAN_IA32_PP_FLAGS             = DEF(GCC_PP_FLAGS) DEF(CLANGSAN_IA32_TARGET)
+*_CLANGSAN_IA32_ASLPP_FLAGS          = DEF(GCC_ASLPP_FLAGS) DEF(CLANGSAN_IA32_TARGET)
+*_CLANGSAN_IA32_VFRPP_FLAGS          = DEF(GCC_VFRPP_FLAGS) DEF(CLANGSAN_IA32_TARGET)
+
+DEBUG_CLANGSAN_IA32_CC_FLAGS         = DEF(CLANGSAN_ALL_CC_FLAGS) -fno-pic -fno-pie -m32 -Oz -flto -march=i586 DEF(CLANGSAN_IA32_TARGET) -g -malign-double
+DEBUG_CLANGSAN_IA32_DLINK_FLAGS      = DEF(CLANGSAN_IA32_X64_DLINK_FLAGS) -flto -Wl,-O3 -Wl,-melf_i386 -Wl,--oformat,elf32-i386
+DEBUG_CLANGSAN_IA32_DLINK2_FLAGS     = DEF(CLANGSAN_IA32_DLINK2_FLAGS) -O3 -fuse-ld=lld -no-pie
+
+RELEASE_CLANGSAN_IA32_CC_FLAGS       = DEF(CLANGSAN_ALL_CC_FLAGS) -fno-pic -fno-pie -m32 -Oz -flto -march=i586 DEF(CLANGSAN_IA32_TARGET) -malign-double
+RELEASE_CLANGSAN_IA32_DLINK_FLAGS    = DEF(CLANGSAN_IA32_X64_DLINK_FLAGS) -flto -Wl,-O3 -Wl,-melf_i386 -Wl,--oformat,elf32-i386
+RELEASE_CLANGSAN_IA32_DLINK2_FLAGS   = DEF(CLANGSAN_IA32_DLINK2_FLAGS) -O3 -fuse-ld=lld -no-pie
+
+NOOPT_CLANGSAN_IA32_CC_FLAGS         = DEF(CLANGSAN_ALL_CC_FLAGS) -fno-pic -fno-pie -m32 -O0 -march=i586 DEF(CLANGSAN_IA32_TARGET) -g -malign-double
+NOOPT_CLANGSAN_IA32_DLINK_FLAGS      = DEF(CLANGSAN_IA32_X64_DLINK_FLAGS) -Wl,-O0 -Wl,-melf_i386 -Wl,--oformat,elf32-i386
+NOOPT_CLANGSAN_IA32_DLINK2_FLAGS     = DEF(CLANGSAN_IA32_DLINK2_FLAGS) -O0 -fuse-ld=lld -no-pie
+
+##########################
+# CLANGSAN X64 definitions
+##########################
+*_CLANGSAN_X64_CC_PATH              = DEF(CLANGSAN_X64_PREFIX)clang
+*_CLANGSAN_X64_SLINK_PATH           = DEF(CLANGSAN_X64_PREFIX)llvm-ar
+*_CLANGSAN_X64_DLINK_PATH           = DEF(CLANGSAN_X64_PREFIX)clang
+*_CLANGSAN_X64_ASLDLINK_PATH        = DEF(CLANGSAN_X64_PREFIX)clang
+*_CLANGSAN_X64_ASM_PATH             = DEF(CLANGSAN_X64_PREFIX)clang
+*_CLANGSAN_X64_PP_PATH              = DEF(CLANGSAN_X64_PREFIX)clang
+*_CLANGSAN_X64_VFRPP_PATH           = DEF(CLANGSAN_X64_PREFIX)clang
+*_CLANGSAN_X64_ASLCC_PATH           = DEF(CLANGSAN_X64_PREFIX)clang
+*_CLANGSAN_X64_ASLPP_PATH           = DEF(CLANGSAN_X64_PREFIX)clang
+*_CLANGSAN_X64_RC_PATH              = DEF(CLANGSAN_X64_PREFIX)llvm-objcopy
+
+*_CLANGSAN_X64_ASLCC_FLAGS          = DEF(GCC_ASLCC_FLAGS) -m64 -fno-lto DEF(CLANGSAN_X64_TARGET)
+*_CLANGSAN_X64_ASLDLINK_FLAGS       = DEF(CLANGSAN_IA32_X64_ASLDLINK_FLAGS) -Wl,-m,elf_x86_64 -fuse-ld=lld
+*_CLANGSAN_X64_ASM_FLAGS            = DEF(GCC5_ASM_FLAGS) -m64 DEF(CLANGSAN_X64_TARGET)
+*_CLANGSAN_X64_RC_FLAGS             = DEF(GCC_X64_RC_FLAGS)
+*_CLANGSAN_X64_OBJCOPY_FLAGS        =
+*_CLANGSAN_X64_NASM_FLAGS           = -f elf64
+*_CLANGSAN_X64_PP_FLAGS             = DEF(GCC_PP_FLAGS) DEF(CLANGSAN_X64_TARGET)
+*_CLANGSAN_X64_ASLPP_FLAGS          = DEF(GCC_ASLPP_FLAGS) DEF(CLANGSAN_X64_TARGET)
+*_CLANGSAN_X64_VFRPP_FLAGS          = DEF(GCC_VFRPP_FLAGS) DEF(CLANGSAN_X64_TARGET)
+
+DEBUG_CLANGSAN_X64_CC_FLAGS         = DEF(CLANGSAN_ALL_CC_FLAGS) -m64 "-DEFIAPI=__attribute__((ms_abi))" -mno-red-zone -mcmodel=small -fpie -fdirect-access-external-data -Oz -flto DEF(CLANGSAN_X64_TARGET) -g
+DEBUG_CLANGSAN_X64_DLINK_FLAGS      = DEF(CLANGSAN_IA32_X64_DLINK_FLAGS) -flto -Wl,-O3 -Wl,-melf_x86_64 -Wl,--oformat,elf64-x86-64 -Wl,-pie -mcmodel=small -Wl,--apply-dynamic-relocs
+DEBUG_CLANGSAN_X64_DLINK2_FLAGS     = DEF(CLANGSAN_X64_DLINK2_FLAGS) -O3 -fuse-ld=lld
+
+RELEASE_CLANGSAN_X64_CC_FLAGS       = DEF(CLANGSAN_ALL_CC_FLAGS) -m64 "-DEFIAPI=__attribute__((ms_abi))" -mno-red-zone -mcmodel=small -fpie -fdirect-access-external-data -Oz -flto DEF(CLANGSAN_X64_TARGET)
+RELEASE_CLANGSAN_X64_DLINK_FLAGS    = DEF(CLANGSAN_IA32_X64_DLINK_FLAGS) -flto -Wl,-O3 -Wl,-melf_x86_64 -Wl,--oformat,elf64-x86-64 -Wl,-pie -mcmodel=small -Wl,--apply-dynamic-relocs
+RELEASE_CLANGSAN_X64_DLINK2_FLAGS   = DEF(CLANGSAN_X64_DLINK2_FLAGS) -O3 -fuse-ld=lld
+
+NOOPT_CLANGSAN_X64_CC_FLAGS         = DEF(CLANGSAN_ALL_CC_FLAGS) -m64 "-DEFIAPI=__attribute__((ms_abi))" -mno-red-zone -mcmodel=small -fpie -fdirect-access-external-data -O0 DEF(CLANGSAN_X64_TARGET) -g
+NOOPT_CLANGSAN_X64_DLINK_FLAGS      = DEF(CLANGSAN_IA32_X64_DLINK_FLAGS) -Wl,-O0 -Wl,-melf_x86_64 -Wl,--oformat,elf64-x86-64 -Wl,-pie -mcmodel=small -Wl,--apply-dynamic-relocs
+NOOPT_CLANGSAN_X64_DLINK2_FLAGS     = DEF(CLANGSAN_X64_DLINK2_FLAGS) -O0 -fuse-ld=lld
+
+*_CLANGSAN_X64_SAN_FLAGS            = -fsanitize=address -fno-sanitize-address-use-after-scope -mllvm -asan-stack-dynamic-alloca=0 -mllvm -asan-instrumentation-with-call-threshold=0 -mllvm -asan-force-dynamic-shadow=true -fsanitize=undefined -fno-sanitize=alignment -fsanitize-coverage=trace-pc -Wno-frame-address
 
 #
 #
