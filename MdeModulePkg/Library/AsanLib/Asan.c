@@ -1374,6 +1374,10 @@ struct SourceLocation {
   UINT32 column;
 };
 
+struct OverflowDescData {
+	struct SourceLocation Loc;
+};
+
 struct TypeMismatchData {
   struct SourceLocation Loc;
   struct TypeDescriptor *Type;
@@ -1551,11 +1555,29 @@ void __ubsan_handle_mul_overflow_abort(UINTN *Data, UINTN LHS, UINTN RHS) {
   SANITIZER_CALLSTACK_DUMP("__ubsan_handle_mul_overflow_abort");
 }
 
-void __ubsan_handle_pointer_overflow(UINTN *Data, UINTN Base, UINTN Result) {
+void __ubsan_handle_pointer_overflow(struct OverflowDescData *Data, UINTN Base, UINTN Result) {
+  CHAR8 NumStr[19];
+  SerialOutput (Data->Loc.file_name);
+  SerialOutput (", line:");
+  Num2Str16bit (Data->Loc.line, NumStr);
+  SerialOutput (NumStr);
+  SerialOutput (", column:");
+  Num2Str16bit (Data->Loc.column, NumStr);
+  SerialOutput (NumStr);
+  SerialOutput ("\n");
   SANITIZER_CALLSTACK_DUMP("__ubsan_handle_pointer_overflow");
 }
 
-void __ubsan_handle_pointer_overflow_abort(UINTN *Data, UINTN Base, UINTN Result) {
+void __ubsan_handle_pointer_overflow_abort(struct OverflowDescData *Data, UINTN Base, UINTN Result) {
+  CHAR8 NumStr[19];
+  SerialOutput (Data->Loc.file_name);
+  SerialOutput (", line:");
+  Num2Str16bit (Data->Loc.line, NumStr);
+  SerialOutput (NumStr);
+  SerialOutput (", column:");
+  Num2Str16bit (Data->Loc.column, NumStr);
+  SerialOutput (NumStr);
+  SerialOutput ("\n");
   SANITIZER_CALLSTACK_DUMP("__ubsan_handle_pointer_overflow_abort");
 }
 

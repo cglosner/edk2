@@ -3264,6 +3264,8 @@ ExportPackageList (
   if (ResultSize + *UsedSize <= BufferSize) {
     CopyMem ((VOID *)Buffer, PackageList, ResultSize);
   }
+  else
+    Print(L"ResultSize: %d, BufferSize: %d\n", ResultSize, BufferSize);
 
   //
   // Copy the packages and invoke EXPORT_PACK notify functions if exists.

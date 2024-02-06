@@ -477,6 +477,10 @@ struct SourceLocation {
   UINT32 column;
 };
 
+struct OverflowDescData {
+	struct SourceLocation Loc;
+};
+
 struct TypeMismatchData {
   struct SourceLocation Loc;
   struct TypeDescriptor *Type;
@@ -570,11 +574,11 @@ void __ubsan_handle_mul_overflow_abort(UINTN *Data, UINTN LHS, UINTN RHS) {
 
 }
 
-void __ubsan_handle_pointer_overflow(UINTN *Data, UINTN Base, UINTN Result) {
+void __ubsan_handle_pointer_overflow(struct OverflowDescData *Data, UINTN Base, UINTN Result) {
 
 }
 
-void __ubsan_handle_pointer_overflow_abort(UINTN *Data, UINTN Base, UINTN Result) {
+void __ubsan_handle_pointer_overflow_abort(struct OverflowDescData *Data, UINTN Base, UINTN Result) {
 
 }
 
