@@ -139,4 +139,4 @@
 
   ## Controls the default delay the shell will offer to the user at the
   # start to check if the user wishes to cancel the script autostart
-  gEfiShellPkgTokenSpaceGuid.PcdShellDefaultDelay|5|UINT32|0x00000015
+  gEfiShellPkgTokenSpaceGuid.PcdShellDefaultDelay|0|UINT32|0x00000015
