@@ -1982,6 +1982,8 @@ ShellFindFilePathEx (
 
     ASSERT (ExtensionWalker != NULL);
     TempChar2 = StrStr (ExtensionWalker, L";");
+    if(TempChar2 == NULL)
+      break;
   }
 
   FreePool (TestPath);
@@ -4445,6 +4447,8 @@ ShellFileHandleReadLine (
 
   while (Buffer[StrLen (Buffer)-1] == L'\r') {
     Buffer[StrLen (Buffer)-1] = CHAR_NULL;
+    if(StrLen (Buffer) == 0)
+      break;
   }
 
   return (Status);
