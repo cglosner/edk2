@@ -393,6 +393,22 @@ DumpCpuContext (
     );
 }
 
+#ifndef uint32_t
+#define uint32_t UINT32
+#endif
+
+#define HYPERCALL_KAFL_RAX_ID           0x01f
+#define HYPERCALL_KAFL_PANIC            8
+
+static void kAFL_hypercall(uint32_t rbx, uint32_t rcx)
+{
+	uint32_t rax = HYPERCALL_KAFL_RAX_ID;
+  asm ("movl %0, %%ecx;" : : "r"(rcx));
+  asm ("movl %0, %%ebx;" : : "r"(rbx));
+  asm ("movl %0, %%eax;" : : "r"(rax));
+  asm ("vmcall");
+}
+
 /**
   Display CPU information.
 
@@ -420,4 +436,5 @@ DumpImageAndCpuContent (
   } else {
     DumpModuleImageInfo (SystemContext.SystemContextIa32->Eip);
   }
+  kAFL_hypercall(HYPERCALL_KAFL_PANIC, 0);
 }
