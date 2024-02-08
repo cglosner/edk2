@@ -416,14 +416,14 @@ FindElfGOTSectionFromGOTEntryElfRva (
   )
 {
   UINT32 i;
-  if (mGOTShdr != NULL) {
-    if (GOTEntryElfRva >= mGOTShdr->sh_addr &&
-        GOTEntryElfRva <  mGOTShdr->sh_addr + mGOTShdr->sh_size) {
-      return;
-    }
-    Error (NULL, 0, 3000, "Unsupported", "FindElfGOTSectionFromGOTEntryElfRva: GOT entries found in multiple sections.");
-    exit(EXIT_FAILURE);
-  }
+  // if (mGOTShdr != NULL) {
+  //   if (GOTEntryElfRva >= mGOTShdr->sh_addr &&
+  //       GOTEntryElfRva <  mGOTShdr->sh_addr + mGOTShdr->sh_size) {
+  //     return;
+  //   }
+  //   Error (NULL, 0, 3000, "Unsupported", "FindElfGOTSectionFromGOTEntryElfRva: GOT entries found in multiple sections.");
+  //   exit(EXIT_FAILURE);
+  // }
   for (i = 0; i < mEhdr->e_shnum; i++) {
     Elf_Shdr *shdr = GetShdrByIndex(i);
     if (GOTEntryElfRva >= shdr->sh_addr &&

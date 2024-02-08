@@ -73,7 +73,15 @@
 !ifdef $(FD_SIZE_4MB)
   DEFINE FD_SIZE_IN_KB           = 4096
 !else
-  DEFINE FD_SIZE_IN_KB           = 4096
+!ifdef $(FD_SIZE_8MB)
+  DEFINE FD_SIZE_IN_KB           = 8192
+!else
+!ifdef $(FD_SIZE_16MB)
+  DEFINE FD_SIZE_IN_KB           = 16384
+!else
+  DEFINE FD_SIZE_IN_KB           = 16384
+!endif
+!endif
 !endif
 !endif
 !endif
@@ -133,7 +141,7 @@
   TimerLib|OvmfPkg/Library/AcpiTimerLib/BaseAcpiTimerLib.inf
   ResetSystemLib|OvmfPkg/Library/ResetSystemLib/BaseResetSystemLib.inf
   PrintLib|MdePkg/Library/BasePrintLib/BasePrintLib.inf
-  BaseMemoryLib|MdePkg/Library/BaseMemoryLibRepStr/BaseMemoryLibRepStr.inf
+  BaseMemoryLib|MdePkg/Library/BaseMemoryLib/BaseMemoryLib.inf
   BaseLib|MdePkg/Library/BaseLib/BaseLib.inf
   SafeIntLib|MdePkg/Library/BaseSafeIntLib/BaseSafeIntLib.inf
   TimeBaseLib|EmbeddedPkg/Library/TimeBaseLib/TimeBaseLib.inf
@@ -334,6 +342,7 @@
 !endif
   CpuExceptionHandlerLib|UefiCpuPkg/Library/CpuExceptionHandlerLib/DxeCpuExceptionHandlerLib.inf
   PcdLib|MdePkg/Library/DxePcdLib/DxePcdLib.inf
+  AsanLib|MdeModulePkg/Library/AsanLib/AsanLib.inf
 
 [LibraryClasses.common.DXE_RUNTIME_DRIVER]
   PcdLib|MdePkg/Library/DxePcdLib/DxePcdLib.inf
@@ -356,6 +365,7 @@
 !if $(SMM_REQUIRE) == TRUE
   MmUnblockMemoryLib|MdePkg/Library/MmUnblockMemoryLib/MmUnblockMemoryLibNull.inf
 !endif
+NULL|MdeModulePkg/Library/AsanRuntimeLib/AsanRuntimeLib.inf
 
 [LibraryClasses.common.UEFI_DRIVER]
   PcdLib|MdePkg/Library/DxePcdLib/DxePcdLib.inf
@@ -372,6 +382,7 @@
 !endif
   UefiScsiLib|MdePkg/Library/UefiScsiLib/UefiScsiLib.inf
   PciLib|OvmfPkg/Library/DxePciLibI440FxQ35/DxePciLibI440FxQ35.inf
+  NULL|MdeModulePkg/Library/AsanLib/AsanLib.inf
 
 [LibraryClasses.common.DXE_DRIVER]
   AcpiPlatformLib|OvmfPkg/Library/AcpiPlatformLib/DxeAcpiPlatformLib.inf
@@ -404,6 +415,7 @@
   NestedInterruptTplLib|OvmfPkg/Library/NestedInterruptTplLib/NestedInterruptTplLib.inf
   QemuFwCfgS3Lib|OvmfPkg/Library/QemuFwCfgS3Lib/DxeQemuFwCfgS3LibFwCfg.inf
   QemuLoadImageLib|OvmfPkg/Library/X86QemuLoadImageLib/X86QemuLoadImageLib.inf
+  NULL|MdeModulePkg/Library/AsanLib/AsanLib.inf
 
 [LibraryClasses.common.UEFI_APPLICATION]
   PcdLib|MdePkg/Library/DxePcdLib/DxePcdLib.inf
@@ -418,6 +430,7 @@
   DebugLib|OvmfPkg/Library/PlatformDebugLibIoPort/PlatformDebugLibIoPort.inf
 !endif
   PciLib|OvmfPkg/Library/DxePciLibI440FxQ35/DxePciLibI440FxQ35.inf
+  NULL|MdeModulePkg/Library/AsanLib/AsanLib.inf
 
 [LibraryClasses.common.DXE_SMM_DRIVER]
   PcdLib|MdePkg/Library/DxePcdLib/DxePcdLib.inf
@@ -441,6 +454,7 @@
   BaseCryptLib|CryptoPkg/Library/BaseCryptLib/SmmCryptLib.inf
   PciLib|OvmfPkg/Library/DxePciLibI440FxQ35/DxePciLibI440FxQ35.inf
   SmmCpuRendezvousLib|UefiCpuPkg/Library/SmmCpuRendezvousLib/SmmCpuRendezvousLib.inf
+  NULL|MdeModulePkg/Library/AsanLib/AsanLib.inf
 
 [LibraryClasses.common.SMM_CORE]
   PcdLib|MdePkg/Library/DxePcdLib/DxePcdLib.inf
@@ -458,6 +472,7 @@
   DebugLib|OvmfPkg/Library/PlatformDebugLibIoPort/PlatformDebugLibIoPort.inf
 !endif
   PciLib|OvmfPkg/Library/DxePciLibI440FxQ35/DxePciLibI440FxQ35.inf
+  AsanLib|MdeModulePkg/Library/AsanLib/AsanLib.inf
 
 ################################################################################
 #
@@ -496,7 +511,7 @@
   gEfiMdeModulePkgTokenSpaceGuid.PcdVariableStoreSize|0xe000
 !endif
 !endif
-!if $(FD_SIZE_IN_KB) == 4096
+!if ($(FD_SIZE_IN_KB) == 4096) || ($(FD_SIZE_IN_KB) == 8192) || ($(FD_SIZE_IN_KB) == 16384)
   gEfiMdeModulePkgTokenSpaceGuid.PcdMaxVariableSize|0x8400
   gEfiMdeModulePkgTokenSpaceGuid.PcdMaxAuthVariableSize|0x8400
 !if $(NETWORK_TLS_ENABLE) == FALSE
@@ -535,7 +550,7 @@
   # DEBUG_VERBOSE   0x00400000  // Detailed debug messages that may
   #                             // significantly impact boot performance
   # DEBUG_ERROR     0x80000000  // Error
-  gEfiMdePkgTokenSpaceGuid.PcdDebugPrintErrorLevel|0x8000004F
+  gEfiMdePkgTokenSpaceGuid.PcdDebugPrintErrorLevel|0x800001CF
 
 !if $(SOURCE_DEBUG_ENABLE) == TRUE
   gEfiMdePkgTokenSpaceGuid.PcdDebugPropertyMask|0x17
@@ -575,7 +590,7 @@
   gEfiShellPkgTokenSpaceGuid.PcdShellFileOperationSize|0x20000
 
 !if $(SMM_REQUIRE) == TRUE
-  gUefiCpuPkgTokenSpaceGuid.PcdCpuSmmStackSize|0x4000
+  gUefiCpuPkgTokenSpaceGuid.PcdCpuSmmStackSize|0x8000
 !endif
 
   # Point to the MdeModulePkg/Application/UiApp/UiApp.inf
@@ -587,6 +602,8 @@
   # broadcast INIT-SIPI-SIPI for the first time.
   #
   gUefiCpuPkgTokenSpaceGuid.PcdFirstTimeWakeUpAPsBySipi|FALSE
+
+  gEfiMdeModulePkgTokenSpaceGuid.PcdImageProtectionPolicy|0x0
 
 ################################################################################
 #

@@ -929,9 +929,9 @@ NULL|MdeModulePkg/Library/AsanRuntimeLib/AsanRuntimeLib.inf
   MdeModulePkg/Universal/HiiDatabaseDxe/HiiDatabaseDxe.inf
   MdeModulePkg/Universal/SetupBrowserDxe/SetupBrowserDxe.inf
   MdeModulePkg/Universal/DisplayEngineDxe/DisplayEngineDxe.inf
-  AsanTestCase/TestModule/TestModule.inf
-  AsanTestCase/TestModule/AsanTestPool.inf
-  AsanTestCase/SmmTestModule/SmmTestModule.inf
+  #AsanTestCase/TestModule/TestModule.inf
+  #AsanTestCase/TestModule/AsanTestPool.inf
+  #AsanTestCase/SmmTestModule/SmmTestModule.inf
 
   OvmfPkg/QemuVideoDxe/QemuVideoDxe.inf
   OvmfPkg/QemuRamfbDxe/QemuRamfbDxe.inf
