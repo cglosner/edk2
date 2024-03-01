@@ -314,22 +314,23 @@ void __asan_report_store_n_noabort(UINTN addr, UINTN size)
   Num2Str64bit ((UINTN)__builtin_return_address(0),NumStr);       \
   SerialOutput (NumStr);                                                  \
   SerialOutput ("\n");                                                    \
-  Num2Str64bit ((UINTN)__builtin_return_address(1),NumStr);       \
-  SerialOutput (NumStr);                                                  \
-  SerialOutput ("\n");                                                    \
-  Num2Str64bit ((UINTN)__builtin_return_address(2),NumStr);       \
-  SerialOutput (NumStr);                                                  \
-  SerialOutput ("\n");                                                    \
-  Num2Str64bit ((UINTN)__builtin_return_address(3),NumStr);       \
-  SerialOutput (NumStr);                                                  \
-  SerialOutput ("\n");                                                    \
-  Num2Str64bit ((UINTN)__builtin_return_address(4),NumStr);       \
-  SerialOutput (NumStr);                                                  \
-  SerialOutput ("\n");                                                    \
-  Num2Str64bit ((UINTN)__builtin_return_address(5),NumStr);       \
-  SerialOutput (NumStr);                                                  \
-  SerialOutput ("\n");                                                    \
 }
+
+// Num2Str64bit ((UINTN)__builtin_return_address(1),NumStr);       \
+//   SerialOutput (NumStr);                                                  \
+//   SerialOutput ("\n");                                                    \
+//   Num2Str64bit ((UINTN)__builtin_return_address(2),NumStr);       \
+//   SerialOutput (NumStr);                                                  \
+//   SerialOutput ("\n");                                                    \
+//   Num2Str64bit ((UINTN)__builtin_return_address(3),NumStr);       \
+//   SerialOutput (NumStr);                                                  \
+//   SerialOutput ("\n");                                                    \
+//   Num2Str64bit ((UINTN)__builtin_return_address(4),NumStr);       \
+//   SerialOutput (NumStr);                                                  \
+//   SerialOutput ("\n");                                                    \
+//   Num2Str64bit ((UINTN)__builtin_return_address(5),NumStr);       \
+//   SerialOutput (NumStr);                                                  \
+//   SerialOutput ("\n");                                                    \
 
 //
 // Note: Using __builtin_return_address(1~n) in below code might cause CPU exception
