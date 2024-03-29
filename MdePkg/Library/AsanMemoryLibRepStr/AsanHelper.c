@@ -33,7 +33,7 @@ static const UINT32 kStackTraceMax = 255;
 #define kAsanIntraObjectRedzone  0xbb
 #define kAsanAllocaLeftMagic  0xca
 #define kAsanAllocaRightMagic  0xcb
-#define SHADOW_OFFSET 0
+#define SHADOW_OFFSET 0x5000000
 
 #define MEM_TO_SHADOW(mem) (((mem) >> SHADOW_SCALE) + (SHADOW_OFFSET))
 #define SHADOW_TO_MEM(shadow) (((shadow) - SHADOW_OFFSET) << SHADOW_SCALE)
@@ -52,9 +52,9 @@ do {                            \
 } while (FALSE)
 
 
-UINT64 mAsanShadowMemoryStart_mem = 0x3E10000;
-UINT64 mAsanShadowMemorySize_mem  = 0x1BF00000;
-UINT64 mAsanShadowMemoryEnd_mem   = 0x1FD10000;
+UINT64 mAsanShadowMemoryStart_mem = 0x5000000;
+UINT64 mAsanShadowMemorySize_mem  = 0x1C000000;
+UINT64 mAsanShadowMemoryEnd_mem   = 0x21000000;
 
 
 UINTN RoundUp(UINTN size, UINTN boundary);
@@ -63,133 +63,6 @@ UINTN RoundDown(UINTN x, UINTN boundary);
 static const UINTN kCurrentStackFrameMagic = 0x41B58AB3;
 static const UINTN kRetiredStackFrameMagic = 0x45E0360E;
 
-
-/*
-
-void ReportError(UINTN addr, BOOLEAN is_write, UINTN access_size, const CHAR8 *file, UINTN line) {
-
-
-  // Determine the error type.
-  const CHAR8 *bug_descr = "unknown-crash";
-  u8 shadow_val = 0;
-  int read_after_free_bonus = 0;
-  BOOLEAN far_from_bounds = FALSE;
-  SerialOut("ReportError\n");
-
-  if (AddrIsInMem(addr)) {
-    u8 *shadow_addr = (u8*)MEM_TO_SHADOW(addr);
-    // If we are accessing 16 bytes, look at the second shadow byte.
-    if (*shadow_addr == 0 && access_size > SHADOW_GRANULARITY)
-      shadow_addr++;
-    // If we are in the partial right redzone, look at the next shadow byte.
-    if (*shadow_addr > 0 && *shadow_addr < 128)
-      shadow_addr++;
-    far_from_bounds = FALSE;
-    shadow_val = *shadow_addr;
-//    int bug_type_score = 0;
-    // For use-after-frees reads are almost as bad as writes.
-    read_after_free_bonus = 0;
-    switch (shadow_val) {
-      case kAsanHeapLeftRedzoneMagic:
-      case kAsanArrayCookieMagic:
-        bug_descr = "heap-buffer-overflow";
-//        bug_type_score = 10;
-        far_from_bounds = AdjacentShadowValuesAreFullyPoisoned(shadow_addr);
-        break;
-      case kAsanHeapFreeMagic:
-        bug_descr = "heap-use-after-free";
-//        bug_type_score = 20;
-        if (!is_write) read_after_free_bonus = 18;
-        break;
-      case kAsanStackLeftRedzoneMagic:
-        bug_descr = "stack-buffer-underflow";
-//        bug_type_score = 25;
-        far_from_bounds = AdjacentShadowValuesAreFullyPoisoned(shadow_addr);
-        break;
-      case kAsanInitializationOrderMagic:
-        bug_descr = "initialization-order-fiasco";
-//        bug_type_score = 1;
-        break;
-      case kAsanStackMidRedzoneMagic:
-      case kAsanStackRightRedzoneMagic:
-        bug_descr = "stack-buffer-overflow";
-//        bug_type_score = 25;
-        far_from_bounds = AdjacentShadowValuesAreFullyPoisoned(shadow_addr);
-        break;
-      case kAsanStackAfterReturnMagic:
-        bug_descr = "stack-use-after-return";
-//        bug_type_score = 30;
-        if (!is_write) read_after_free_bonus = 18;
-        break;
-      case kAsanUserPoisonedMemoryMagic:
-        bug_descr = "use-after-poison";
-//        bug_type_score = 20;
-        break;
-      case kAsanContiguousContainerOOBMagic:
-        bug_descr = "container-overflow";
-//        bug_type_score = 10;
-        break;
-      case kAsanStackUseAfterScopeMagic:
-        bug_descr = "stack-use-after-scope";
-//        bug_type_score = 10;
-        break;
-      case kAsanGlobalRedzoneMagic:
-        bug_descr = "global-buffer-overflow";
-//        bug_type_score = 10;
-        far_from_bounds = AdjacentShadowValuesAreFullyPoisoned(shadow_addr);
-        break;
-      case kAsanIntraObjectRedzone:
-        bug_descr = "intra-object-overflow";
-//        bug_type_score = 10;
-        break;
-      case kAsanAllocaLeftMagic:
-      case kAsanAllocaRightMagic:
-        bug_descr = "dynamic-stack-buffer-overflow";
-//        bug_type_score = 25;
-        far_from_bounds = AdjacentShadowValuesAreFullyPoisoned(shadow_addr);
-        break;
-    }
-  }
-  SerialOut("bug_descr=");
-  SerialOut(bug_descr);
-  SerialOut("\n");
-  SerialOut("far_from_bounds=");
-  SerialOut(far_from_bounds ? "1" : "0");
-  SerialOut("\n");   
-  ASAN_ASSERT(TRUE, file, line);
-  // ReportData report = { pc, sp, bp, addr, (bool)is_write, access_size,
-  //                       bug_descr };
-  // ScopedInErrorReport in_report(&report, fatal);
-
-  // Decorator d;
-  // Printf("%s", d.Warning());
-  // Report("ERROR: AddressSanitizer: %s on address "
-  //            "%p at pc %p bp %p sp %p\n",
-  //            bug_descr, (void*)addr, pc, bp, sp);
-  // Printf("%s", d.EndWarning());
-
-  // GET_STACK_TRACE_FATAL(pc, bp);
-  // stack.Print();
-
-   
-
-  // PrintAddressDescription(addr, access_size, bug_descr);
-  // if (shadow_val == kAsanContiguousContainerOOBMagic)
-    // PrintContainerOverflowHint();
-  // ReportErrorSummary(bug_descr, &stack);
-  // PrintShadowMemoryForAddress(addr);
-}
-
-*/
-
-// #define GET_STACK_TRACE(max_size, fast)                          \
-//   BufferedStackTrace stack;                                      \
-//     stack.Unwind(StackTrace::GetCurrentPc(),                     \
-//                  GET_CURRENT_FRAME(), nullptr, fast, max_size);
-
-
-// #define GET_STACK_TRACE_FATAL_HERE                                \
-//   GET_STACK_TRACE(kStackTraceMax)
 
 
 #  define GET_CURRENT_PC()                \
@@ -209,6 +82,7 @@ void ReportError(UINTN addr, BOOLEAN is_write, UINTN access_size, const CHAR8 *f
   GET_CURRENT_PC_BP;                          \
   UINTN local_stack;                           \
   UINTN sp = (UINTN)&local_stack
+
 
 
 
@@ -330,10 +204,80 @@ static void asan_print_shadow_memory(UINTN address, INTN range_before,
   }
 }
 
+void asan_print_bug(UINTN addr, UINTN size, CHAR8 *file, UINTN line)
+{
+    // Determine the error type.
+  const CHAR8 *bug_descr = "unknown-crash";
+  UINT8 shadow_val = 0;
+  int read_after_free_bonus = 0;
+  BOOLEAN far_from_bounds = FALSE;
+  UINT8 *shadow_addr = (UINT8*)MEM_TO_SHADOW(addr);
+  // If we are accessing 16 bytes, look at the second shadow byte.
+  if (*shadow_addr == 0 && size > SHADOW_GRANULARITY)
+    shadow_addr++;
+  // If we are in the partial right redzone, look at the next shadow byte.
+  if (*shadow_addr > 0 && *shadow_addr < 128)
+    shadow_addr++;
+  far_from_bounds = FALSE;
+  shadow_val = *shadow_addr;
+//    int bug_type_score = 0;
+  // For use-after-frees reads are almost as bad as writes.
+  read_after_free_bonus = 0;
+  switch (shadow_val) {
+    case kAsanHeapLeftRedzoneMagic:
+    case kAsanArrayCookieMagic:
+      bug_descr = "heap-buffer-overflow";
+      break;
+    case kAsanHeapFreeMagic:
+      bug_descr = "heap-use-after-free";
+      break;
+    case kAsanStackLeftRedzoneMagic:
+      bug_descr = "stack-buffer-underflow";
+      break;
+    case kAsanInitializationOrderMagic:
+      bug_descr = "initialization-order-fiasco";
+      break;
+    case kAsanStackMidRedzoneMagic:
+    case kAsanStackRightRedzoneMagic:
+      bug_descr = "stack-buffer-overflow";
+      break;
+    case kAsanStackAfterReturnMagic:
+      bug_descr = "stack-use-after-return";
+      break;
+    case kAsanUserPoisonedMemoryMagic:
+      bug_descr = "use-after-poison";
+      break;
+    case kAsanContiguousContainerOOBMagic:
+      bug_descr = "container-overflow";
+      break;
+    case kAsanStackUseAfterScopeMagic:
+      bug_descr = "stack-use-after-scope";
+      break;
+    case kAsanGlobalRedzoneMagic:
+      bug_descr = "global-buffer-overflow";
+      break;
+    case kAsanIntraObjectRedzone:
+      bug_descr = "intra-object-overflow";
+      break;
+    case kAsanAllocaLeftMagic:
+     case kAsanAllocaRightMagic:
+      bug_descr = "dynamic-stack-buffer-overflow";
+      break;
+    }
+  SerialOut("bug_descr=");
+  SerialOut(bug_descr);
+  SerialOut(" in file: ");
+  SerialOut(file);
+  SerialOut(" at line: ");
+  CHAR8 NumStr[19];
+  NumStr64bit(line, NumStr);
+  SerialOut(NumStr);
+  SerialOut("\n");
+}
 
 void asan_bug_report(UINTN addr, UINTN size,
                       UINTN buggy_shadow_address, UINT8 is_write,
-                      UINTN ip) {
+                      UINTN ip, CHAR8 *file, UINTN line) {
   UINTN buggy_address = SHADOW_TO_MEM(buggy_shadow_address);
   // printf("[ASan] ===================================================\n");
   SerialOut("[ASan] ===================================================\n");
@@ -355,28 +299,23 @@ void asan_bug_report(UINTN addr, UINTN size,
   NumStr64bit(ip, NumStr);
   SerialOut(NumStr);
   SerialOut("\n");
+  asan_print_bug(addr, size, file, line);
 
   asan_print_shadow_memory(buggy_address, 3, 3);
-  ASAN_ASSERT(FALSE);
+  // ASAN_ASSERT(FALSE);
 }
 
-// We implement ACCESS_MEMORY_RANGE, ASAN_READ_RANGE,
-// and ASAN_WRITE_RANGE as macro instead of function so
-// that no extra frames are created, and stack trace contains
-// relevant information only.
-// We check all shadow bytes.
-
 static inline int asan_check_memory(UINTN addr, UINTN size,
-                                     BOOLEAN write, UINTN pc) {
+                                     BOOLEAN write, UINTN pc, CHAR8 *file, UINTN line) {
   int buggy_shadow_address;
   if (size == 0) return 1;
 
-  if (addr < mAsanShadowMemoryStart_mem || addr > mAsanShadowMemoryEnd_mem) return 1;
+  if (addr > mAsanShadowMemoryStart_mem || addr < mAsanShadowMemoryEnd_mem) return 1;
 
   buggy_shadow_address = get_poisoned_shadow_address(addr, size);
   if (buggy_shadow_address == 0) return 1;
 
-  asan_bug_report(addr, size, buggy_shadow_address, write, pc);
+  asan_bug_report(addr, size, buggy_shadow_address, write, pc, file, line);
   return 0;
 }
 
@@ -385,11 +324,13 @@ EFIAPI
 AsanInternalMemCopyMem (
   OUT     VOID        *DestinationBuffer,
   IN      CONST VOID  *SourceBuffer,
-  IN      UINTN       Length
+  IN      UINTN       Length,
+  IN CHAR8  *File,
+  IN UINTN  Line
   )
 {
-  asan_check_memory((UINTN)SourceBuffer, Length, FALSE, GET_CURRENT_PC());
-  asan_check_memory((UINTN)DestinationBuffer, Length, TRUE, GET_CURRENT_PC());
+  asan_check_memory((UINTN)SourceBuffer, Length, FALSE, GET_CURRENT_PC(), File, Line);
+  asan_check_memory((UINTN)DestinationBuffer, Length, TRUE, GET_CURRENT_PC(), File, Line);
   return InternalMemCopyMem(DestinationBuffer, SourceBuffer, Length);
 }
 
@@ -398,21 +339,11 @@ EFIAPI
 AsanInternalMemSetMem (
   OUT     VOID   *Buffer,
   IN      UINTN  Length,
-  IN      UINT8  Value
+  IN      UINT8  Value,
+  IN CHAR8  *File,
+  IN UINTN  Line 
   )
 {
-  // Print off the base address of the buffer
-  // CHAR8 NumStr[19];
-  // SerialOut("Stack: \n");
-  // NumStr64bit((UINT64)__builtin_return_address(0), NumStr);
-  // SerialOut(NumStr);
-  // SerialOut("\n");
-  // NumStr64bit((UINT64)__builtin_return_address(1), NumStr);
-  // SerialOut(NumStr);
-  // SerialOut("\n");
-  // NumStr64bit((UINT64)__builtin_return_address(2), NumStr);
-  // SerialOut(NumStr);
-  // SerialOut("\n");
-  asan_check_memory((UINTN)Buffer, Length, TRUE, GET_CURRENT_PC());
+  asan_check_memory((UINTN)Buffer, Length, TRUE, GET_CURRENT_PC(), File, Line);
   return InternalMemSetMem(Buffer, Length, Value);
 }

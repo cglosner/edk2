@@ -20,7 +20,7 @@
 static const UINT64 kDefaultShadowScale = 3;
 #define SHADOW_SCALE kDefaultShadowScale
 
-UINT64 mShadowOffset = 0;
+UINT64 mShadowOffset = 0x5000000;
 #define SHADOW_OFFSET mShadowOffset
 
 #define MEM_TO_SHADOW(mem) (((mem) >> SHADOW_SCALE) + (SHADOW_OFFSET))
