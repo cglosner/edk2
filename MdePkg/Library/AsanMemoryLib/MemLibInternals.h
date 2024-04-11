@@ -45,7 +45,9 @@ EFIAPI
 AsanInternalMemCopyMem (
   OUT     VOID        *DestinationBuffer,
   IN      CONST VOID  *SourceBuffer,
-  IN      UINTN       Length
+  IN      UINTN       Length,
+  IN      CHAR8       *FileName,
+  IN      UINTN       LineNumber
   );
 
 VOID
@@ -82,7 +84,9 @@ EFIAPI
 AsanInternalMemSetMem (
   OUT     VOID   *Buffer,
   IN      UINTN  Length,
-  IN      UINT8  Value
+  IN      UINT8  Value,
+  IN      CHAR8  *FileName,
+  IN      UINTN  LineNumber
   );
 
 
