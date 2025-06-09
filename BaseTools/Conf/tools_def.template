@@ -2788,7 +2788,8 @@ NOOPT_CLANGSAN_X64_CC_FLAGS         = DEF(NOOPT_CLANG38_X64_CC)
 NOOPT_CLANGSAN_X64_DLINK_FLAGS      = DEF(NOOPT_CLANG38_X64_DLINK)
 NOOPT_CLANGSAN_X64_DLINK2_FLAGS     = DEF(NOOPT_CLANG38_X64_DLINK2)
 
-*_CLANGSAN_X64_SAN_FLAGS            = -fsanitize=address -fno-sanitize-address-use-after-scope -mllvm -asan-stack-dynamic-alloca=0 -mllvm -asan-instrumentation-with-call-threshold=0 -mllvm -asan-force-dynamic-shadow=true -fsanitize=undefined -fno-sanitize=alignment -fsanitize-coverage=trace-pc -Wno-frame-address
+*_CLANGSAN_X64_SAN_FLAGS            = -fsanitize=address -mllvm -asan-globals=1 -mllvm -asan-instrument-dynamic-allocas  -fsanitize=bounds -fstack-protector-strong -O1  -fno-omit-frame-pointer -fsanitize=pointer-overflow -fsanitize=object-size  -fno-sanitize-address-use-after-scope -mllvm -asan-stack-dynamic-alloca=0 -mllvm -asan-instrumentation-with-call-threshold=0 -mllvm -asan-force-dynamic-shadow=true -fsanitize=undefined -fno-sanitize=alignment -Wno-frame-address
+#-mllvm -asan-stack=1  -fno-common -mllvm -asan-globals=1 -mllvm -asan-instrument-dynamic-allocas  -fsanitize=bounds -fstack-protector-strong -O1  -fno-omit-frame-pointer -fsanitize=pointer-overflow -fsanitize=object-size 
 
 ##################
 # CLANG38 ARM definitions

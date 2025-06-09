@@ -25,6 +25,7 @@ SPDX-License-Identifier: BSD-2-Clause-Patent
 #define MEMORY_TYPE_OEM_RESERVED_MIN  0x70000000
 #define MEMORY_TYPE_OEM_RESERVED_MAX  0x7FFFFFFF
 
+#ifdef ASAN_ENABLE
 #define RED_ZONE_INFO_SIGNATURE   SIGNATURE_32('r','z','i','f')
 typedef struct {
   UINT64          Signature;
@@ -32,6 +33,7 @@ typedef struct {
   //UINT64          UserDataSize;
   UINT64          RightRedZoneSize;
 } RED_ZONE_INFO;
+#endif
 
 //
 // MEMORY_MAP_ENTRY
@@ -50,7 +52,9 @@ typedef struct {
   UINT64             VirtualStart;
   UINT64             Attribute;
 
+#ifdef ASAN_ENABLE
   RED_ZONE_INFO   RedZoneInfo;
+#endif
 } MEMORY_MAP;
 
 //

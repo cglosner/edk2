@@ -245,7 +245,9 @@ CoreAddRange (
   mMapStack[mMapDepth].Attribute    = Attribute;
   InsertTailList (&gMemoryMap, &mMapStack[mMapDepth].Link);
 
+#ifdef ASAN_ENABLE
   UnpoisonPages (Start, EFI_SIZE_TO_PAGES(End - Start + 1));
+#endif
 
   mMapDepth += 1;
   ASSERT (mMapDepth < MAX_MAP_DEPTH);

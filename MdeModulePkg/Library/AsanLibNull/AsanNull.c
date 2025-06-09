@@ -123,7 +123,8 @@ void __asan_report_store_n_noabort(UINTN addr, UINTN size)
 {
 
 }
-
+void __stack_chk_fail(void) {
+}
 //
 // Note: Using __builtin_return_address(1~n) in below code might cause CPU exception
 // because the call stack during running don't always have n deep in fact. You can just
@@ -494,6 +495,9 @@ const char *TypeCheckKinds[] = {
     "upcast of", "cast to virtual base of", "_Nonnull binding to"
 };
 
+void __ubsan_handle_invalid_builtin(struct TypeMismatchData *Data, UINTN Pointer) {
+
+}
 
 void __ubsan_handle_type_mismatch(struct TypeMismatchData *Data, UINTN Pointer) {
 

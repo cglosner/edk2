@@ -24,7 +24,24 @@ UINT64 mShadowOffset = 0x5000000;
 #define SHADOW_OFFSET mShadowOffset
 
 #define MEM_TO_SHADOW(mem) (((mem) >> SHADOW_SCALE) + (SHADOW_OFFSET))
+
 #define SHADOW_GRANULARITY (1ULL << SHADOW_SCALE)
+
+#define __cpuid_extended1(value, arg0)                          \
+  unsigned int _a __attribute__((unused)) = 0;                  \
+  unsigned int _b __attribute__((unused)) = 0;                  \
+  unsigned int _c __attribute__((unused)) = 0;                  \
+  unsigned int _d __attribute__((unused)) = 0;                  \
+  __asm__ __volatile__("cpuid\n\t"                              \
+                       : "=a"(_a), "=b"(_b), "=c"(_c), "=d"(_d) \
+                       : "a"(value), "D"(arg0));
+
+// #define HARNESS_ASSERT()
+#define HARNESS_ASSERT()                                   \
+  do {                                                     \
+    unsigned int value = (0x0005U << 0x10U) | 0x4711U; \
+    __cpuid_extended1(value, 0x0000U);               \
+  } while (0);
 
 #define ASAN_ASSERT(Expression)   \
 do {                            \
@@ -49,6 +66,7 @@ static BOOLEAN AsanCtorFlag = FALSE;
 UINT64 mAsanShadowMemoryStart = 0;
 UINT64 mAsanShadowMemorySize = 0;
 UINT64 mAsanShadowMemoryEnd = 0;
+#define SHADOW_TO_MEM(shadow) (((shadow) - SHADOW_OFFSET) << SHADOW_SCALE)
 
 VOID
 SerialOutput(
@@ -80,133 +98,189 @@ Num2Str64bit(
 
 UINTN RoundUpTo(UINTN size, UINTN boundary);
 UINTN RoundDownTo(UINTN x, UINTN boundary);
-/*
-static inline BOOLEAN AddrIsInMem(UINTN a) {
-//  return AddrIsInLowMem(a) || AddrIsInMidMem(a) || AddrIsInHighMem(a);
-  return TRUE;
-}
-*/
 
-
-// static const UINTN kCurrentStackFrameMagic = 0x41B58AB3;
-// static const UINTN kRetiredStackFrameMagic = 0x45E0360E;
-
-/* typedef unsigned char u8;
-static BOOLEAN AdjacentShadowValuesAreFullyPoisoned(u8 *s) {
-  return s[-1] > 127 && s[1] > 127;
-} */
-
-void ReportGenericError(UINTN addr, BOOLEAN is_write, UINTN access_size) {
-/*
-  // Determine the error type.
-  const char *bug_descr = "unknown-crash";
-  u8 shadow_val = 0;
+void asan_print_bug2(UINTN addr, UINTN size, CHAR8 *file, UINTN line)
+{
+    // Determine the error type.
+  const CHAR8 *bug_descr = "unknown-crash";
+  UINT8 shadow_val = 0;
   int read_after_free_bonus = 0;
   BOOLEAN far_from_bounds = FALSE;
-
-  if (AddrIsInMem(addr)) {
-    u8 *shadow_addr = (u8*)MemToShadow(addr);
-    // If we are accessing 16 bytes, look at the second shadow byte.
-    if (*shadow_addr == 0 && access_size > SHADOW_GRANULARITY)
-      shadow_addr++;
-    // If we are in the partial right redzone, look at the next shadow byte.
-    if (*shadow_addr > 0 && *shadow_addr < 128)
-      shadow_addr++;
-    far_from_bounds = FALSE;
-    shadow_val = *shadow_addr;
+  UINT8 *shadow_addr = (UINT8*)MEM_TO_SHADOW(addr);
+  // If we are accessing 16 bytes, look at the second shadow byte.
+  if (*shadow_addr == 0 && size > SHADOW_GRANULARITY)
+    shadow_addr++;
+  // If we are in the partial right redzone, look at the next shadow byte.
+  if (*shadow_addr > 0 && *shadow_addr < 128)
+    shadow_addr++;
+  far_from_bounds = FALSE;
+  shadow_val = *shadow_addr;
 //    int bug_type_score = 0;
-    // For use-after-frees reads are almost as bad as writes.
-    read_after_free_bonus = 0;
-    switch (shadow_val) {
-      case kAsanHeapLeftRedzoneMagic:
-      case kAsanArrayCookieMagic:
-        bug_descr = "heap-buffer-overflow";
-//        bug_type_score = 10;
-        far_from_bounds = AdjacentShadowValuesAreFullyPoisoned(shadow_addr);
-        break;
-      case kAsanHeapFreeMagic:
-        bug_descr = "heap-use-after-free";
-//        bug_type_score = 20;
-        if (!is_write) read_after_free_bonus = 18;
-        break;
-      case kAsanStackLeftRedzoneMagic:
-        bug_descr = "stack-buffer-underflow";
-//        bug_type_score = 25;
-        far_from_bounds = AdjacentShadowValuesAreFullyPoisoned(shadow_addr);
-        break;
-      case kAsanInitializationOrderMagic:
-        bug_descr = "initialization-order-fiasco";
-//        bug_type_score = 1;
-        break;
-      case kAsanStackMidRedzoneMagic:
-      case kAsanStackRightRedzoneMagic:
-        bug_descr = "stack-buffer-overflow";
-//        bug_type_score = 25;
-        far_from_bounds = AdjacentShadowValuesAreFullyPoisoned(shadow_addr);
-        break;
-      case kAsanStackAfterReturnMagic:
-        bug_descr = "stack-use-after-return";
-//        bug_type_score = 30;
-        if (!is_write) read_after_free_bonus = 18;
-        break;
-      case kAsanUserPoisonedMemoryMagic:
-        bug_descr = "use-after-poison";
-//        bug_type_score = 20;
-        break;
-      case kAsanContiguousContainerOOBMagic:
-        bug_descr = "container-overflow";
-//        bug_type_score = 10;
-        break;
-      case kAsanStackUseAfterScopeMagic:
-        bug_descr = "stack-use-after-scope";
-//        bug_type_score = 10;
-        break;
-      case kAsanGlobalRedzoneMagic:
-        bug_descr = "global-buffer-overflow";
-//        bug_type_score = 10;
-        far_from_bounds = AdjacentShadowValuesAreFullyPoisoned(shadow_addr);
-        break;
-      case kAsanIntraObjectRedzone:
-        bug_descr = "intra-object-overflow";
-//        bug_type_score = 10;
-        break;
-      case kAsanAllocaLeftMagic:
-      case kAsanAllocaRightMagic:
-        bug_descr = "dynamic-stack-buffer-overflow";
-//        bug_type_score = 25;
-        far_from_bounds = AdjacentShadowValuesAreFullyPoisoned(shadow_addr);
-        break;
+  // For use-after-frees reads are almost as bad as writes.
+  read_after_free_bonus = 0;
+  switch (shadow_val) {
+    case kAsanHeapLeftRedzoneMagic:
+    case kAsanArrayCookieMagic:
+      bug_descr = "heap-buffer-overflow";
+      break;
+    case kAsanHeapFreeMagic:
+      bug_descr = "heap-use-after-free";
+      break;
+    case kAsanStackLeftRedzoneMagic:
+      bug_descr = "stack-buffer-underflow";
+      break;
+    case kAsanInitializationOrderMagic:
+      bug_descr = "initialization-order-fiasco";
+      break;
+    case kAsanStackMidRedzoneMagic:
+    case kAsanStackRightRedzoneMagic:
+      bug_descr = "stack-buffer-overflow";
+      break;
+    case kAsanStackAfterReturnMagic:
+      bug_descr = "stack-use-after-return";
+      break;
+    case kAsanUserPoisonedMemoryMagic:
+      bug_descr = "use-after-poison";
+      break;
+    case kAsanContiguousContainerOOBMagic:
+      bug_descr = "container-overflow";
+      break;
+    case kAsanStackUseAfterScopeMagic:
+      bug_descr = "stack-use-after-scope";
+      break;
+    case kAsanGlobalRedzoneMagic:
+      bug_descr = "global-buffer-overflow";
+      break;
+    case kAsanIntraObjectRedzone:
+      bug_descr = "intra-object-overflow";
+      break;
+    case kAsanAllocaLeftMagic:
+     case kAsanAllocaRightMagic:
+      bug_descr = "dynamic-stack-buffer-overflow";
+      break;
     }
-  }
-
-  DEBUG ((EFI_D_ERROR, "bug_descr=0x%x\n",bug_descr));
-  DEBUG ((EFI_D_ERROR, "far_from_bounds=0x%x\n",far_from_bounds));
-  DEBUG ((EFI_D_ERROR, "read_after_free_bonus=0x%x\n",read_after_free_bonus));
-   */
-/*
-  ReportData report = { pc, sp, bp, addr, (bool)is_write, access_size,
-                        bug_descr };
-  ScopedInErrorReport in_report(&report, fatal);
-
-  Decorator d;
-  Printf("%s", d.Warning());
-  Report("ERROR: AddressSanitizer: %s on address "
-             "%p at pc %p bp %p sp %p\n",
-             bug_descr, (void*)addr, pc, bp, sp);
-  Printf("%s", d.EndWarning());
-
-  GET_STACK_TRACE_FATAL(pc, bp);
-  stack.Print();
-
-   */
-
-  // PrintAddressDescription(addr, access_size, bug_descr);
-  // if (shadow_val == kAsanContiguousContainerOOBMagic)
-    // PrintContainerOverflowHint();
-  // ReportErrorSummary(bug_descr, &stack);
-  // PrintShadowMemoryForAddress(addr);
+  SerialOutput("bug_descr=");
+  SerialOutput(bug_descr);
+  SerialOutput(" in file: ");
+  SerialOutput(file);
+  SerialOutput(" at line: ");
+  CHAR8 NumStr[19];
+  Num2Str64bit(line, NumStr);
+  SerialOutput(NumStr);
+  SerialOutput("\n");
 }
 
+static void asan_print_16_bytes_no_bug2(CONST CHAR8 *prefix,
+                                        UINTN address) {
+  // printf("%s0x%X:", prefix, address);
+  CHAR8 NumStr[19];
+  SerialOutput(prefix);
+  Num2Str64bit(address, NumStr);
+  SerialOutput(NumStr);
+  SerialOutput(":");
+  
+  for (int i = 0; i < 16; i++) {
+    // printf(" %02X", *(UINT8 *)(address + i));
+    SerialOutput(" ");
+    Num2Str64bit(*(UINT8 *)(address + i), NumStr); 
+    SerialOutput(NumStr);
+  }
+  SerialOutput("\n");
+}
+
+static void asan_print_16_bytes_with_bug2(CONST CHAR8 *prefix,
+                                          UINTN address,
+                                          INTN buggy_offset) {
+  // printf("%s0x%X:", prefix, address);
+  CHAR8 NumStr[19];
+  SerialOutput(prefix);
+  Num2Str64bit(address, NumStr);
+  SerialOutput(NumStr);
+  SerialOutput(":");
+
+  for (int i = 0; i < buggy_offset; i++){
+    // printf(" %02X", *(UINT8 *)(address + i));
+    SerialOutput(" ");
+    Num2Str64bit(*(UINT8 *)(address + i), NumStr);
+    SerialOutput(NumStr);
+  }
+  // printf("[%02X]", *(UINT8 *)(address + buggy_offset));
+  SerialOutput("[");
+  Num2Str64bit(*(UINT8 *)(address + buggy_offset), NumStr);
+  SerialOutput(NumStr);
+  SerialOutput("]");
+  if (buggy_offset < 15){
+    // printf("%02X", *(UINT8 *)(address + buggy_offset + 1));
+    SerialOutput(" ");
+    Num2Str64bit(*(UINT8 *)(address + buggy_offset + 1), NumStr);
+    SerialOutput(NumStr);
+  }
+  for (int i = buggy_offset + 2; i < 16; i++){
+    // printf(" %02X", *(UINT8 *)(address + i));
+    SerialOutput(" ");
+    Num2Str64bit(*(UINT8 *)(address + i), NumStr);
+    SerialOutput(NumStr);
+  }
+  // printf("\n");
+  SerialOutput("\n");
+}
+
+static void asan_print_shadow_memory2(UINTN address, INTN range_before,
+                                      INTN range_after) {
+  UINTN shadow_address = MEM_TO_SHADOW(address);
+  UINTN aligned_shadow = shadow_address & 0xfffffff0;
+  INTN buggy_offset = shadow_address - aligned_shadow;
+
+  // printf("[ASan] Shadow bytes around the buggy address 0x%X (shadow 0x%X):\n", address, shadow_address);
+  CHAR8 NumStr[19];
+  SerialOutput("[ASan] Shadow bytes around the buggy address ");
+  Num2Str64bit(address, NumStr);
+  SerialOutput(NumStr);
+  SerialOutput(" (shadow ");
+  Num2Str64bit(shadow_address, NumStr);
+  SerialOutput(NumStr);
+  SerialOutput("):\n");
+
+  for (INTN i = range_before; i > 0; i--) {
+    asan_print_16_bytes_no_bug2("[ASan]   ", aligned_shadow - i * 16);
+  }
+
+  asan_print_16_bytes_with_bug2("[ASan] =>", aligned_shadow, buggy_offset);
+
+  for (INTN i = 1; i <= range_after; i++) {
+    asan_print_16_bytes_no_bug2("[ASan]   ", aligned_shadow + i * 16);
+  }
+}
+
+void asan_bug_report2(UINTN addr, UINTN size,
+                      UINTN buggy_shadow_address, UINT8 is_write,
+                      UINTN ip, CHAR8 *file, UINTN line) {
+  UINTN buggy_address = SHADOW_TO_MEM(buggy_shadow_address);
+  // printf("[ASan] ===================================================\n");
+  SerialOutput("[ASan] ===================================================\n");
+  // printf(
+  //     "[ASan] ERROR: Invalid memory access: address 0x%X, size 0x%X, is_write "
+  //     "%d, ip 0x%X\n",
+  //     addr, size, is_write, ip);
+  CHAR8 NumStr[19];
+  SerialOutput("[ASan] ERROR: Invalid memory access: address ");
+  Num2Str64bit(addr, NumStr);
+  SerialOutput(NumStr);
+  SerialOutput(", size ");
+  Num2Str64bit(size, NumStr);
+  SerialOutput(NumStr);
+  SerialOutput(", is_write ");
+  Num2Str64bit(is_write, NumStr);
+  SerialOutput(NumStr);
+  SerialOutput(", ip ");
+  Num2Str64bit(ip, NumStr);
+  SerialOutput(NumStr);
+  SerialOutput("\n");
+  asan_print_bug2(addr, size, file, line);
+
+  asan_print_shadow_memory2(buggy_address, 3, 3);
+  // ASAN_ASSERT(FALSE);
+}
 
 // -------------------------- Run-time entry ------------------- {{{1
 // exported functions
@@ -217,7 +291,9 @@ void __asan_report_ ## type ## size(UINTN addr) {                   \
   SerialOutput ("__asan_report_");                     \
   SerialOutput (NumStr);                            \
   SerialOutput (" is called\n");                     \
-  ReportGenericError(addr, is_write, size);                         \
+  UINTN buggy_shadow_address = MEM_TO_SHADOW(addr);                                  \
+  UINTN ip = (UINTN)__builtin_return_address(0);                                     \
+  asan_bug_report2(addr, size, buggy_shadow_address, is_write, ip, __FILE__, __LINE__); \
 }                                                                   \
 
 ASAN_REPORT_ERROR(load, FALSE, 1)
@@ -238,8 +314,10 @@ void __asan_report_ ## type ## _n(UINTN addr, UINTN size) {                 \
   SerialOutput ("__asan_report_");                     \
   SerialOutput (NumStr);                            \
   SerialOutput ("_n is called\n");                     \
-  ReportGenericError(addr, is_write, size);                                 \
-}
+  UINTN buggy_shadow_address = MEM_TO_SHADOW(addr);                                  \
+  UINTN ip = (UINTN)__builtin_return_address(0);                                     \
+  asan_bug_report2(addr, size, buggy_shadow_address, is_write, ip, __FILE__, __LINE__); \
+}  \
 
 ASAN_REPORT_ERROR_N(load, FALSE)
 ASAN_REPORT_ERROR_N(store, TRUE)
@@ -250,16 +328,20 @@ ASAN_REPORT_ERROR_N(store, TRUE)
 void __asan_report_load##size##_noabort(UINTN addr)       \
 {                                                         \
   SerialOutput ("__asan_report_load _noabort");           \
-  ReportGenericError(addr, FALSE, size);                  \
-}                                                         \
+  UINTN buggy_shadow_address = MEM_TO_SHADOW(addr);                                  \
+  UINTN ip = (UINTN)__builtin_return_address(0);                                     \
+  asan_bug_report2(addr, size, buggy_shadow_address, 0, ip, __FILE__, __LINE__); \
+}                                                        
 
 
 #define DEFINE_ASAN_REPORT_STORE_NOABORT(size)                     \
 void __asan_report_store##size##_noabort(UINTN addr) \
 {                                                          \
   SerialOutput ("__asan_report_store _noabort");           \
-  ReportGenericError(addr, TRUE, size);                    \
-}                                                          \
+  UINTN buggy_shadow_address = MEM_TO_SHADOW(addr);                                  \
+  UINTN ip = (UINTN)__builtin_return_address(0);                                     \
+  asan_bug_report2(addr, size, buggy_shadow_address, 1, ip, __FILE__, __LINE__); \
+}                                                   
 
 
 DEFINE_ASAN_REPORT_LOAD_NOABORT(1);
@@ -276,29 +358,35 @@ DEFINE_ASAN_REPORT_STORE_NOABORT(16);
 void __asan_report_load_n_noabort(UINTN addr, UINTN size)
 {
   SerialOutput ("__asan_report_load_n_noabort");
-  ReportGenericError(addr, FALSE, size);
+  UINTN buggy_shadow_address = MEM_TO_SHADOW(addr);                                  \
+  UINTN ip = (UINTN)__builtin_return_address(0);                                     \
+  asan_bug_report2(addr, size, buggy_shadow_address, 0, ip, __FILE__, __LINE__); \
 }
 
 
 void __asan_report_store_n_noabort(UINTN addr, UINTN size)
 {
   SerialOutput ("__asan_report_store_n_noabort");
-  ReportGenericError(addr, TRUE, size);
+  UINTN buggy_shadow_address = MEM_TO_SHADOW(addr);                                  \
+  UINTN ip = (UINTN)__builtin_return_address(0);                                     \
+  asan_bug_report2(addr, size, buggy_shadow_address, 1, ip, __FILE__, __LINE__); \
 }
 
 
 #define SANITIZER_CALLSTACK_DUMP(fun_name)                                \
 {                                                                         \
-  CHAR8 NumStr[19];                                                       \
   SerialOutput2 ("ASAN MEMORY ACCESS check fail! ");                      \
   gSerialOutputSwitch = 1;                                                \
   SerialOutput2 (fun_name);                                               \
   SerialOutput (" is called:\n");                                         \
   SerialOutput ("Return IP address is ");                                 \
-  Num2Str64bit ((UINTN)__builtin_return_address(0),NumStr);       \
-  SerialOutput (NumStr);                                                  \
   SerialOutput ("\n");                                                    \
+  HARNESS_ASSERT();                                                       \
 }
+    // CHAR8 NumStr[19];                                                       \
+  // Num2Str64bit ((UINTN)__builtin_return_address(0),NumStr);       \
+  // SerialOutput (NumStr);                                                  \
+
   // Num2Str64bit ((UINTN)__builtin_return_address(1),NumStr);       \
   // SerialOutput (NumStr);                                                  \
   // SerialOutput ("\n");                                                    \
@@ -382,6 +470,9 @@ void __asan_load##size(UINTN addr)          \
               Num2Str64bit (((addr & (SHADOW_GRANULARITY - 1)) + size - 1), NumStr);  \
               SerialOutput (NumStr);                                                  \
               SerialOutput ("\n\n");                                                  \
+              UINTN buggy_shadow_address = MEM_TO_SHADOW(addr);                                  \
+              UINTN ip = (UINTN)__builtin_return_address(0);                                     \
+              asan_bug_report2(addr, size, buggy_shadow_address, 0, ip, __FILE__, __LINE__); \
         }                                                                             \
       }                                                                               \
     }                                                                                 \
@@ -449,6 +540,9 @@ void __asan_store##size(UINTN addr)         \
               Num2Str64bit (((addr & (SHADOW_GRANULARITY - 1)) + size - 1), NumStr);  \
               SerialOutput (NumStr);                                                  \
               SerialOutput ("\n\n");                                                  \
+              UINTN buggy_shadow_address = MEM_TO_SHADOW(addr);                                  \
+              UINTN ip = (UINTN)__builtin_return_address(0);                                     \
+              asan_bug_report2(addr, size, buggy_shadow_address, 1, ip, __FILE__, __LINE__); \
         }                                                                             \
       }                                                                               \
     }                                                                                 \
@@ -512,6 +606,9 @@ void __asan_load##size##_noabort(UINTN addr)  \
               Num2Str64bit (((addr & (SHADOW_GRANULARITY - 1)) + size - 1), NumStr);  \
               SerialOutput (NumStr);                                                  \
               SerialOutput ("\n\n");                                                  \
+              UINTN buggy_shadow_address = MEM_TO_SHADOW(addr);                                  \
+              UINTN ip = (UINTN)__builtin_return_address(0);                                     \
+              asan_bug_report2(addr, size, buggy_shadow_address, 0, ip, __FILE__, __LINE__); \
         }                                                                             \
       }                                                                               \
     }                                                                                 \
@@ -576,6 +673,9 @@ void __asan_store##size##_noabort(UINTN addr)   \
               Num2Str64bit (((addr & (SHADOW_GRANULARITY - 1)) + size - 1), NumStr);  \
               SerialOutput (NumStr);                                                  \
               SerialOutput ("\n\n");                                                  \
+              UINTN buggy_shadow_address = MEM_TO_SHADOW(addr);                                  \
+              UINTN ip = (UINTN)__builtin_return_address(0);                                     \
+              asan_bug_report2(addr, size, buggy_shadow_address, 1, ip, __FILE__, __LINE__); \
         }                                                                             \
       }                                                                               \
     }                                                                                 \
@@ -725,6 +825,9 @@ void __asan_loadN_noabort(UINTN addr, UINTN size)
     Num2Str64bit (((addr & (SHADOW_GRANULARITY - 1)) + size - 1), NumStr);
     SerialOutput (NumStr);
     SerialOutput ("\n\n");
+    UINTN buggy_shadow_address = MEM_TO_SHADOW(addr);                                  
+    UINTN ip = (UINTN)__builtin_return_address(0);                                     
+    asan_bug_report2(addr, size, buggy_shadow_address, 0, ip, __FILE__, __LINE__); 
   }
 }
 
@@ -775,6 +878,9 @@ void __asan_storeN_noabort(UINTN addr, UINTN size)
     Num2Str64bit (((addr & (SHADOW_GRANULARITY - 1)) + size - 1), NumStr);
     SerialOutput (NumStr);
     SerialOutput ("\n\n");
+    UINTN buggy_shadow_address = MEM_TO_SHADOW(addr);                                  
+    UINTN ip = (UINTN)__builtin_return_address(0);                                     
+    asan_bug_report2(addr, size, buggy_shadow_address, 1, ip, __FILE__, __LINE__); 
   }
 }
 
@@ -825,6 +931,9 @@ void __asan_loadN(UINTN addr, UINTN size)
     Num2Str64bit (((addr & (SHADOW_GRANULARITY - 1)) + size - 1), NumStr);
     SerialOutput (NumStr);
     SerialOutput ("\n\n");
+    UINTN buggy_shadow_address = MEM_TO_SHADOW(addr);                                  
+    UINTN ip = (UINTN)__builtin_return_address(0);                                     
+    asan_bug_report2(addr, size, buggy_shadow_address, 0, ip, __FILE__, __LINE__); 
   }
 }
 
@@ -875,12 +984,15 @@ void __asan_storeN(UINTN addr, UINTN size)
     Num2Str64bit (((addr & (SHADOW_GRANULARITY - 1)) + size - 1), NumStr);
     SerialOutput (NumStr);
     SerialOutput ("\n\n");
+    UINTN buggy_shadow_address = MEM_TO_SHADOW(addr);                                  
+    UINTN ip = (UINTN)__builtin_return_address(0);                                     
+    asan_bug_report2(addr, size, buggy_shadow_address, 1, ip, __FILE__, __LINE__); 
   }
 }
 
 //\llvm\projects\compiler-rt\lib\asan\asan_fake_stack.cc
 // ---------------------- Interface ---------------- {{{1
-int __asan_option_detect_stack_use_after_return = 0;
+int __asan_option_detect_stack_use_after_return = 1;
 UINTN __asan_shadow_memory_dynamic_address = 0x10000000;
 
 UINTN 
@@ -890,6 +1002,7 @@ OnMalloc (
   IN UINTN  AllocationSize
   )
 {
+  // PoisonShadowMemory(ptr, size, /*poison=*/0);
 //  DEBUG ((EFI_D_ERROR, "OnMalloc\n"));
   return 0;
 }
@@ -902,6 +1015,7 @@ OnFree (
   IN UINTN  AllocationSize
   )
 {
+  // PoisonShadowMemory(ptr, AllocationSize, /*poison=*/0xF1);
 //  DEBUG ((EFI_D_ERROR, "OnFree\n"));
 }
 
@@ -924,30 +1038,42 @@ DEFINE_STACK_MALLOC_FREE_WITH_CLASS_ID(7)
 DEFINE_STACK_MALLOC_FREE_WITH_CLASS_ID(8)
 DEFINE_STACK_MALLOC_FREE_WITH_CLASS_ID(9)
 DEFINE_STACK_MALLOC_FREE_WITH_CLASS_ID(10)
+void * Intrinsic_memset (void *dest, char ch, unsigned int count);
 
+
+
+void __stack_chk_fail(void) {
+  SerialOutput2 ("__stack_chk_fail ASAN MEMORY ACCESS check fail! ");
+  gSerialOutputSwitch = 1;
+  CHAR8 NumStr[19];
+  Num2Str64bit ((UINTN)__builtin_return_address(0),NumStr);
+  SerialOutput ("__stack_chk_fail is called, Return IP address is ");
+  SerialOutput (NumStr);
+  SerialOutput ("\n");
+}
 
 void __asan_set_shadow_00(UINTN addr, UINTN size) {
-  //REAL(memset)((void *)addr, 0, size);
+  Intrinsic_memset((void *)addr, 0, size);
 }
 
 void __asan_set_shadow_f1(UINTN addr, UINTN size) {
-  //REAL(memset)((void *)addr, 0xf1, size);
+  Intrinsic_memset((void *)addr, 0xf1, size);
 }
 
 void __asan_set_shadow_f2(UINTN addr, UINTN size) {
-  //REAL(memset)((void *)addr, 0xf2, size);
+  Intrinsic_memset((void *)addr, 0xf2, size);
 }
 
 void __asan_set_shadow_f3(UINTN addr, UINTN size) {
-  //REAL(memset)((void *)addr, 0xf3, size);
+  Intrinsic_memset((void *)addr, 0xf3, size);
 }
 
 void __asan_set_shadow_f5(UINTN addr, UINTN size) {
-  //REAL(memset)((void *)addr, 0xf5, size);
+  Intrinsic_memset((void *)addr, 0xf5, size);
 }
 
 void __asan_set_shadow_f8(UINTN addr, UINTN size) {
-  //REAL(memset)((void *)addr, 0xf8, size);
+  Intrinsic_memset((void *)addr, 0xf8, size);
 }
 
 //
@@ -1000,7 +1126,6 @@ static BOOLEAN AddrIsAlignedByGranularity(UINTN a) {
   return (a & (SHADOW_GRANULARITY - 1)) == 0;
 }
 
-void * Intrinsic_memset (void *dest, char ch, unsigned int count);
 //D:\Project\LLVM\llvm\projects\compiler-rt\lib\asan\asan_poisoning.h
 // Fast versions of PoisonShadow and PoisonShadowPartialRightRedzone that
 // assume that memory addresses are properly aligned. Use in
@@ -1309,11 +1434,11 @@ void __asan_init() {
 }
 
 void __asan_version_mismatch_check_v8() {
-  SerialOutput ("__asan_version_mismatch_check_v8 is called\n");
+  // SerialOutput ("__asan_version_mismatch_check_v8 is called\n");
 }
 
 void __asan_version_mismatch_check_v6() {
-  SerialOutput ("__asan_version_mismatch_check_v6 is called\n");
+  // SerialOutput ("__asan_version_mismatch_check_v6 is called\n");
 }
 
 VOID *
@@ -1391,6 +1516,18 @@ const char *TypeCheckKinds[] = {
     "upcast of", "cast to virtual base of", "_Nonnull binding to"
 };
 
+void __ubsan_handle_invalid_builtin(struct TypeMismatchData *Data, UINTN Pointer) {
+  CHAR8 NumStr[19];
+  SerialOutput (Data->Loc.file_name);
+  SerialOutput (", line:");
+  Num2Str16bit (Data->Loc.line, NumStr);
+  SerialOutput (NumStr);
+  SerialOutput (", column:");
+  Num2Str16bit (Data->Loc.column, NumStr);
+  SerialOutput (NumStr);
+  SerialOutput (" ErrorType = ");
+  SerialOutput ("InvalidBuiltin\n");
+}
 
 void __ubsan_handle_type_mismatch(struct TypeMismatchData *Data, UINTN Pointer) {
   CHAR8 NumStr[19];
@@ -1426,7 +1563,11 @@ void __ubsan_handle_type_mismatch(struct TypeMismatchData *Data, UINTN Pointer) 
     SerialOutput ("InsufficientObjectSize\n");
   }
 
-  SANITIZER_CALLSTACK_DUMP("__ubsan_handle_type_mismatch");
+  // UINTN buggy_shadow_address = MEM_TO_SHADOW(Pointer);                                  
+  // UINTN ip = (UINTN)__builtin_return_address(0);                                     
+  // asan_bug_report2(Pointer, size, buggy_shadow_address, TRUE, ip, Data->Loc.file_name, Data->Loc.line); 
+
+  // SANITIZER_CALLSTACK_DUMP("__ubsan_handle_type_mismatch");
 }
 
 void __ubsan_handle_type_mismatch_v1(struct TypeMismatchData *Data, UINTN Pointer) {
@@ -1463,7 +1604,7 @@ void __ubsan_handle_type_mismatch_v1(struct TypeMismatchData *Data, UINTN Pointe
     SerialOutput ("InsufficientObjectSize\n");
   }
 
-  SANITIZER_CALLSTACK_DUMP("__ubsan_handle_type_mismatch_v1");
+  // SANITIZER_CALLSTACK_DUMP("__ubsan_handle_type_mismatch_v1");
 }
 
 void __ubsan_handle_type_mismatch_v1_abort(UINTN *Data, UINTN Pointer) {
@@ -1649,23 +1790,23 @@ SetupAsanShadowMemory (
   __asan_shadow_memory_dynamic_address = mAsanShadowMemoryStart;
 
 
-  CHAR8 NumStr[19];
-  SerialOutput ("asan_inited = ");
-  Num2Str64bit ( asan_inited , NumStr); 
-  SerialOutput (NumStr);
-  SerialOutput ("\n");
-  SerialOutput ("asan_is_deactivated = ");
-  Num2Str64bit ( asan_is_deactivated , NumStr);
-  SerialOutput (NumStr);
-  SerialOutput ("\n");
-  SerialOutput ("mAsanShadowMemoryStart = ");
-  Num2Str64bit ( mAsanShadowMemoryStart , NumStr);
-  SerialOutput (NumStr);
-  SerialOutput ("\n");
-  SerialOutput ("mAsanShadowMemorySize = ");
-  Num2Str64bit ( mAsanShadowMemorySize , NumStr);
-  SerialOutput (NumStr);
-  SerialOutput ("\n");
+  // CHAR8 NumStr[19];
+  // SerialOutput ("asan_inited = ");
+  // Num2Str64bit ( asan_inited , NumStr); 
+  // SerialOutput (NumStr);
+  // SerialOutput ("\n");
+  // SerialOutput ("asan_is_deactivated = ");
+  // Num2Str64bit ( asan_is_deactivated , NumStr);
+  // SerialOutput (NumStr);
+  // SerialOutput ("\n");
+  // SerialOutput ("mAsanShadowMemoryStart = ");
+  // Num2Str64bit ( mAsanShadowMemoryStart , NumStr);
+  // SerialOutput (NumStr);
+  // SerialOutput ("\n");
+  // SerialOutput ("mAsanShadowMemorySize = ");
+  // Num2Str64bit ( mAsanShadowMemorySize , NumStr);
+  // SerialOutput (NumStr);
+  // SerialOutput ("\n");
 
   if (mAsanShadowMemorySize < 0x800000) { //8M shadow memory at least, map to 64M system memory
     asan_inited = FALSE;
@@ -1686,10 +1827,10 @@ AsanLibConstructor (
   )
 {
   EFI_STATUS                    Status;
-  CHAR8                         NumStr[19];
+  // CHAR8                         NumStr[19];
   int                           size;
-  SerialOutput ("AsanLibConstructor begin\n");
-  SerialOutput ("Get hob of gAsanInfoGuid\n");
+  // SerialOutput ("AsanLibConstructor begin\n");
+  // SerialOutput ("Get hob of gAsanInfoGuid\n");
 
   if (AsanCtorFlag) {
     return RETURN_SUCCESS;//Status;
@@ -1703,25 +1844,25 @@ AsanLibConstructor (
   }
 
   size = __preinit_array_end - __preinit_array_start;
-  SerialOutput ("AsanLibConstructor: preinit function pointers size = ");
-  Num2Str64bit ( size , NumStr);
-  SerialOutput (NumStr);
-  SerialOutput ("\n");
+  // SerialOutput ("AsanLibConstructor: preinit function pointers size = ");
+  // Num2Str64bit ( size , NumStr);
+  // SerialOutput (NumStr);
+  // SerialOutput ("\n");
 
   for (int i = 0; i < size; i++){
     (*__preinit_array_start [i]) (0, 0, 0);
   }
 
   size = __init_array_end - __init_array_start;
-  SerialOutput ("AsanLibConstructor: init function pointers size = ");
-  Num2Str64bit ( size , NumStr);
-  SerialOutput (NumStr);
-  SerialOutput ("\n");
+  // SerialOutput ("AsanLibConstructor: init function pointers size = ");
+  // Num2Str64bit ( size , NumStr);
+  // SerialOutput (NumStr);
+  // SerialOutput ("\n");
 
   for (int i = 0; i < size; i++){
     (*__init_array_start [i]) (0, 0, 0);
   }
 
-  SerialOutput ("AsanLibConstructor done\n");
+  // SerialOutput ("AsanLibConstructor done\n");
   return RETURN_SUCCESS;
 }

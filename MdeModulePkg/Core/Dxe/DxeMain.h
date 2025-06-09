@@ -84,7 +84,9 @@ SPDX-License-Identifier: BSD-2-Clause-Patent
 #include <Library/DxeServicesLib.h>
 #include <Library/DebugAgentLib.h>
 #include <Library/CpuExceptionHandlerLib.h>
+#ifdef ASAN_ENABLE
 #include <Library/Asan.h>
+#endif
 
 //
 // attributes for reserved memory before it is promoted to system memory
