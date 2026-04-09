@@ -252,10 +252,76 @@ static void asan_print_shadow_memory2(UINTN address, INTN range_before,
   }
 }
 
+//
+// Map a shadow magic value to the canonical libASan bug-class string
+// used in "==ERROR: AddressSanitizer:" lines. Kept in sync with
+// asan_print_bug2 above. Returns "unknown-crash" for unknown values
+// instead of NULL so callers can pass the result straight to
+// SerialOutput without a NULL check.
+//
+static CONST CHAR8 *asan_shadow_to_bug_string(UINT8 shadow_val) {
+  switch (shadow_val) {
+    case kAsanHeapLeftRedzoneMagic:
+    case kAsanArrayCookieMagic:
+      return "heap-buffer-overflow";
+    case kAsanHeapFreeMagic:
+      return "heap-use-after-free";
+    case kAsanStackLeftRedzoneMagic:
+      return "stack-buffer-underflow";
+    case kAsanInitializationOrderMagic:
+      return "initialization-order-fiasco";
+    case kAsanStackMidRedzoneMagic:
+    case kAsanStackRightRedzoneMagic:
+      return "stack-buffer-overflow";
+    case kAsanStackAfterReturnMagic:
+      return "stack-use-after-return";
+    case kAsanUserPoisonedMemoryMagic:
+      return "use-after-poison";
+    case kAsanContiguousContainerOOBMagic:
+      return "container-overflow";
+    case kAsanStackUseAfterScopeMagic:
+      return "stack-use-after-scope";
+    case kAsanGlobalRedzoneMagic:
+      return "global-buffer-overflow";
+    case kAsanIntraObjectRedzone:
+      return "intra-object-overflow";
+    case kAsanAllocaLeftMagic:
+    case kAsanAllocaRightMagic:
+      return "dynamic-stack-buffer-overflow";
+  }
+  return "unknown-crash";
+}
+
+//
+// Emit a single line in the format pkg/report/edk2.go on the syzkaller
+// side already understands:
+//
+//   ==ERROR: AddressSanitizer: <bug_class> on address <addr> at pc <ip>
+//
+// This is in addition to (not in place of) the existing [ASan] ...
+// debug output, so any tooling depending on the original simics format
+// keeps working.
+//
+static void asan_emit_syz_report(UINTN addr, UINTN ip, UINT8 shadow_val) {
+  CHAR8 NumStr[19];
+  SerialOutput("==ERROR: AddressSanitizer: ");
+  SerialOutput(asan_shadow_to_bug_string(shadow_val));
+  SerialOutput(" on address ");
+  Num2Str64bit(addr, NumStr);
+  SerialOutput(NumStr);
+  SerialOutput(" at pc ");
+  Num2Str64bit(ip, NumStr);
+  SerialOutput(NumStr);
+  SerialOutput("\n");
+}
+
 void asan_bug_report2(UINTN addr, UINTN size,
                       UINTN buggy_shadow_address, UINT8 is_write,
                       UINTN ip, CHAR8 *file, UINTN line) {
   UINTN buggy_address = SHADOW_TO_MEM(buggy_shadow_address);
+  UINT8 shadow_val = *(UINT8 *)buggy_shadow_address;
+  asan_emit_syz_report(addr, ip, shadow_val);
+
   // printf("[ASan] ===================================================\n");
   SerialOutput("[ASan] ===================================================\n");
   // printf(
