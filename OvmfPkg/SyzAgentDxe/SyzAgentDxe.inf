@@ -59,6 +59,10 @@
   gEfiSimpleTextOutProtocolGuid            ## SOMETIMES_CONSUMES
   gEfiPciIoProtocolGuid                    ## CONSUMES
 
+[Guids]
+  gEfiGlobalVariableGuid                   ## SOMETIMES_CONSUMES
+  gEfiImageSecurityDatabaseGuid            ## SOMETIMES_CONSUMES
+
 [Depex]
   gEfiVariableArchProtocolGuid       AND
   gEfiVariableWriteArchProtocolGuid

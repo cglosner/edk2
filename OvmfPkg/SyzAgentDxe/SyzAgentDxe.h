@@ -59,12 +59,38 @@ typedef enum {
   SyzEdk2ApiFreePages                = 203,
   SyzEdk2ApiLocateProtocol           = 300,
   SyzEdk2ApiLocateHandleBuffer       = 301,
+  SyzEdk2ApiGetNextVariableName      = 103,
+  SyzEdk2ApiCopyMem                  = 204,
+  SyzEdk2ApiSetMem                   = 205,
+  SyzEdk2ApiCalculateCrc32           = 206,
+  SyzEdk2ApiGetTime                  = 230,
+  SyzEdk2ApiSetTime                  = 231,
+  SyzEdk2ApiStall                    = 232,
+  SyzEdk2ApiSetWatchdogTimer         = 233,
+  SyzEdk2ApiGetMonotonicCount        = 234,
+  SyzEdk2ApiCreateEvent              = 250,
+  SyzEdk2ApiCloseEvent               = 251,
+  SyzEdk2ApiSignalEvent              = 252,
+  SyzEdk2ApiRaiseTpl                 = 253,
+  SyzEdk2ApiInstallConfigTable       = 302,
   SyzEdk2ApiHiiNewPackageList        = 400,
   SyzEdk2ApiHiiRemovePackageList     = 401,
   SyzEdk2ApiAsanPoisonAlloc          = 500,
   SyzEdk2ApiAsanUnpoisonAlloc        = 501,
   SyzEdk2ApiAsanReportAlloc          = 502,
 } SYZ_EDK2_API_ID;
+
+//
+// Symbolic variable namespace identifiers. The agent maps each id back
+// to a real EFI_GUID via the gSyzEdk2VariableNamespaceTable lookup.
+//
+typedef enum {
+  SyzEdk2VarNsSyz              = 0,
+  SyzEdk2VarNsGlobal           = 1,
+  SyzEdk2VarNsImageSecurityDb  = 2,
+  SyzEdk2VarNsImageSecurityDbx = 3,
+  SyzEdk2VarNsImageSecurityDbt = 4,
+} SYZ_EDK2_VAR_NS_ID;
 
 //
 // Symbolic protocol identifiers exposed to the fuzzer (avoids dragging
@@ -105,6 +131,7 @@ typedef struct {
   UINT16    NameSize;     ///< bytes of unicode Name (does not include the trailing UINT8 array offset)
   UINT32    Attributes;
   UINT16    DataSize;
+  UINT32    Namespace;    ///< SYZ_EDK2_VAR_NS_ID
   // CHAR16 Name[NameSize / 2];
   // UINT8  Data[DataSize];
 } SYZ_EDK2_SET_VARIABLE_PAYLOAD;
@@ -112,8 +139,17 @@ typedef struct {
 typedef struct {
   UINT16    NameSize;
   UINT16    MaxData;
+  UINT32    Namespace;    ///< SYZ_EDK2_VAR_NS_ID
   // CHAR16 Name[NameSize / 2];
 } SYZ_EDK2_GET_VARIABLE_PAYLOAD;
+
+typedef struct {
+  UINT16    MaxName;
+  UINT8     Reset;
+  UINT8     Pad0;
+  UINT8     Pad1;
+  UINT8     Pad2;
+} SYZ_EDK2_GET_NEXT_VARIABLE_NAME_PAYLOAD;
 
 typedef struct {
   UINT32    Attributes;
@@ -157,6 +193,84 @@ typedef struct {
 } SYZ_EDK2_HII_REMOVE_PACKAGE_LIST_PAYLOAD;
 
 typedef struct {
+  UINT32    DstIndex;
+  UINT32    SrcIndex;
+  UINT32    DstOffset;
+  UINT32    SrcOffset;
+  UINT32    Length;
+} SYZ_EDK2_COPY_MEM_PAYLOAD;
+
+typedef struct {
+  UINT32    AllocIndex;
+  UINT32    Offset;
+  UINT32    Length;
+  UINT8     Value;
+  UINT8     Pad0;
+  UINT8     Pad1;
+  UINT8     Pad2;
+} SYZ_EDK2_SET_MEM_PAYLOAD;
+
+typedef struct {
+  UINT32    AllocIndex;
+  UINT32    Offset;
+  UINT32    Length;
+} SYZ_EDK2_CALC_CRC_PAYLOAD;
+
+typedef struct {
+  UINT64    Cookie;
+} SYZ_EDK2_GET_TIME_PAYLOAD;
+
+//
+// Wire-format EFI_TIME (16 bytes packed). Matches the syzlang
+// edk2_api_set_time struct.
+//
+typedef struct {
+  UINT16    Year;
+  UINT8     Month;
+  UINT8     Day;
+  UINT8     Hour;
+  UINT8     Minute;
+  UINT8     Second;
+  UINT8     Pad0;
+  UINT32    Nanosecond;
+  INT16     TimeZone;
+  UINT8     Daylight;
+  UINT8     Pad1;
+} SYZ_EDK2_SET_TIME_PAYLOAD;
+
+typedef struct {
+  UINT32    Microseconds;
+} SYZ_EDK2_STALL_PAYLOAD;
+
+typedef struct {
+  UINT32    TimeoutSecs;
+  UINT64    Code;
+  UINT32    DataSize;
+} SYZ_EDK2_SET_WATCHDOG_PAYLOAD;
+
+typedef struct {
+  UINT64    Cookie;
+} SYZ_EDK2_MONOTONIC_PAYLOAD;
+
+typedef struct {
+  UINT32    Type;
+  UINT32    Tpl;
+} SYZ_EDK2_CREATE_EVENT_PAYLOAD;
+
+typedef struct {
+  UINT32    EventIndex;
+} SYZ_EDK2_EVENT_INDEX_PAYLOAD;
+
+typedef struct {
+  UINT32    Tpl;
+} SYZ_EDK2_RAISE_TPL_PAYLOAD;
+
+typedef struct {
+  UINT32    GuidId;
+  UINT64    Value;
+} SYZ_EDK2_INSTALL_CONFIG_PAYLOAD;
+
+typedef struct {
   UINT32    AllocIndex;     ///< slot in gSyzEdk2Agent.Allocs
   UINT32    Offset;         ///< byte offset within the allocation
   UINT32    Length;         ///< bytes to poison / unpoison
@@ -182,7 +296,8 @@ typedef enum {
 typedef struct {
   SYZ_EDK2_ALLOC_SLOT_KIND  Kind;
   VOID                      *Pointer;
-  UINTN                     Pages;
+  UINTN                     Pages;  ///< only for SyzEdk2AllocSlotPages
+  UINTN                     Bytes;  ///< exact byte length for both kinds
 } SYZ_EDK2_ALLOC_SLOT;
 
 #define SYZ_EDK2_MAX_HII_HANDLES  16U
@@ -190,6 +305,14 @@ typedef struct {
 typedef struct {
   EFI_HII_HANDLE  Handle;
 } SYZ_EDK2_HII_SLOT;
+
+#define SYZ_EDK2_MAX_EVENTS  16U
+
+typedef struct {
+  EFI_EVENT  Event;
+} SYZ_EDK2_EVENT_SLOT;
+
+#define SYZ_EDK2_MAX_VARNAME  256U
 
 //
 // Per-agent global state.
@@ -200,7 +323,12 @@ typedef struct {
   UINT32                LastSeq;
   SYZ_EDK2_ALLOC_SLOT   Allocs[SYZ_EDK2_MAX_ALLOCS];
   SYZ_EDK2_HII_SLOT     HiiHandles[SYZ_EDK2_MAX_HII_HANDLES];
+  SYZ_EDK2_EVENT_SLOT   Events[SYZ_EDK2_MAX_EVENTS];
   EFI_GUID              SyzEdk2VendorGuid;
+  // Saved iterator for SyzEdk2ApiGetNextVariableName.
+  CHAR16                NextVarName[SYZ_EDK2_MAX_VARNAME / sizeof (CHAR16)];
+  EFI_GUID              NextVarGuid;
+  BOOLEAN               NextVarValid;
 } SYZ_EDK2_AGENT;
 
 extern SYZ_EDK2_AGENT  gSyzEdk2Agent;

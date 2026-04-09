@@ -75,6 +75,35 @@ STATIC CONST SYZ_EDK2_PROTO_ENTRY  mProtocolTable[] = {
   { SyzEdk2ProtoHiiFont,       &gEfiHiiFontProtocolGuid           },
 };
 
+//
+// Symbolic variable namespace -> EFI_GUID lookup. Lets the fuzzer
+// hit the variable store under several well-known GUIDs (including
+// authenticated variable namespaces) without having to send raw GUIDs
+// across the wire.
+//
+STATIC CONST SYZ_EDK2_PROTO_ENTRY  mVariableNamespaceTable[] = {
+  { SyzEdk2VarNsSyz,              &gSyzEdk2Agent.SyzEdk2VendorGuid    },
+  { SyzEdk2VarNsGlobal,           &gEfiGlobalVariableGuid             },
+  { SyzEdk2VarNsImageSecurityDb,  &gEfiImageSecurityDatabaseGuid      },
+  { SyzEdk2VarNsImageSecurityDbx, &gEfiImageSecurityDatabaseGuid      },
+  { SyzEdk2VarNsImageSecurityDbt, &gEfiImageSecurityDatabaseGuid      },
+};
+
+STATIC
+CONST EFI_GUID *
+LookupVariableNamespace (
+  IN UINT32  Id
+  )
+{
+  UINTN  Index;
+  for (Index = 0; Index < ARRAY_SIZE (mVariableNamespaceTable); Index++) {
+    if (mVariableNamespaceTable[Index].Id == Id) {
+      return mVariableNamespaceTable[Index].Guid;
+    }
+  }
+  return &gSyzEdk2Agent.SyzEdk2VendorGuid;
+}
+
 CONST EFI_GUID *
 EFIAPI
 SyzEdk2LookupProtocolGuid (
@@ -96,7 +125,8 @@ SyzEdk2LookupProtocolGuid (
 STATIC
 INTN
 AllocSlotInsertPool (
-  IN VOID  *Pointer
+  IN VOID   *Pointer,
+  IN UINTN  Bytes
   )
 {
   UINTN  Index;
@@ -105,9 +135,11 @@ AllocSlotInsertPool (
       gSyzEdk2Agent.Allocs[Index].Kind    = SyzEdk2AllocSlotPool;
       gSyzEdk2Agent.Allocs[Index].Pointer = Pointer;
       gSyzEdk2Agent.Allocs[Index].Pages   = 0;
+      gSyzEdk2Agent.Allocs[Index].Bytes   = Bytes;
       return (INTN)Index;
     }
   }
+  (VOID)Bytes;
   return -1;
 }
 
@@ -124,6 +156,7 @@ AllocSlotInsertPages (
       gSyzEdk2Agent.Allocs[Index].Kind    = SyzEdk2AllocSlotPages;
       gSyzEdk2Agent.Allocs[Index].Pointer = Pointer;
       gSyzEdk2Agent.Allocs[Index].Pages   = Pages;
+      gSyzEdk2Agent.Allocs[Index].Bytes   = Pages * EFI_PAGE_SIZE;
       return (INTN)Index;
     }
   }
@@ -199,7 +232,7 @@ HandleSetVariable (
 
   Status = gRT->SetVariable (
                   Name,
-                  &gSyzEdk2Agent.SyzEdk2VendorGuid,
+                  (EFI_GUID *)LookupVariableNamespace (P->Namespace),
                   P->Attributes,
                   P->DataSize,
                   Data
@@ -255,7 +288,7 @@ HandleGetVariable (
 
   Status = gRT->GetVariable (
                   Name,
-                  &gSyzEdk2Agent.SyzEdk2VendorGuid,
+                  (EFI_GUID *)LookupVariableNamespace (P->Namespace),
                   &Attributes,
                   &DataSize,
                   Data
@@ -315,7 +348,7 @@ HandleAllocatePool (
                   &Buffer
                   );
   if (!EFI_ERROR (Status) && (Buffer != NULL)) {
-    if (AllocSlotInsertPool (Buffer) < 0) {
+    if (AllocSlotInsertPool (Buffer, (UINTN)P->Size) < 0) {
       gBS->FreePool (Buffer);
     }
   }
@@ -344,6 +377,7 @@ HandleFreePool (
   gBS->FreePool (gSyzEdk2Agent.Allocs[P->AllocIndex].Pointer);
   gSyzEdk2Agent.Allocs[P->AllocIndex].Kind    = SyzEdk2AllocSlotEmpty;
   gSyzEdk2Agent.Allocs[P->AllocIndex].Pointer = NULL;
+  gSyzEdk2Agent.Allocs[P->AllocIndex].Bytes   = 0;
   return EFI_SUCCESS;
 }
 
@@ -402,6 +436,7 @@ HandleFreePages (
   Slot->Kind    = SyzEdk2AllocSlotEmpty;
   Slot->Pointer = NULL;
   Slot->Pages   = 0;
+  Slot->Bytes   = 0;
   return EFI_SUCCESS;
 }
 
@@ -590,16 +625,7 @@ HandleAsanCommon (
   if ((Slot->Kind == SyzEdk2AllocSlotEmpty) || (Slot->Pointer == NULL)) {
     return EFI_NOT_FOUND;
   }
-  if (Slot->Kind == SyzEdk2AllocSlotPages) {
-    AllocBytes = Slot->Pages * EFI_PAGE_SIZE;
-  } else {
-    //
-    // For pool allocations we don't have the size handy. Use the
-    // requested length, capped at a sensible bound, and rely on the
-    // caller having allocated enough room.
-    //
-    AllocBytes = (UINTN)P->Offset + (UINTN)P->Length;
-  }
+  AllocBytes = Slot->Bytes;
 
   if ((UINTN)P->Offset >= AllocBytes) {
     return EFI_INVALID_PARAMETER;
@@ -676,6 +702,439 @@ HandleAsanReport (
   return EFI_SUCCESS;
 }
 
+// ----------------------------------------------------------------------
+// New handlers (added with the grammar expansion in
+// sys/edk2/edk2.txt). All clamp inputs to a sane range and never let
+// the fuzzer hand the firmware raw pointers.
+// ----------------------------------------------------------------------
+
+STATIC
+SYZ_EDK2_ALLOC_SLOT *
+GetAllocSlot (
+  IN UINT32  Index
+  )
+{
+  if (Index >= SYZ_EDK2_MAX_ALLOCS) {
+    return NULL;
+  }
+  if (gSyzEdk2Agent.Allocs[Index].Kind == SyzEdk2AllocSlotEmpty ||
+      gSyzEdk2Agent.Allocs[Index].Pointer == NULL)
+  {
+    return NULL;
+  }
+  return &gSyzEdk2Agent.Allocs[Index];
+}
+
+STATIC
+UINTN
+AllocSlotBytes (
+  IN SYZ_EDK2_ALLOC_SLOT  *Slot
+  )
+{
+  return Slot->Bytes;
+}
+
+STATIC
+EFI_STATUS
+HandleGetNextVariableName (
+  IN CONST UINT8  *Payload,
+  IN UINTN        PayloadSize
+  )
+{
+  CONST SYZ_EDK2_GET_NEXT_VARIABLE_NAME_PAYLOAD  *P;
+  EFI_STATUS                                     Status;
+  UINTN                                          NameSize;
+  CHAR16                                         *Buf;
+
+  if (PayloadSize < sizeof (*P)) {
+    return EFI_INVALID_PARAMETER;
+  }
+  P = (CONST SYZ_EDK2_GET_NEXT_VARIABLE_NAME_PAYLOAD *)Payload;
+
+  if (P->Reset || !gSyzEdk2Agent.NextVarValid) {
+    gSyzEdk2Agent.NextVarName[0] = L'\0';
+    ZeroMem (&gSyzEdk2Agent.NextVarGuid, sizeof (EFI_GUID));
+    gSyzEdk2Agent.NextVarValid = TRUE;
+  }
+
+  NameSize = sizeof (gSyzEdk2Agent.NextVarName);
+  Buf      = gSyzEdk2Agent.NextVarName;
+  Status   = gRT->GetNextVariableName (&NameSize, Buf, &gSyzEdk2Agent.NextVarGuid);
+  if (EFI_ERROR (Status)) {
+    gSyzEdk2Agent.NextVarValid = FALSE;
+  }
+  DEBUG ((DEBUG_VERBOSE, "[SYZ-AGENT] GetNextVariableName -> %r\n", Status));
+  return EFI_SUCCESS;
+}
+
+STATIC
+EFI_STATUS
+HandleCopyMem (
+  IN CONST UINT8  *Payload,
+  IN UINTN        PayloadSize
+  )
+{
+  CONST SYZ_EDK2_COPY_MEM_PAYLOAD  *P;
+  SYZ_EDK2_ALLOC_SLOT              *Dst;
+  SYZ_EDK2_ALLOC_SLOT              *Src;
+  UINTN                            DstBytes;
+  UINTN                            SrcBytes;
+  UINTN                            Length;
+
+  if (PayloadSize < sizeof (*P)) {
+    return EFI_INVALID_PARAMETER;
+  }
+  P   = (CONST SYZ_EDK2_COPY_MEM_PAYLOAD *)Payload;
+  Dst = GetAllocSlot (P->DstIndex);
+  Src = GetAllocSlot (P->SrcIndex);
+  if ((Dst == NULL) || (Src == NULL)) {
+    return EFI_SUCCESS;
+  }
+  DstBytes = AllocSlotBytes (Dst);
+  SrcBytes = AllocSlotBytes (Src);
+  if ((P->DstOffset >= DstBytes) || (P->SrcOffset >= SrcBytes)) {
+    return EFI_SUCCESS;
+  }
+  Length = MIN (
+             (UINTN)P->Length,
+             MIN (DstBytes - P->DstOffset, SrcBytes - P->SrcOffset)
+             );
+  gBS->CopyMem (
+         (UINT8 *)Dst->Pointer + P->DstOffset,
+         (UINT8 *)Src->Pointer + P->SrcOffset,
+         Length
+         );
+  return EFI_SUCCESS;
+}
+
+STATIC
+EFI_STATUS
+HandleSetMem (
+  IN CONST UINT8  *Payload,
+  IN UINTN        PayloadSize
+  )
+{
+  CONST SYZ_EDK2_SET_MEM_PAYLOAD  *P;
+  SYZ_EDK2_ALLOC_SLOT             *Slot;
+  UINTN                           SlotBytes;
+  UINTN                           Length;
+
+  if (PayloadSize < sizeof (*P)) {
+    return EFI_INVALID_PARAMETER;
+  }
+  P    = (CONST SYZ_EDK2_SET_MEM_PAYLOAD *)Payload;
+  Slot = GetAllocSlot (P->AllocIndex);
+  if (Slot == NULL) {
+    return EFI_SUCCESS;
+  }
+  SlotBytes = AllocSlotBytes (Slot);
+  if (P->Offset >= SlotBytes) {
+    return EFI_SUCCESS;
+  }
+  Length = MIN ((UINTN)P->Length, SlotBytes - P->Offset);
+  gBS->SetMem ((UINT8 *)Slot->Pointer + P->Offset, Length, P->Value);
+  return EFI_SUCCESS;
+}
+
+STATIC
+EFI_STATUS
+HandleCalculateCrc32 (
+  IN CONST UINT8  *Payload,
+  IN UINTN        PayloadSize
+  )
+{
+  CONST SYZ_EDK2_CALC_CRC_PAYLOAD  *P;
+  SYZ_EDK2_ALLOC_SLOT              *Slot;
+  UINTN                            SlotBytes;
+  UINTN                            Length;
+  UINT32                           Crc;
+  EFI_STATUS                       Status;
+
+  if (PayloadSize < sizeof (*P)) {
+    return EFI_INVALID_PARAMETER;
+  }
+  P    = (CONST SYZ_EDK2_CALC_CRC_PAYLOAD *)Payload;
+  Slot = GetAllocSlot (P->AllocIndex);
+  if (Slot == NULL) {
+    return EFI_SUCCESS;
+  }
+  SlotBytes = AllocSlotBytes (Slot);
+  if (P->Offset >= SlotBytes) {
+    return EFI_SUCCESS;
+  }
+  Length = MIN ((UINTN)P->Length, SlotBytes - P->Offset);
+  Status = gBS->CalculateCrc32 (
+                  (UINT8 *)Slot->Pointer + P->Offset,
+                  Length,
+                  &Crc
+                  );
+  DEBUG ((DEBUG_VERBOSE, "[SYZ-AGENT] CalculateCrc32 -> %r\n", Status));
+  return EFI_SUCCESS;
+}
+
+STATIC
+EFI_STATUS
+HandleGetTime (
+  IN CONST UINT8  *Payload,
+  IN UINTN        PayloadSize
+  )
+{
+  EFI_TIME             Time;
+  EFI_TIME_CAPABILITIES Caps;
+  EFI_STATUS           Status;
+
+  (VOID)Payload;
+  (VOID)PayloadSize;
+  Status = gRT->GetTime (&Time, &Caps);
+  DEBUG ((DEBUG_VERBOSE, "[SYZ-AGENT] GetTime -> %r\n", Status));
+  return EFI_SUCCESS;
+}
+
+STATIC
+EFI_STATUS
+HandleSetTime (
+  IN CONST UINT8  *Payload,
+  IN UINTN        PayloadSize
+  )
+{
+  CONST SYZ_EDK2_SET_TIME_PAYLOAD  *P;
+  EFI_TIME                         Time;
+  EFI_STATUS                       Status;
+
+  if (PayloadSize < sizeof (*P)) {
+    return EFI_INVALID_PARAMETER;
+  }
+  P             = (CONST SYZ_EDK2_SET_TIME_PAYLOAD *)Payload;
+  ZeroMem (&Time, sizeof (Time));
+  Time.Year       = P->Year;
+  Time.Month      = P->Month;
+  Time.Day        = P->Day;
+  Time.Hour       = P->Hour;
+  Time.Minute     = P->Minute;
+  Time.Second     = P->Second;
+  Time.Nanosecond = P->Nanosecond;
+  Time.TimeZone   = P->TimeZone;
+  Time.Daylight   = P->Daylight;
+  Status = gRT->SetTime (&Time);
+  DEBUG ((DEBUG_VERBOSE, "[SYZ-AGENT] SetTime -> %r\n", Status));
+  return EFI_SUCCESS;
+}
+
+STATIC
+EFI_STATUS
+HandleStall (
+  IN CONST UINT8  *Payload,
+  IN UINTN        PayloadSize
+  )
+{
+  CONST SYZ_EDK2_STALL_PAYLOAD  *P;
+
+  if (PayloadSize < sizeof (*P)) {
+    return EFI_INVALID_PARAMETER;
+  }
+  P = (CONST SYZ_EDK2_STALL_PAYLOAD *)Payload;
+  // Cap at 5 ms so a fuzzer-generated giant stall doesn't lock the
+  // dispatcher for the rest of the campaign.
+  gBS->Stall (MIN (P->Microseconds, 5000));
+  return EFI_SUCCESS;
+}
+
+STATIC
+EFI_STATUS
+HandleSetWatchdogTimer (
+  IN CONST UINT8  *Payload,
+  IN UINTN        PayloadSize
+  )
+{
+  CONST SYZ_EDK2_SET_WATCHDOG_PAYLOAD  *P;
+  EFI_STATUS                           Status;
+
+  if (PayloadSize < sizeof (*P)) {
+    return EFI_INVALID_PARAMETER;
+  }
+  P      = (CONST SYZ_EDK2_SET_WATCHDOG_PAYLOAD *)Payload;
+  Status = gBS->SetWatchdogTimer (
+                  P->TimeoutSecs,
+                  P->Code,
+                  0,
+                  NULL
+                  );
+  DEBUG ((DEBUG_VERBOSE, "[SYZ-AGENT] SetWatchdogTimer -> %r\n", Status));
+  return EFI_SUCCESS;
+}
+
+STATIC
+EFI_STATUS
+HandleGetMonotonicCount (
+  IN CONST UINT8  *Payload,
+  IN UINTN        PayloadSize
+  )
+{
+  UINT64      Count;
+  EFI_STATUS  Status;
+
+  (VOID)Payload;
+  (VOID)PayloadSize;
+  Status = gBS->GetNextMonotonicCount (&Count);
+  DEBUG ((DEBUG_VERBOSE, "[SYZ-AGENT] GetNextMonotonicCount -> %r\n", Status));
+  return EFI_SUCCESS;
+}
+
+STATIC
+VOID
+EFIAPI
+SyzAgentEventCb (
+  IN EFI_EVENT  Event,
+  IN VOID       *Context
+  )
+{
+  // Empty notification — we just need a callback to satisfy
+  // EVT_NOTIFY_SIGNAL / EVT_NOTIFY_WAIT events.
+  (VOID)Event;
+  (VOID)Context;
+}
+
+STATIC
+EFI_STATUS
+HandleCreateEvent (
+  IN CONST UINT8  *Payload,
+  IN UINTN        PayloadSize
+  )
+{
+  CONST SYZ_EDK2_CREATE_EVENT_PAYLOAD  *P;
+  EFI_EVENT                            Event;
+  EFI_STATUS                           Status;
+  UINT32                               Type;
+  EFI_TPL                              Tpl;
+  UINTN                                Index;
+
+  if (PayloadSize < sizeof (*P)) {
+    return EFI_INVALID_PARAMETER;
+  }
+  P    = (CONST SYZ_EDK2_CREATE_EVENT_PAYLOAD *)Payload;
+  Type = P->Type;
+  // The agent only supplies a callback when the event type asks for one.
+  Tpl  = (EFI_TPL)P->Tpl;
+  if (Tpl < TPL_APPLICATION) Tpl = TPL_APPLICATION;
+  if (Tpl > TPL_HIGH_LEVEL)  Tpl = TPL_HIGH_LEVEL;
+
+  if (Type & (EVT_NOTIFY_SIGNAL | EVT_NOTIFY_WAIT)) {
+    Status = gBS->CreateEvent (Type, Tpl, SyzAgentEventCb, NULL, &Event);
+  } else {
+    Status = gBS->CreateEvent (Type, Tpl, NULL, NULL, &Event);
+  }
+  if (EFI_ERROR (Status)) {
+    return EFI_SUCCESS;
+  }
+  for (Index = 0; Index < SYZ_EDK2_MAX_EVENTS; Index++) {
+    if (gSyzEdk2Agent.Events[Index].Event == NULL) {
+      gSyzEdk2Agent.Events[Index].Event = Event;
+      return EFI_SUCCESS;
+    }
+  }
+  // No slot — close so we don't leak.
+  gBS->CloseEvent (Event);
+  return EFI_SUCCESS;
+}
+
+STATIC
+EFI_STATUS
+HandleCloseEvent (
+  IN CONST UINT8  *Payload,
+  IN UINTN        PayloadSize
+  )
+{
+  CONST SYZ_EDK2_EVENT_INDEX_PAYLOAD  *P;
+
+  if (PayloadSize < sizeof (*P)) {
+    return EFI_INVALID_PARAMETER;
+  }
+  P = (CONST SYZ_EDK2_EVENT_INDEX_PAYLOAD *)Payload;
+  if (P->EventIndex >= SYZ_EDK2_MAX_EVENTS) {
+    return EFI_INVALID_PARAMETER;
+  }
+  if (gSyzEdk2Agent.Events[P->EventIndex].Event != NULL) {
+    gBS->CloseEvent (gSyzEdk2Agent.Events[P->EventIndex].Event);
+    gSyzEdk2Agent.Events[P->EventIndex].Event = NULL;
+  }
+  return EFI_SUCCESS;
+}
+
+STATIC
+EFI_STATUS
+HandleSignalEvent (
+  IN CONST UINT8  *Payload,
+  IN UINTN        PayloadSize
+  )
+{
+  CONST SYZ_EDK2_EVENT_INDEX_PAYLOAD  *P;
+
+  if (PayloadSize < sizeof (*P)) {
+    return EFI_INVALID_PARAMETER;
+  }
+  P = (CONST SYZ_EDK2_EVENT_INDEX_PAYLOAD *)Payload;
+  if (P->EventIndex >= SYZ_EDK2_MAX_EVENTS) {
+    return EFI_INVALID_PARAMETER;
+  }
+  if (gSyzEdk2Agent.Events[P->EventIndex].Event != NULL) {
+    gBS->SignalEvent (gSyzEdk2Agent.Events[P->EventIndex].Event);
+  }
+  return EFI_SUCCESS;
+}
+
+STATIC
+EFI_STATUS
+HandleRaiseTpl (
+  IN CONST UINT8  *Payload,
+  IN UINTN        PayloadSize
+  )
+{
+  CONST SYZ_EDK2_RAISE_TPL_PAYLOAD  *P;
+  EFI_TPL                           Tpl;
+  EFI_TPL                           Old;
+
+  if (PayloadSize < sizeof (*P)) {
+    return EFI_INVALID_PARAMETER;
+  }
+  P   = (CONST SYZ_EDK2_RAISE_TPL_PAYLOAD *)Payload;
+  Tpl = (EFI_TPL)P->Tpl;
+  if (Tpl < TPL_APPLICATION || Tpl > TPL_HIGH_LEVEL) {
+    return EFI_INVALID_PARAMETER;
+  }
+  // The dispatcher itself runs at TPL_CALLBACK; gBS->RaiseTPL panics
+  // if asked to lower TPL. Skip if it's not actually a raise.
+  if (Tpl < TPL_CALLBACK) {
+    return EFI_SUCCESS;
+  }
+  Old = gBS->RaiseTPL (Tpl);
+  gBS->RestoreTPL (Old);
+  return EFI_SUCCESS;
+}
+
+STATIC
+EFI_STATUS
+HandleInstallConfigTable (
+  IN CONST UINT8  *Payload,
+  IN UINTN        PayloadSize
+  )
+{
+  CONST SYZ_EDK2_INSTALL_CONFIG_PAYLOAD  *P;
+  CONST EFI_GUID                         *Guid;
+  EFI_STATUS                             Status;
+
+  if (PayloadSize < sizeof (*P)) {
+    return EFI_INVALID_PARAMETER;
+  }
+  P    = (CONST SYZ_EDK2_INSTALL_CONFIG_PAYLOAD *)Payload;
+  Guid = SyzEdk2LookupProtocolGuid (P->GuidId);
+  if (Guid == NULL) {
+    return EFI_SUCCESS;
+  }
+  Status = gBS->InstallConfigurationTable ((EFI_GUID *)Guid, (VOID *)(UINTN)P->Value);
+  DEBUG ((DEBUG_VERBOSE, "[SYZ-AGENT] InstallConfigurationTable -> %r\n", Status));
+  return EFI_SUCCESS;
+}
+
 EFI_STATUS
 EFIAPI
 SyzEdk2Dispatch (
@@ -744,6 +1203,34 @@ SyzEdk2Dispatch (
       HandleHiiNewPackageList (Payload, PayloadSize);
     } else if (Hdr->Call == SyzEdk2ApiHiiRemovePackageList) {
       HandleHiiRemovePackageList (Payload, PayloadSize);
+    } else if (Hdr->Call == SyzEdk2ApiGetNextVariableName) {
+      HandleGetNextVariableName (Payload, PayloadSize);
+    } else if (Hdr->Call == SyzEdk2ApiCopyMem) {
+      HandleCopyMem (Payload, PayloadSize);
+    } else if (Hdr->Call == SyzEdk2ApiSetMem) {
+      HandleSetMem (Payload, PayloadSize);
+    } else if (Hdr->Call == SyzEdk2ApiCalculateCrc32) {
+      HandleCalculateCrc32 (Payload, PayloadSize);
+    } else if (Hdr->Call == SyzEdk2ApiGetTime) {
+      HandleGetTime (Payload, PayloadSize);
+    } else if (Hdr->Call == SyzEdk2ApiSetTime) {
+      HandleSetTime (Payload, PayloadSize);
+    } else if (Hdr->Call == SyzEdk2ApiStall) {
+      HandleStall (Payload, PayloadSize);
+    } else if (Hdr->Call == SyzEdk2ApiSetWatchdogTimer) {
+      HandleSetWatchdogTimer (Payload, PayloadSize);
+    } else if (Hdr->Call == SyzEdk2ApiGetMonotonicCount) {
+      HandleGetMonotonicCount (Payload, PayloadSize);
+    } else if (Hdr->Call == SyzEdk2ApiCreateEvent) {
+      HandleCreateEvent (Payload, PayloadSize);
+    } else if (Hdr->Call == SyzEdk2ApiCloseEvent) {
+      HandleCloseEvent (Payload, PayloadSize);
+    } else if (Hdr->Call == SyzEdk2ApiSignalEvent) {
+      HandleSignalEvent (Payload, PayloadSize);
+    } else if (Hdr->Call == SyzEdk2ApiRaiseTpl) {
+      HandleRaiseTpl (Payload, PayloadSize);
+    } else if (Hdr->Call == SyzEdk2ApiInstallConfigTable) {
+      HandleInstallConfigTable (Payload, PayloadSize);
     } else if (Hdr->Call == SyzEdk2ApiAsanPoisonAlloc) {
       HandleAsanPoison (Payload, PayloadSize);
     } else if (Hdr->Call == SyzEdk2ApiAsanUnpoisonAlloc) {
