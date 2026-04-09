@@ -38,6 +38,7 @@
   DebugLib
   MemoryAllocationLib
   PciLib
+  SyzCoverLib
   UefiBootServicesTableLib
   UefiDriverEntryPoint
   UefiLib

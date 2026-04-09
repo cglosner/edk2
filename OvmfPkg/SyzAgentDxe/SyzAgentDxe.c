@@ -18,6 +18,8 @@
 
 #include "SyzAgentDxe.h"
 
+#include <Library/SyzCoverLib.h>
+
 SYZ_EDK2_AGENT  gSyzEdk2Agent;
 
 //
@@ -69,6 +71,14 @@ SyzAgentDxeEntryPoint (
   gSyzEdk2Agent.SharedSize = SharedSize;
   gSyzEdk2Agent.LastSeq    = 0;
 
+  //
+  // Hand the ivshmem region to SyzCoverLib so the per-edge runtime
+  // hooks (compiled into every instrumented module via the NULL
+  // library injection in OvmfPkgX64.dsc) can start writing PCs into
+  // the coverage ring.
+  //
+  SyzCoverSetShared (SharedBase, SharedSize);
+
   SyzAgentLog ("starting dispatch loop");
 
   for ( ; ;) {
@@ -113,6 +123,7 @@ SyzAgentDxeEntryPoint (
       continue;
     }
 
+    SyzCoverReset ();
     DispatchStatus = SyzEdk2Dispatch (
                        Base + SYZ_EDK2_OFF_CALLS,
                        SYZ_EDK2_MAX_PROGRAM_BYTES

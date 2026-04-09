@@ -1,0 +1,41 @@
+## @file
+#  SyzCoverLib - sanitizer coverage runtime for syzkaller's edk2 target.
+#
+#  Implements __sanitizer_cov_trace_pc_guard{,_init} so OVMF modules
+#  built with -fsanitize-coverage=trace-pc-guard write covered PCs into
+#  the ivshmem region SyzAgentDxe owns. The library is intended to be
+#  injected via the NULL library mechanism into the modules we want to
+#  instrument; the SEC, ResetVector, and PEI Core modules must NOT pull
+#  it in (no DRAM, no shared region yet).
+#
+#  Copyright (c) 2026, syzkaller project authors. All rights reserved.<BR>
+#
+#  SPDX-License-Identifier: BSD-2-Clause-Patent
+##
+
+[Defines]
+  INF_VERSION                    = 0x00010005
+  BASE_NAME                      = SyzCoverLib
+  FILE_GUID                      = 8E2A4D6C-91A4-4DF6-BAB0-2A6F71BB7E80
+  MODULE_TYPE                    = BASE
+  VERSION_STRING                 = 0.1
+  LIBRARY_CLASS                  = SyzCoverLib|DXE_DRIVER DXE_RUNTIME_DRIVER UEFI_DRIVER UEFI_APPLICATION DXE_SMM_DRIVER
+
+[Sources]
+  SyzCoverLib.c
+
+[Packages]
+  MdePkg/MdePkg.dec
+  OvmfPkg/OvmfPkg.dec
+
+[LibraryClasses]
+  BaseLib
+  DebugLib
+
+[BuildOptions]
+  #
+  # The runtime itself must NOT be coverage-instrumented or it will
+  # recurse on the very first call. -fno-sanitize=coverage covers
+  # both clang and recent gcc.
+  #
+  GCC:*_*_*_CC_FLAGS = -fno-sanitize=coverage -fno-sanitize-coverage=trace-pc-guard

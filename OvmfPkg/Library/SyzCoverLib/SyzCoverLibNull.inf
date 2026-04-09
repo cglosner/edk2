@@ -1,0 +1,38 @@
+## @file
+#  SyzCoverLib NULL injection variant.
+#
+#  This .inf is identical in content to SyzCoverLib.inf but declares its
+#  library class as NULL so it can be added to [LibraryClasses.common.*]
+#  blocks in OvmfPkgX64.dsc to auto-inject __sanitizer_cov_trace_pc_guard*
+#  into every instrumented module.
+#
+#  The SyzCoverLib.inf variant is the explicitly-named library that
+#  SyzAgentDxe consumes via its own [LibraryClasses] block to call
+#  SyzCoverSetShared / SyzCoverReset.
+#
+#  Copyright (c) 2026, syzkaller project authors. All rights reserved.<BR>
+#
+#  SPDX-License-Identifier: BSD-2-Clause-Patent
+##
+
+[Defines]
+  INF_VERSION                    = 0x00010005
+  BASE_NAME                      = SyzCoverLibNull
+  FILE_GUID                      = 8E2A4D6C-91A4-4DF6-BAB0-2A6F71BB7E81
+  MODULE_TYPE                    = BASE
+  VERSION_STRING                 = 0.1
+  LIBRARY_CLASS                  = NULL|DXE_DRIVER DXE_RUNTIME_DRIVER UEFI_DRIVER UEFI_APPLICATION DXE_SMM_DRIVER
+
+[Sources]
+  SyzCoverLib.c
+
+[Packages]
+  MdePkg/MdePkg.dec
+  OvmfPkg/OvmfPkg.dec
+
+[LibraryClasses]
+  BaseLib
+  DebugLib
+
+[BuildOptions]
+  GCC:*_*_*_CC_FLAGS = -fno-sanitize=coverage -fno-sanitize-coverage=trace-pc-guard
