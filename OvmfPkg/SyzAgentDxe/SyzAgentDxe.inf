@@ -33,6 +33,7 @@
   OvmfPkg/OvmfPkg.dec
 
 [LibraryClasses]
+  AsanLib
   BaseLib
   BaseMemoryLib
   DebugLib
@@ -44,14 +45,18 @@
   UefiLib
   UefiRuntimeServicesTableLib
 
-#
-# AsanLib is consumed only when the OvmfPkgX64.dsc build is configured
-# with both SYZ_AGENT_ENABLE=TRUE and ASAN_ENABLE=TRUE. The .dsc adds an
-# explicit AsanLib instance and -DSYZ_AGENT_HAS_ASAN_SYZ=1 in that case.
-#
-
 [Protocols]
   gEfiHiiDatabaseProtocolGuid              ## SOMETIMES_CONSUMES
+  gEfiHiiStringProtocolGuid                ## SOMETIMES_CONSUMES
+  gEfiHiiFontProtocolGuid                  ## SOMETIMES_CONSUMES
+  gEfiBlockIoProtocolGuid                  ## SOMETIMES_CONSUMES
+  gEfiDevicePathProtocolGuid               ## SOMETIMES_CONSUMES
+  gEfiDiskIoProtocolGuid                   ## SOMETIMES_CONSUMES
+  gEfiLoadedImageProtocolGuid              ## SOMETIMES_CONSUMES
+  gEfiSerialIoProtocolGuid                 ## SOMETIMES_CONSUMES
+  gEfiSimpleFileSystemProtocolGuid         ## SOMETIMES_CONSUMES
+  gEfiSimpleNetworkProtocolGuid            ## SOMETIMES_CONSUMES
+  gEfiSimpleTextOutProtocolGuid            ## SOMETIMES_CONSUMES
   gEfiPciIoProtocolGuid                    ## CONSUMES
 
 [Depex]

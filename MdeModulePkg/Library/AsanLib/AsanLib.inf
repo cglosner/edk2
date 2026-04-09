@@ -45,6 +45,6 @@
   gAsanInfoGuid
 
 [BuildOptions]
-  GCC:*_*_*_CC_FLAGS = -Wno-frame-address
+  GCC:*_*_*_CC_FLAGS = -Wno-frame-address -Wno-error=unused-but-set-variable -Wno-error=comment
   GCC:*_*_*_SAN_FLAGS == -fno-sanitize=all
 

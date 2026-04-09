@@ -283,6 +283,17 @@
   SmbusLib|MdePkg/Library/BaseSmbusLibNull/BaseSmbusLibNull.inf
   OrderedCollectionLib|MdePkg/Library/BaseOrderedCollectionRedBlackTreeLib/BaseOrderedCollectionRedBlackTreeLib.inf
 
+  #
+  # AsanLib library class. The simics-sanitizer fork's DxeMain.inf
+  # references AsanLib unconditionally; provide the Null instance by
+  # default and let ASAN_ENABLE swap in the real one further down.
+  #
+!if $(ASAN_ENABLE) == TRUE
+  AsanLib|MdeModulePkg/Library/AsanLib/AsanLib.inf
+!else
+  AsanLib|MdeModulePkg/Library/AsanLibNull/AsanLibNull.inf
+!endif
+
 !if $(SYZ_AGENT_ENABLE) == TRUE
   #
   # syzkaller fuzzing build: SyzCoverLib provides the named library
@@ -1078,8 +1089,6 @@
 !if $(SYZ_AGENT_ENABLE) == TRUE
 !if $(ASAN_ENABLE) == TRUE
   OvmfPkg/SyzAgentDxe/SyzAgentDxe.inf {
-    <LibraryClasses>
-      AsanLib|MdeModulePkg/Library/AsanLib/AsanLib.inf
     <BuildOptions>
       GCC:*_*_*_CC_FLAGS = -DSYZ_AGENT_HAS_ASAN_SYZ=1
   }

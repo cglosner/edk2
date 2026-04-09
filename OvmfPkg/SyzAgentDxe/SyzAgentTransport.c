@@ -15,6 +15,7 @@
 
 #include "SyzAgentDxe.h"
 
+#include <IndustryStandard/Pci22.h>
 #include <Protocol/PciIo.h>
 
 #define IVSHMEM_VENDOR_ID  0x1AF4

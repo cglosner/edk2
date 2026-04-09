@@ -680,14 +680,17 @@ EFI_STATUS
 EFIAPI
 SyzEdk2Dispatch (
   IN CONST UINT8  *Program,
-  IN UINTN        ProgramSize
+  IN UINTN        ProgramSize,
+  IN UINT32       NumCalls
   )
 {
   UINTN  Offset;
   UINTN  Index;
+  UINTN  Limit;
 
   Offset = 0;
-  for (Index = 0; Index < SYZ_EDK2_MAX_CALLS; Index++) {
+  Limit  = (NumCalls < SYZ_EDK2_MAX_CALLS) ? NumCalls : SYZ_EDK2_MAX_CALLS;
+  for (Index = 0; Index < Limit; Index++) {
     CONST SYZ_EDK2_CALL_HDR  *Hdr;
     UINTN                    PayloadSize;
     CONST UINT8              *Payload;

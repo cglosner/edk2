@@ -237,7 +237,8 @@ EFI_STATUS
 EFIAPI
 SyzEdk2Dispatch (
   IN CONST UINT8  *Program,
-  IN UINTN        ProgramSize
+  IN UINTN        ProgramSize,
+  IN UINT32       NumCalls
   );
 
 //

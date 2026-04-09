@@ -22,7 +22,8 @@
   LIBRARY_CLASS                  = SyzCoverLib|DXE_DRIVER DXE_RUNTIME_DRIVER UEFI_DRIVER UEFI_APPLICATION DXE_SMM_DRIVER
 
 [Sources]
-  SyzCoverLib.c
+  SyzCoverApi.c
+  SyzCoverShared.h
 
 [Packages]
   MdePkg/MdePkg.dec
@@ -31,11 +32,17 @@
 [LibraryClasses]
   BaseLib
   DebugLib
+  MemoryAllocationLib
+  UefiBootServicesTableLib
 
 [BuildOptions]
   #
   # The runtime itself must NOT be coverage-instrumented or it will
-  # recurse on the very first call. -fno-sanitize=coverage covers
-  # both clang and recent gcc.
+  # recurse on the very first call. The clang/-fsanitize-coverage=...
+  # form below is only meaningful when the OvmfPkgX64.dsc actually
+  # passes that on; we still need to neutralize the SAN_FLAGS that
+  # the simics-sanitizer toolchain in tools_def.template injects into
+  # everything by default, hence the empty SAN_FLAGS override.
   #
-  GCC:*_*_*_CC_FLAGS = -fno-sanitize=coverage -fno-sanitize-coverage=trace-pc-guard
+  GCC:*_*_*_SAN_FLAGS == -fno-sanitize=all
+  GCC:*_CLANG*_*_CC_FLAGS = -fno-sanitize-coverage=trace-pc-guard

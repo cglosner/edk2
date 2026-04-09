@@ -24,7 +24,8 @@
   LIBRARY_CLASS                  = NULL|DXE_DRIVER DXE_RUNTIME_DRIVER UEFI_DRIVER UEFI_APPLICATION DXE_SMM_DRIVER
 
 [Sources]
-  SyzCoverLib.c
+  SyzCoverTrace.c
+  SyzCoverShared.h
 
 [Packages]
   MdePkg/MdePkg.dec
@@ -32,7 +33,10 @@
 
 [LibraryClasses]
   BaseLib
+  BaseMemoryLib
   DebugLib
+  UefiBootServicesTableLib
 
 [BuildOptions]
-  GCC:*_*_*_CC_FLAGS = -fno-sanitize=coverage -fno-sanitize-coverage=trace-pc-guard
+  GCC:*_*_*_SAN_FLAGS == -fno-sanitize=all
+  GCC:*_CLANG*_*_CC_FLAGS = -fno-sanitize-coverage=trace-pc-guard
