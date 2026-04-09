@@ -33,13 +33,11 @@
   ResetSystemLib|Include/Library/ResetSystemLib.h
 
   ##  @libraryclass  AddressSanitizer compiler instrumentation runtime.
+  #                  Consumers should #include <Library/AsanSyz.h> for
+  #                  the syzkaller-facing wrappers and <Library/Asan.h>
+  #                  for the lower-level state. Both headers resolve
+  #                  through the same AsanLib instance.
   AsanLib|Include/Library/Asan.h
-
-  ##  @libraryclass  syzkaller-facing wrappers around the EDK2
-  #                  AddressSanitizer port. SyzAgentDxe and other
-  #                  fuzzing-time consumers should prefer this header
-  #                  over reaching directly into Library/Asan.h.
-  AsanSyz|Include/Library/AsanSyz.h
 
   ##  @libraryclass  Business logic for storing and testing variable policies
   VariablePolicyLib|Include/Library/VariablePolicyLib.h

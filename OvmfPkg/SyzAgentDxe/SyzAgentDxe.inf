@@ -44,6 +44,12 @@
   UefiLib
   UefiRuntimeServicesTableLib
 
+#
+# AsanLib is consumed only when the OvmfPkgX64.dsc build is configured
+# with both SYZ_AGENT_ENABLE=TRUE and ASAN_ENABLE=TRUE. The .dsc adds an
+# explicit AsanLib instance and -DSYZ_AGENT_HAS_ASAN_SYZ=1 in that case.
+#
+
 [Protocols]
   gEfiHiiDatabaseProtocolGuid              ## SOMETIMES_CONSUMES
   gEfiPciIoProtocolGuid                    ## CONSUMES

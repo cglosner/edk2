@@ -1076,7 +1076,16 @@
   OvmfPkg/IoMmuDxe/IoMmuDxe.inf
 
 !if $(SYZ_AGENT_ENABLE) == TRUE
+!if $(ASAN_ENABLE) == TRUE
+  OvmfPkg/SyzAgentDxe/SyzAgentDxe.inf {
+    <LibraryClasses>
+      AsanLib|MdeModulePkg/Library/AsanLib/AsanLib.inf
+    <BuildOptions>
+      GCC:*_*_*_CC_FLAGS = -DSYZ_AGENT_HAS_ASAN_SYZ=1
+  }
+!else
   OvmfPkg/SyzAgentDxe/SyzAgentDxe.inf
+!endif
 !endif
 
   OvmfPkg/TdxDxe/TdxDxe.inf

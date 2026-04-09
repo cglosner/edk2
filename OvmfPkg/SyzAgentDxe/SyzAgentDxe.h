@@ -61,6 +61,9 @@ typedef enum {
   SyzEdk2ApiLocateHandleBuffer       = 301,
   SyzEdk2ApiHiiNewPackageList        = 400,
   SyzEdk2ApiHiiRemovePackageList     = 401,
+  SyzEdk2ApiAsanPoisonAlloc          = 500,
+  SyzEdk2ApiAsanUnpoisonAlloc        = 501,
+  SyzEdk2ApiAsanReportAlloc          = 502,
 } SYZ_EDK2_API_ID;
 
 //
@@ -152,6 +155,14 @@ typedef struct {
 typedef struct {
   UINT32    HandleIndex;
 } SYZ_EDK2_HII_REMOVE_PACKAGE_LIST_PAYLOAD;
+
+typedef struct {
+  UINT32    AllocIndex;     ///< slot in gSyzEdk2Agent.Allocs
+  UINT32    Offset;         ///< byte offset within the allocation
+  UINT32    Length;         ///< bytes to poison / unpoison
+  UINT8     IsWrite;        ///< only used by AsanReportAlloc
+  UINT8     Pad[3];
+} SYZ_EDK2_ASAN_PAYLOAD;
 
 #pragma pack ()
 

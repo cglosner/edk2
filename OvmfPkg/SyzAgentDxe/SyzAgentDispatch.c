@@ -25,6 +25,35 @@
 #include <Protocol/HiiDatabase.h>
 
 //
+// AsanSyz integration is optional: if MdeModulePkg/Library/AsanLib/AsanSyz.h
+// is not on the include path (the build hasn't enabled ASAN_ENABLE),
+// the SyzEdk2ApiAsan* commands fall back to no-ops.
+//
+#if defined (SYZ_AGENT_HAS_ASAN_SYZ)
+  #include <Library/AsanSyz.h>
+#else
+STATIC BOOLEAN  AsanSyzReady (VOID) {
+  return FALSE;
+}
+
+STATIC VOID  AsanSyzPoison (UINTN  Addr, UINTN  Length) {
+  (VOID)Addr;
+  (VOID)Length;
+}
+
+STATIC VOID  AsanSyzUnpoison (UINTN  Addr, UINTN  Length) {
+  (VOID)Addr;
+  (VOID)Length;
+}
+
+STATIC VOID  AsanSyzReport (UINTN  Addr, UINTN  Size, UINT8  IsWrite) {
+  (VOID)Addr;
+  (VOID)Size;
+  (VOID)IsWrite;
+}
+#endif
+
+//
 // Static lookup table mapping SYZ_EDK2_PROTO_ID to gEfi*Guid pointers.
 //
 typedef struct {
@@ -528,6 +557,125 @@ HandleHiiRemovePackageList (
   return EFI_SUCCESS;
 }
 
+//
+// AsanSyz handlers: each one looks up the allocation slot the fuzzer
+// targets, clamps Offset+Length to the allocation extent, and forwards
+// to the AsanSyz facade. We never let the fuzzer poison arbitrary
+// addresses; only memory we hand it from a previous AllocatePool /
+// AllocatePages call.
+//
+
+STATIC
+EFI_STATUS
+HandleAsanCommon (
+  IN CONST UINT8  *Payload,
+  IN UINTN        PayloadSize,
+  OUT UINTN       *Addr,
+  OUT UINTN       *Length,
+  OUT UINT8       *IsWrite
+  )
+{
+  CONST SYZ_EDK2_ASAN_PAYLOAD  *P;
+  SYZ_EDK2_ALLOC_SLOT          *Slot;
+  UINTN                        AllocBytes;
+
+  if (PayloadSize < sizeof (*P)) {
+    return EFI_INVALID_PARAMETER;
+  }
+  P = (CONST SYZ_EDK2_ASAN_PAYLOAD *)Payload;
+  if (P->AllocIndex >= SYZ_EDK2_MAX_ALLOCS) {
+    return EFI_INVALID_PARAMETER;
+  }
+  Slot = &gSyzEdk2Agent.Allocs[P->AllocIndex];
+  if ((Slot->Kind == SyzEdk2AllocSlotEmpty) || (Slot->Pointer == NULL)) {
+    return EFI_NOT_FOUND;
+  }
+  if (Slot->Kind == SyzEdk2AllocSlotPages) {
+    AllocBytes = Slot->Pages * EFI_PAGE_SIZE;
+  } else {
+    //
+    // For pool allocations we don't have the size handy. Use the
+    // requested length, capped at a sensible bound, and rely on the
+    // caller having allocated enough room.
+    //
+    AllocBytes = (UINTN)P->Offset + (UINTN)P->Length;
+  }
+
+  if ((UINTN)P->Offset >= AllocBytes) {
+    return EFI_INVALID_PARAMETER;
+  }
+  *Addr   = (UINTN)Slot->Pointer + (UINTN)P->Offset;
+  *Length = MIN ((UINTN)P->Length, AllocBytes - (UINTN)P->Offset);
+  *IsWrite = P->IsWrite;
+  return EFI_SUCCESS;
+}
+
+STATIC
+EFI_STATUS
+HandleAsanPoison (
+  IN CONST UINT8  *Payload,
+  IN UINTN        PayloadSize
+  )
+{
+  UINTN       Addr;
+  UINTN       Length;
+  UINT8       IsWrite;
+  EFI_STATUS  Status;
+
+  Status = HandleAsanCommon (Payload, PayloadSize, &Addr, &Length, &IsWrite);
+  if (EFI_ERROR (Status)) {
+    return EFI_SUCCESS;
+  }
+  if (AsanSyzReady ()) {
+    AsanSyzPoison (Addr, Length);
+  }
+  return EFI_SUCCESS;
+}
+
+STATIC
+EFI_STATUS
+HandleAsanUnpoison (
+  IN CONST UINT8  *Payload,
+  IN UINTN        PayloadSize
+  )
+{
+  UINTN       Addr;
+  UINTN       Length;
+  UINT8       IsWrite;
+  EFI_STATUS  Status;
+
+  Status = HandleAsanCommon (Payload, PayloadSize, &Addr, &Length, &IsWrite);
+  if (EFI_ERROR (Status)) {
+    return EFI_SUCCESS;
+  }
+  if (AsanSyzReady ()) {
+    AsanSyzUnpoison (Addr, Length);
+  }
+  return EFI_SUCCESS;
+}
+
+STATIC
+EFI_STATUS
+HandleAsanReport (
+  IN CONST UINT8  *Payload,
+  IN UINTN        PayloadSize
+  )
+{
+  UINTN       Addr;
+  UINTN       Length;
+  UINT8       IsWrite;
+  EFI_STATUS  Status;
+
+  Status = HandleAsanCommon (Payload, PayloadSize, &Addr, &Length, &IsWrite);
+  if (EFI_ERROR (Status)) {
+    return EFI_SUCCESS;
+  }
+  if (AsanSyzReady ()) {
+    AsanSyzReport (Addr, Length, IsWrite);
+  }
+  return EFI_SUCCESS;
+}
+
 EFI_STATUS
 EFIAPI
 SyzEdk2Dispatch (
@@ -593,6 +741,12 @@ SyzEdk2Dispatch (
       HandleHiiNewPackageList (Payload, PayloadSize);
     } else if (Hdr->Call == SyzEdk2ApiHiiRemovePackageList) {
       HandleHiiRemovePackageList (Payload, PayloadSize);
+    } else if (Hdr->Call == SyzEdk2ApiAsanPoisonAlloc) {
+      HandleAsanPoison (Payload, PayloadSize);
+    } else if (Hdr->Call == SyzEdk2ApiAsanUnpoisonAlloc) {
+      HandleAsanUnpoison (Payload, PayloadSize);
+    } else if (Hdr->Call == SyzEdk2ApiAsanReportAlloc) {
+      HandleAsanReport (Payload, PayloadSize);
     } else {
       DEBUG ((DEBUG_VERBOSE, "[SYZ-AGENT] unknown call %u\n", (UINTN)Hdr->Call));
     }
