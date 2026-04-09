@@ -38,11 +38,7 @@
 [BuildOptions]
   #
   # The runtime itself must NOT be coverage-instrumented or it will
-  # recurse on the very first call. The clang/-fsanitize-coverage=...
-  # form below is only meaningful when the OvmfPkgX64.dsc actually
-  # passes that on; we still need to neutralize the SAN_FLAGS that
-  # the simics-sanitizer toolchain in tools_def.template injects into
-  # everything by default, hence the empty SAN_FLAGS override.
+  # recurse on the very first call.
   #
   GCC:*_*_*_SAN_FLAGS == -fno-sanitize=all
-  GCC:*_CLANG*_*_CC_FLAGS = -fno-sanitize-coverage=trace-pc-guard
+  GCC:*_*_*_CC_FLAGS  = -fno-sanitize-coverage=trace-pc

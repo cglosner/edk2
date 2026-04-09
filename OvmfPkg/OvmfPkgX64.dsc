@@ -98,6 +98,29 @@
   GCC:RELEASE_*_*_CC_FLAGS             = -DMDEPKG_NDEBUG
   INTEL:RELEASE_*_*_CC_FLAGS           = /D MDEPKG_NDEBUG
   MSFT:RELEASE_*_*_CC_FLAGS            = /D MDEPKG_NDEBUG
+
+!if $(SYZ_AGENT_ENABLE) == TRUE
+  #
+  # Enable gcc -fsanitize-coverage=trace-pc on every DXE-and-later
+  # module (where DRAM and the SyzCoverLib runtime are available).
+  # SEC/PEI modules run before DRAM init / before the
+  # SyzCoverLibNull NULL injection has any effect, so we leave them
+  # uninstrumented. The SyzCoverLib runtime itself overrides this
+  # via its own BuildOptions to avoid recursion.
+  #
+  GCC:*_*_*_CC_FLAGS                   = -DSYZ_AGENT_ENABLE=1
+
+[BuildOptions.common.EDKII.DXE_DRIVER]
+  GCC:*_*_*_CC_FLAGS = -fsanitize-coverage=trace-pc
+[BuildOptions.common.EDKII.DXE_RUNTIME_DRIVER]
+  GCC:*_*_*_CC_FLAGS = -fsanitize-coverage=trace-pc
+[BuildOptions.common.EDKII.UEFI_DRIVER]
+  GCC:*_*_*_CC_FLAGS = -fsanitize-coverage=trace-pc
+[BuildOptions.common.EDKII.DXE_CORE]
+  GCC:*_*_*_CC_FLAGS = -fsanitize-coverage=trace-pc
+
+[BuildOptions]
+!endif
 !if $(TOOL_CHAIN_TAG) != "XCODE5" && $(TOOL_CHAIN_TAG) != "CLANGPDB"
   GCC:*_*_*_CC_FLAGS                   = -mno-mmx -mno-sse
 !endif
@@ -446,6 +469,9 @@
 !endif
   UefiScsiLib|MdePkg/Library/UefiScsiLib/UefiScsiLib.inf
   PciLib|OvmfPkg/Library/DxePciLibI440FxQ35/DxePciLibI440FxQ35.inf
+!if $(SYZ_AGENT_ENABLE) == TRUE
+  NULL|OvmfPkg/Library/SyzCoverLib/SyzCoverLibNull.inf
+!endif
 
 [LibraryClasses.common.DXE_DRIVER]
   PcdLib|MdePkg/Library/DxePcdLib/DxePcdLib.inf
@@ -1090,10 +1116,13 @@
 !if $(ASAN_ENABLE) == TRUE
   OvmfPkg/SyzAgentDxe/SyzAgentDxe.inf {
     <BuildOptions>
-      GCC:*_*_*_CC_FLAGS = -DSYZ_AGENT_HAS_ASAN_SYZ=1
+      GCC:*_*_*_CC_FLAGS = -DSYZ_AGENT_HAS_ASAN_SYZ=1 -fno-sanitize-coverage=trace-pc
   }
 !else
-  OvmfPkg/SyzAgentDxe/SyzAgentDxe.inf
+  OvmfPkg/SyzAgentDxe/SyzAgentDxe.inf {
+    <BuildOptions>
+      GCC:*_*_*_CC_FLAGS = -fno-sanitize-coverage=trace-pc
+  }
 !endif
 !endif
 

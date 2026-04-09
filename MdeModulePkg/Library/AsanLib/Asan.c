@@ -1811,6 +1811,10 @@ void __ubsan_handle_float_cast_overflow(UINTN *Data, UINTN From) {
   // return needed_size;
 // }
 
+// Marked weak so OvmfPkg/Library/SyzCoverLib (which provides a real
+// implementation that writes PCs into the syzkaller ivshmem region)
+// can override us when SYZ_AGENT_ENABLE=TRUE.
+__attribute__((weak))
 void __sanitizer_cov_trace_pc(void)
 {
 

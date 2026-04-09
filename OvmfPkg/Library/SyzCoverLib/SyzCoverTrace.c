@@ -120,3 +120,41 @@ __sanitizer_cov_trace_pc_guard (
   Pc         = (UINTN)RETURN_ADDRESS (0);
   Slots[Pos] = (UINT64)Pc;
 }
+
+//
+// Plain __sanitizer_cov_trace_pc — emitted by gcc's
+// -fsanitize-coverage=trace-pc (no guard array). Same body as the
+// guard variant minus the guard maintenance.
+//
+SYZ_COVER_NOTRACE
+VOID
+EFIAPI
+__sanitizer_cov_trace_pc (
+  VOID
+  )
+{
+  volatile UINT8  *Base;
+  volatile UINT32 *Counter;
+  UINT64          *Slots;
+  UINT32          Pos;
+  UINTN           Pc;
+
+  if (mCoverBase == NULL) {
+    SyzCoverResolveBase ();
+    if (mCoverBase == NULL) {
+      return;
+    }
+  }
+  Base = mCoverBase;
+
+  Counter = (volatile UINT32 *)(Base + SYZ_EDK2_OFF_COVER);
+  Pos     = *Counter;
+  if (Pos >= SYZ_COVER_MAX_PCS) {
+    return;
+  }
+  *Counter = Pos + 1;
+
+  Slots      = (UINT64 *)(Base + SYZ_EDK2_OFF_COVER + sizeof (UINT32));
+  Pc         = (UINTN)RETURN_ADDRESS (0);
+  Slots[Pos] = (UINT64)Pc;
+}

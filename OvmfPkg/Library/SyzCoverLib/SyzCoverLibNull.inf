@@ -39,4 +39,4 @@
 
 [BuildOptions]
   GCC:*_*_*_SAN_FLAGS == -fno-sanitize=all
-  GCC:*_CLANG*_*_CC_FLAGS = -fno-sanitize-coverage=trace-pc-guard
+  GCC:*_*_*_CC_FLAGS  = -fno-sanitize-coverage=trace-pc
