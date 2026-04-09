@@ -28,8 +28,8 @@
 #
 
 [Sources]
-  AsanNull.c
-  SerialDebug.c
+  AsanApiNull.c
+  AsanSyzNull.c
 
 [Packages]
   MdePkg/MdePkg.dec

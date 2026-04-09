@@ -1118,27 +1118,48 @@ void __stack_chk_fail(void) {
   SerialOutput ("\n");
 }
 
+//
+// Compiler-emitted helpers for stack-frame redzone poisoning. addr is
+// already a shadow address. Bail out if no shadow region is mapped or
+// if the address falls outside it.
+//
+static BOOLEAN AsanShadowRangeOk(UINTN addr, UINTN size) {
+  if (asan_is_deactivated || mAsanShadowMemorySize == 0) {
+    return FALSE;
+  }
+  if (addr < mAsanShadowMemoryStart || addr + size > mAsanShadowMemoryEnd + 1) {
+    return FALSE;
+  }
+  return TRUE;
+}
+
 void __asan_set_shadow_00(UINTN addr, UINTN size) {
+  if (!AsanShadowRangeOk(addr, size)) return;
   Intrinsic_memset((void *)addr, 0, size);
 }
 
 void __asan_set_shadow_f1(UINTN addr, UINTN size) {
+  if (!AsanShadowRangeOk(addr, size)) return;
   Intrinsic_memset((void *)addr, 0xf1, size);
 }
 
 void __asan_set_shadow_f2(UINTN addr, UINTN size) {
+  if (!AsanShadowRangeOk(addr, size)) return;
   Intrinsic_memset((void *)addr, 0xf2, size);
 }
 
 void __asan_set_shadow_f3(UINTN addr, UINTN size) {
+  if (!AsanShadowRangeOk(addr, size)) return;
   Intrinsic_memset((void *)addr, 0xf3, size);
 }
 
 void __asan_set_shadow_f5(UINTN addr, UINTN size) {
+  if (!AsanShadowRangeOk(addr, size)) return;
   Intrinsic_memset((void *)addr, 0xf5, size);
 }
 
 void __asan_set_shadow_f8(UINTN addr, UINTN size) {
+  if (!AsanShadowRangeOk(addr, size)) return;
   Intrinsic_memset((void *)addr, 0xf8, size);
 }
 
@@ -1196,20 +1217,42 @@ static BOOLEAN AddrIsAlignedByGranularity(UINTN a) {
 // Fast versions of PoisonShadow and PoisonShadowPartialRightRedzone that
 // assume that memory addresses are properly aligned. Use in
 // performance-critical code with care.
-void 
+void
 FastPoisonShadow(
-  UINTN aligned_beg, 
+  UINTN aligned_beg,
   UINTN aligned_size,
   UINT8 value
-  ) 
+  )
 {
   //SerialOutput ("FastPoisonShadow begin\n");
+  //
+  // If no shadow memory is mapped (ASan deactivated because the
+  // gAsanInfoGuid HOB wasn't produced), do nothing. Otherwise the
+  // compiler-emitted module ctors that call __asan_register_globals
+  // would scribble on whatever happens to live at
+  // (addr >> 3) + mShadowOffset (default 0x5000000), which corrupts
+  // arbitrary DXE memory and breaks unrelated drivers (the SyzAgent
+  // dispatch timer in particular).
+  //
+  if (asan_is_deactivated || mAsanShadowMemorySize == 0) {
+    return;
+  }
+
   ASAN_ASSERT(AddrIsAlignedByGranularity(aligned_beg));
   ASAN_ASSERT(AddrIsAlignedByGranularity(aligned_size));
 
   UINTN shadow_beg = MEM_TO_SHADOW(aligned_beg);
   UINTN shadow_end = MEM_TO_SHADOW(
       aligned_beg + aligned_size - SHADOW_GRANULARITY) + 1;
+
+  //
+  // Bounds-check against the configured shadow window so a stray
+  // global / pool address can't punch a hole outside it.
+  //
+  if ((shadow_beg < mAsanShadowMemoryStart) ||
+      (shadow_end > (mAsanShadowMemoryEnd + 1))) {
+    return;
+  }
 
   Intrinsic_memset((void*)shadow_beg, value, shadow_end - shadow_beg);
 
@@ -1224,8 +1267,16 @@ FastPoisonShadowPartialRightRedzone(
   )
 {
   //SerialOutput ("FastPoisonShadowPartialRightRedzone begin\n");
+  if (asan_is_deactivated || mAsanShadowMemorySize == 0) {
+    return;
+  }
   ASAN_ASSERT(AddrIsAlignedByGranularity(aligned_addr));
   UINT8 *shadow = (UINT8*)(UINTN)MEM_TO_SHADOW(aligned_addr);
+  if (((UINTN)shadow < mAsanShadowMemoryStart) ||
+      ((UINTN)shadow + (size_with_redzone / SHADOW_GRANULARITY) >
+       (mAsanShadowMemoryEnd + 1))) {
+    return;
+  }
   for (UINTN i = 0; i < size_with_redzone; i += SHADOW_GRANULARITY, shadow++) {
     if (i + SHADOW_GRANULARITY <= size) {
       *shadow = 0;  // fully addressable
@@ -1457,6 +1508,15 @@ static void register_global(const __asan_global *global)
 void __asan_register_globals(__asan_global *globals, UINTN size) {
   //SerialOutput ("__asan_register_globals is called\n");
 
+  if (asan_is_deactivated || mAsanShadowMemorySize == 0) {
+    //
+    // Nothing to do — the compiler emits one of these per
+    // instrumented module's ctor, but without a shadow region we
+    // would only end up scribbling on random DXE memory.
+    //
+    return;
+  }
+
   UINTN Index;
   for (Index = 0; Index < size; Index++){
     register_global(&globals[Index]);
@@ -1468,10 +1528,16 @@ void __asan_register_globals(__asan_global *globals, UINTN size) {
 // Unregister an array of globals.
 // We must do this when a shared objects gets dlclosed.
 void __asan_unregister_globals(__asan_global *globals, UINTN n) {
+  if (asan_is_deactivated || mAsanShadowMemorySize == 0) {
+    return;
+  }
   SerialOutput ("__asan_unregister_globals is called\n");
 }
 
 void __asan_register_elf_globals(UINTN *flag, void *start, void *stop) {
+  if (asan_is_deactivated || mAsanShadowMemorySize == 0) {
+    return;
+  }
   if (*flag) return;
   if (!start) return;
   __asan_global *globals_start = (__asan_global*)start;
@@ -1481,6 +1547,9 @@ void __asan_register_elf_globals(UINTN *flag, void *start, void *stop) {
 }
 
 void __asan_unregister_elf_globals(UINTN *flag, void *start, void *stop) {
+  if (asan_is_deactivated || mAsanShadowMemorySize == 0) {
+    return;
+  }
   if (!*flag) return;
   if (!start) return;
   __asan_global *globals_start = (__asan_global*)start;

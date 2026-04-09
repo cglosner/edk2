@@ -1,0 +1,44 @@
+## @file
+#  AsanLibFull — same code as AsanLib.inf but declared as
+#  LIBRARY_CLASS = NULL so it can be auto-injected into every
+#  instrumented module via OvmfPkgX64.dsc's
+#  [LibraryClasses.common.<TYPE>] blocks. The named-class AsanLib.inf
+#  is still used for modules that explicitly reference AsanLib in
+#  their own [LibraryClasses] (e.g. SyzAgentDxe and DxeMain).
+#
+#  Each instrumented .dll gets its own copy of AsanLib's globals
+#  (mShadowOffset, mAsanShadowMemoryStart, ...). The constructor
+#  AsanLibConstructor reads the same gAsanInfoGuid HOB in every
+#  instance, so all per-image copies converge on the same shadow
+#  region — see Asan.c::SetupAsanShadowMemory.
+#
+#  Copyright (c) 2026, syzkaller project authors. All rights reserved.<BR>
+#
+#  SPDX-License-Identifier: BSD-2-Clause-Patent
+##
+
+[Defines]
+  INF_VERSION                    = 0x00010005
+  BASE_NAME                      = AsanLibFull
+  FILE_GUID                      = 36599735-C74D-4282-B693-D46D7B575F00
+  MODULE_TYPE                    = DXE_DRIVER
+  VERSION_STRING                 = 1.0
+  LIBRARY_CLASS                  = NULL|DXE_DRIVER DXE_RUNTIME_DRIVER DXE_SMM_DRIVER UEFI_APPLICATION UEFI_DRIVER DXE_CORE
+
+[Sources]
+  AsanLibFullStub.c
+  SerialDebug.c
+
+[Packages]
+  MdePkg/MdePkg.dec
+  MdeModulePkg/MdeModulePkg.dec
+
+[LibraryClasses]
+  HobLib
+
+[Guids]
+  gAsanInfoGuid
+
+[BuildOptions]
+  GCC:*_*_*_CC_FLAGS = -Wno-frame-address -Wno-error=unused-but-set-variable -Wno-error=comment -fno-sanitize=all -fno-sanitize-coverage=trace-pc
+  GCC:*_*_*_SAN_FLAGS == -fno-sanitize=all

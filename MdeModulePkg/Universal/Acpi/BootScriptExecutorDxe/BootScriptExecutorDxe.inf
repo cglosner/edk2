@@ -44,6 +44,7 @@
   MdeModulePkg/MdeModulePkg.dec
 
 [LibraryClasses]
+  AsanLib
   PcdLib
   BaseMemoryLib
   UefiDriverEntryPoint
@@ -59,7 +60,6 @@
   CpuExceptionHandlerLib
   DevicePathLib
   DxeServicesTableLib
-  AsanLib
 
 [Guids]
   gEfiBootScriptExecutorVariableGuid    ## PRODUCES ## UNDEFINED # SaveLockBox

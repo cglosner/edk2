@@ -356,6 +356,14 @@ SyzEdk2TransportPoll (
   OUT UINT32  *HostSeq
   );
 
+VOID
+EFIAPI
+SyzEdk2TransportReadBytes (
+  IN UINT32  Offset,
+  OUT VOID   *Dest,
+  IN UINT32  Length
+  );
+
 //
 // SyzAgentDispatch.c — interprets a single program from the shared
 // region. Returns EFI_SUCCESS if the program executed cleanly, regardless

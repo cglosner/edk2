@@ -43,6 +43,7 @@
   #
   DEFINE SYZ_AGENT_ENABLE        = FALSE
   DEFINE ASAN_ENABLE             = FALSE
+  DEFINE ASAN_INSTRUMENT         = FALSE
 
 !include OvmfPkg/Include/Dsc/OvmfTpmDefines.dsc.inc
 
@@ -112,12 +113,24 @@
 
 [BuildOptions.common.EDKII.DXE_DRIVER]
   GCC:*_*_*_CC_FLAGS = -fsanitize-coverage=trace-pc
+!if $(ASAN_INSTRUMENT) == TRUE
+  GCC:*_*_*_CC_FLAGS = -fsanitize=address -fsanitize-recover=address -fno-omit-frame-pointer
+!endif
 [BuildOptions.common.EDKII.DXE_RUNTIME_DRIVER]
   GCC:*_*_*_CC_FLAGS = -fsanitize-coverage=trace-pc
+!if $(ASAN_INSTRUMENT) == TRUE
+  GCC:*_*_*_CC_FLAGS = -fsanitize=address -fsanitize-recover=address -fno-omit-frame-pointer
+!endif
 [BuildOptions.common.EDKII.UEFI_DRIVER]
   GCC:*_*_*_CC_FLAGS = -fsanitize-coverage=trace-pc
+!if $(ASAN_INSTRUMENT) == TRUE
+  GCC:*_*_*_CC_FLAGS = -fsanitize=address -fsanitize-recover=address -fno-omit-frame-pointer
+!endif
 [BuildOptions.common.EDKII.DXE_CORE]
   GCC:*_*_*_CC_FLAGS = -fsanitize-coverage=trace-pc
+!if $(ASAN_INSTRUMENT) == TRUE
+  GCC:*_*_*_CC_FLAGS = -fsanitize=address -fsanitize-recover=address -fno-omit-frame-pointer
+!endif
 
 [BuildOptions]
 !endif
@@ -307,15 +320,15 @@
   OrderedCollectionLib|MdePkg/Library/BaseOrderedCollectionRedBlackTreeLib/BaseOrderedCollectionRedBlackTreeLib.inf
 
   #
-  # AsanLib library class. The simics-sanitizer fork's DxeMain.inf
-  # references AsanLib unconditionally; provide the Null instance by
-  # default and let ASAN_ENABLE swap in the real one further down.
+  # AsanLib library class always resolves to the Null instance — the
+  # real instance gets pulled into every instrumented module via the
+  # NULL library injection in [LibraryClasses.common.<TYPE>] when
+  # ASAN_INSTRUMENT=TRUE. The Null instance carries empty stubs for
+  # PoisonPool / UnpoisonPool / SetupAsanShadowMemory / AsanSyz*
+  # so modules that explicitly reference AsanLib (like the agent's
+  # SyzAgentDispatch.c when SYZ_AGENT_HAS_ASAN_SYZ is set) still link.
   #
-!if $(ASAN_ENABLE) == TRUE
-  AsanLib|MdeModulePkg/Library/AsanLib/AsanLib.inf
-!else
   AsanLib|MdeModulePkg/Library/AsanLibNull/AsanLibNull.inf
-!endif
 
 !if $(SYZ_AGENT_ENABLE) == TRUE
   #
@@ -427,6 +440,9 @@
   PcdLib|MdePkg/Library/DxePcdLib/DxePcdLib.inf
 !if $(SYZ_AGENT_ENABLE) == TRUE
   NULL|OvmfPkg/Library/SyzCoverLib/SyzCoverLibNull.inf
+!if $(ASAN_INSTRUMENT) == TRUE
+  NULL|MdeModulePkg/Library/AsanLib/AsanLibFull.inf
+!endif
 !endif
 
 [LibraryClasses.common.DXE_RUNTIME_DRIVER]
@@ -452,6 +468,9 @@
 !endif
 !if $(SYZ_AGENT_ENABLE) == TRUE
   NULL|OvmfPkg/Library/SyzCoverLib/SyzCoverLibNull.inf
+!if $(ASAN_INSTRUMENT) == TRUE
+  NULL|MdeModulePkg/Library/AsanLib/AsanLibFull.inf
+!endif
 !endif
 
 [LibraryClasses.common.UEFI_DRIVER]
@@ -471,6 +490,9 @@
   PciLib|OvmfPkg/Library/DxePciLibI440FxQ35/DxePciLibI440FxQ35.inf
 !if $(SYZ_AGENT_ENABLE) == TRUE
   NULL|OvmfPkg/Library/SyzCoverLib/SyzCoverLibNull.inf
+!if $(ASAN_INSTRUMENT) == TRUE
+  NULL|MdeModulePkg/Library/AsanLib/AsanLibFull.inf
+!endif
 !endif
 
 [LibraryClasses.common.DXE_DRIVER]
@@ -506,6 +528,9 @@
 
 !if $(SYZ_AGENT_ENABLE) == TRUE
   NULL|OvmfPkg/Library/SyzCoverLib/SyzCoverLibNull.inf
+!if $(ASAN_INSTRUMENT) == TRUE
+  NULL|MdeModulePkg/Library/AsanLib/AsanLibFull.inf
+!endif
 !endif
 
 [LibraryClasses.common.UEFI_APPLICATION]
@@ -606,6 +631,13 @@
   gEfiMdeModulePkgTokenSpaceGuid.PcdMaxAuthVariableSize|0x8400
 !if $(NETWORK_TLS_ENABLE) == FALSE
   # match PcdFlashNvStorageVariableSize purely for convenience
+  gEfiMdeModulePkgTokenSpaceGuid.PcdVariableStoreSize|0x40000
+!endif
+!endif
+!if $(FD_SIZE_IN_KB) == 8192
+  gEfiMdeModulePkgTokenSpaceGuid.PcdMaxVariableSize|0x8400
+  gEfiMdeModulePkgTokenSpaceGuid.PcdMaxAuthVariableSize|0x8400
+!if $(NETWORK_TLS_ENABLE) == FALSE
   gEfiMdeModulePkgTokenSpaceGuid.PcdVariableStoreSize|0x40000
 !endif
 !endif
@@ -1113,17 +1145,10 @@
   OvmfPkg/IoMmuDxe/IoMmuDxe.inf
 
 !if $(SYZ_AGENT_ENABLE) == TRUE
-!if $(ASAN_ENABLE) == TRUE
   OvmfPkg/SyzAgentDxe/SyzAgentDxe.inf {
     <BuildOptions>
-      GCC:*_*_*_CC_FLAGS = -DSYZ_AGENT_HAS_ASAN_SYZ=1 -fno-sanitize-coverage=trace-pc
+      GCC:*_*_*_CC_FLAGS = -fno-sanitize-coverage=trace-pc -fno-sanitize=all
   }
-!else
-  OvmfPkg/SyzAgentDxe/SyzAgentDxe.inf {
-    <BuildOptions>
-      GCC:*_*_*_CC_FLAGS = -fno-sanitize-coverage=trace-pc
-  }
-!endif
 !endif
 
   OvmfPkg/TdxDxe/TdxDxe.inf

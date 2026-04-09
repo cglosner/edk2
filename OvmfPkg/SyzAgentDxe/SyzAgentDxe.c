@@ -158,6 +158,14 @@ SyzAgentDxeEntryPoint (
   return EFI_SUCCESS;
 }
 
+//
+// Local mirror of the program region. We always copy into this buffer
+// (via PciIo->Mem.Read or a memcpy depending on transport mode) so the
+// dispatch path can use a normal CPU-side pointer without worrying
+// about whether the BAR window is identity-mapped.
+//
+STATIC UINT8  mProgramBuffer[SYZ_EDK2_OFF_HOST_SEQ];
+
 STATIC
 VOID
 EFIAPI
@@ -166,7 +174,6 @@ SyzAgentDispatchOne (
   )
 {
   UINT32       HostSeq;
-  CONST UINT8  *Base;
   UINT32       Magic;
   UINT32       NumCalls;
   EFI_STATUS   DispatchStatus;
@@ -180,9 +187,13 @@ SyzAgentDispatchOne (
   }
   gSyzEdk2Agent.LastSeq = HostSeq;
 
-  Base     = (CONST UINT8 *)gSyzEdk2Agent.SharedBase;
-  Magic    = *(CONST UINT32 *)(Base + SYZ_EDK2_OFF_MAGIC);
-  NumCalls = *(CONST UINT32 *)(Base + SYZ_EDK2_OFF_NCALLS);
+  //
+  // Pull the entire program record into a local buffer so the rest of
+  // the dispatch path can use plain pointer arithmetic.
+  //
+  SyzEdk2TransportReadBytes (0, mProgramBuffer, sizeof (mProgramBuffer));
+  Magic    = *(CONST UINT32 *)(mProgramBuffer + SYZ_EDK2_OFF_MAGIC);
+  NumCalls = *(CONST UINT32 *)(mProgramBuffer + SYZ_EDK2_OFF_NCALLS);
 
   if (Magic != SYZ_EDK2_PROGRAM_MAGIC) {
     DEBUG ((
@@ -203,7 +214,7 @@ SyzAgentDispatchOne (
 
   SyzCoverReset ();
   DispatchStatus = SyzEdk2Dispatch (
-                     Base + SYZ_EDK2_OFF_CALLS,
+                     mProgramBuffer + SYZ_EDK2_OFF_CALLS,
                      SYZ_EDK2_MAX_PROGRAM_BYTES,
                      NumCalls
                      );

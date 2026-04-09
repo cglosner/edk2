@@ -20,12 +20,33 @@
 
 #define IVSHMEM_VENDOR_ID  0x1AF4
 #define IVSHMEM_DEVICE_ID  0x1110
+#define IVSHMEM_BAR_INDEX  2
 
 //
-// Cached transport state.
+// Cached transport state. We keep both:
 //
-STATIC UINT8   *mShared    = NULL;
-STATIC UINTN   mSharedSize = 0;
+//  * mShared / mSharedSize: a CPU-virtual pointer mirror of the BAR,
+//    obtained from Descriptor->AddrRangeMin. This is fast (one MOV
+//    per access) but only works if the firmware page tables actually
+//    identity-map the 64-bit MMIO window the host bridge advertised.
+//    On QEMU q35 with PhysMemAddressWidth=46, the BAR sits at
+//    0x380000000000 and we observed reads/writes silently going to
+//    /dev/null when the page tables didn't reach that far.
+//
+//  * mPciIo + mUseBarIo: fall back to PciIo->Mem.{Read,Write} which
+//    goes through the host bridge's MMIO window translation and
+//    therefore always works. Slower (a virtual call per byte access)
+//    but correct on every config we have hands on.
+//
+// We sniff the mapping at init time by writing a magic word via
+// PciIo->Mem.Write and seeing whether the direct mShared pointer
+// reads it back. If not, we set mUseBarIo = TRUE and stop touching
+// mShared at all.
+//
+STATIC UINT8                *mShared    = NULL;
+STATIC UINTN                mSharedSize = 0;
+STATIC EFI_PCI_IO_PROTOCOL  *mPciIo     = NULL;
+STATIC BOOLEAN              mUseBarIo   = FALSE;
 
 STATIC
 EFI_STATUS
@@ -88,7 +109,7 @@ LocateIvshmemBar (
     VOID                              *Resources;
     EFI_ACPI_ADDRESS_SPACE_DESCRIPTOR *Descriptor;
 
-    Status = PciIo->GetBarAttributes (PciIo, 2, NULL, &Resources);
+    Status = PciIo->GetBarAttributes (PciIo, IVSHMEM_BAR_INDEX, NULL, &Resources);
     if (EFI_ERROR (Status)) {
       continue;
     }
@@ -97,6 +118,20 @@ LocateIvshmemBar (
     BarSize64  = Descriptor->AddrLen;
     FreePool (Resources);
 
+    //
+    // Make sure the BAR is enabled for memory access. Without this,
+    // PciIo->Mem.Read/Write at offsets within the BAR refuse the
+    // transaction (the device's command-register Memory Space bit
+    // would otherwise be off until some driver explicitly enables it).
+    //
+    PciIo->Attributes (
+             PciIo,
+             EfiPciIoAttributeOperationEnable,
+             EFI_PCI_IO_ATTRIBUTE_MEMORY,
+             NULL
+             );
+
+    mPciIo   = PciIo;
     *BarBase = (VOID *)(UINTN)BarOffset;
     *BarSize = (UINTN)BarSize64;
     DEBUG ((
@@ -111,6 +146,85 @@ LocateIvshmemBar (
 
   FreePool (Handles);
   return EFI_NOT_FOUND;
+}
+
+//
+// Direct accessors that route through PciIo when the direct CPU
+// mapping is not usable.
+//
+STATIC
+UINT32
+SyzBarRead32 (
+  IN UINT32  Offset
+  )
+{
+  if (mUseBarIo && mPciIo != NULL) {
+    UINT32 Value = 0;
+    mPciIo->Mem.Read (
+                  mPciIo,
+                  EfiPciIoWidthUint32,
+                  IVSHMEM_BAR_INDEX,
+                  Offset,
+                  1,
+                  &Value
+                  );
+    return Value;
+  }
+  return *(volatile UINT32 *)(mShared + Offset);
+}
+
+STATIC
+VOID
+SyzBarWrite32 (
+  IN UINT32  Offset,
+  IN UINT32  Value
+  )
+{
+  if (mUseBarIo && mPciIo != NULL) {
+    mPciIo->Mem.Write (
+                  mPciIo,
+                  EfiPciIoWidthUint32,
+                  IVSHMEM_BAR_INDEX,
+                  Offset,
+                  1,
+                  &Value
+                  );
+    return;
+  }
+  *(volatile UINT32 *)(mShared + Offset) = Value;
+}
+
+STATIC
+VOID
+SyzBarReadBytes (
+  IN UINT32  Offset,
+  OUT VOID   *Dest,
+  IN UINT32  Length
+  )
+{
+  if (mUseBarIo && mPciIo != NULL) {
+    mPciIo->Mem.Read (
+                  mPciIo,
+                  EfiPciIoWidthUint8,
+                  IVSHMEM_BAR_INDEX,
+                  Offset,
+                  Length,
+                  Dest
+                  );
+    return;
+  }
+  CopyMem (Dest, mShared + Offset, Length);
+}
+
+VOID
+EFIAPI
+SyzEdk2TransportReadBytes (
+  IN UINT32  Offset,
+  OUT VOID   *Dest,
+  IN UINT32  Length
+  )
+{
+  SyzBarReadBytes (Offset, Dest, Length);
 }
 
 EFI_STATUS
@@ -137,10 +251,46 @@ SyzEdk2TransportInit (
   }
 
   //
+  // Probe whether the firmware page tables actually identity-map the
+  // BAR window. We write a magic word at offset 0x1FFC via PciIo
+  // (which definitely lands in the device) and read it back through
+  // the direct mShared pointer. If they don't agree, the direct view
+  // is broken and we have to route every access through PciIo.
+  //
+  if (mPciIo != NULL) {
+    UINT32 Magic     = 0xFEED5A11;
+    UINT32 Verify    = 0;
+    UINT32 ProbeOff  = 0x1FFC;
+    mPciIo->Mem.Write (mPciIo, EfiPciIoWidthUint32, IVSHMEM_BAR_INDEX,
+                       ProbeOff, 1, &Magic);
+    Verify = *(volatile UINT32 *)(mShared + ProbeOff);
+    if (Verify != Magic) {
+      mUseBarIo = TRUE;
+      DEBUG ((
+        DEBUG_INFO,
+        "[SYZ-AGENT] direct BAR view stale (got 0x%x want 0x%x); routing via PciIo\n",
+        (UINTN)Verify, (UINTN)Magic
+        ));
+    } else {
+      DEBUG ((
+        DEBUG_INFO,
+        "[SYZ-AGENT] direct BAR view OK\n"
+        ));
+    }
+    //
+    // Restore the probe word to zero so the host doesn't see garbage
+    // in the cover ring.
+    //
+    Magic = 0;
+    mPciIo->Mem.Write (mPciIo, EfiPciIoWidthUint32, IVSHMEM_BAR_INDEX,
+                       ProbeOff, 1, &Magic);
+  }
+
+  //
   // Reset the host_seq / guest_seq pair to a known state.
   //
-  *(volatile UINT32 *)(mShared + SYZ_EDK2_OFF_GUEST_SEQ)    = 0;
-  *(volatile UINT32 *)(mShared + SYZ_EDK2_OFF_GUEST_STATUS) = 0;
+  SyzBarWrite32 (SYZ_EDK2_OFF_GUEST_SEQ, 0);
+  SyzBarWrite32 (SYZ_EDK2_OFF_GUEST_STATUS, 0);
 
   *SharedBase = mShared;
   *SharedSize = mSharedSize;
@@ -153,11 +303,11 @@ SyzEdk2TransportPoll (
   OUT UINT32  *HostSeq
   )
 {
-  if (mShared == NULL) {
+  if ((mShared == NULL) && !mUseBarIo) {
     return FALSE;
   }
 
-  *HostSeq = *(volatile UINT32 *)(mShared + SYZ_EDK2_OFF_HOST_SEQ);
+  *HostSeq = SyzBarRead32 (SYZ_EDK2_OFF_HOST_SEQ);
   return *HostSeq != gSyzEdk2Agent.LastSeq;
 }
 
@@ -167,14 +317,14 @@ SyzEdk2TransportAck (
   IN UINT32  Status
   )
 {
-  if (mShared == NULL) {
+  if ((mShared == NULL) && !mUseBarIo) {
     return;
   }
   //
   // Publish the status first, then bump the sequence number so the host
   // never observes a stale status with a fresh sequence.
   //
-  *(volatile UINT32 *)(mShared + SYZ_EDK2_OFF_GUEST_STATUS) = Status;
+  SyzBarWrite32 (SYZ_EDK2_OFF_GUEST_STATUS, Status);
   MemoryFence ();
-  *(volatile UINT32 *)(mShared + SYZ_EDK2_OFF_GUEST_SEQ) = gSyzEdk2Agent.LastSeq;
+  SyzBarWrite32 (SYZ_EDK2_OFF_GUEST_SEQ, gSyzEdk2Agent.LastSeq);
 }
