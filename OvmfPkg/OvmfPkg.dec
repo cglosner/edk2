@@ -23,6 +23,13 @@
   ##  @libraryclass  Access bhyve's firmware control interface.
   BhyveFwCtlLib|Include/Library/BhyveFwCtlLib.h
 
+  ##  @libraryclass  syzkaller sanitizer-coverage runtime; provides the
+  #                  __sanitizer_cov_trace_pc_guard{,_init} hooks for
+  #                  modules built with -fsanitize-coverage=trace-pc-guard
+  #                  and the SyzCoverSetShared/SyzCoverReset entry points
+  #                  used by SyzAgentDxe.
+  SyzCoverLib|Include/Library/SyzCoverLib.h
+
   ##  @libraryclass  Verify blobs read from the VMM
   BlobVerifierLib|Include/Library/BlobVerifierLib.h
 

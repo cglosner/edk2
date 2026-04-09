@@ -372,6 +372,10 @@ INF  OvmfPkg/PlatformDxe/Platform.inf
 INF  OvmfPkg/AmdSevDxe/AmdSevDxe.inf
 INF  OvmfPkg/IoMmuDxe/IoMmuDxe.inf
 
+!if $(SYZ_AGENT_ENABLE) == TRUE
+INF  OvmfPkg/SyzAgentDxe/SyzAgentDxe.inf
+!endif
+
 !if $(SMM_REQUIRE) == TRUE
 INF  OvmfPkg/SmmAccess/SmmAccess2Dxe.inf
 INF  OvmfPkg/SmmControl2Dxe/SmmControl2Dxe.inf

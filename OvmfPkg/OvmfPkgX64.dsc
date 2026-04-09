@@ -34,6 +34,16 @@
   DEFINE SOURCE_DEBUG_ENABLE     = FALSE
   DEFINE CC_MEASUREMENT_ENABLE   = FALSE
 
+  #
+  # syzkaller fuzzing build flags. SYZ_AGENT_ENABLE pulls in the
+  # SyzAgentDxe driver and the SyzCoverLib NULL library injection;
+  # ASAN_ENABLE pulls in MdeModulePkg's AddressSanitizer port. Both
+  # default to FALSE so production builds are unaffected. See
+  # docs/edk2_design.md on the syzkaller side.
+  #
+  DEFINE SYZ_AGENT_ENABLE        = FALSE
+  DEFINE ASAN_ENABLE             = FALSE
+
 !include OvmfPkg/Include/Dsc/OvmfTpmDefines.dsc.inc
 
   #
@@ -273,6 +283,17 @@
   SmbusLib|MdePkg/Library/BaseSmbusLibNull/BaseSmbusLibNull.inf
   OrderedCollectionLib|MdePkg/Library/BaseOrderedCollectionRedBlackTreeLib/BaseOrderedCollectionRedBlackTreeLib.inf
 
+!if $(SYZ_AGENT_ENABLE) == TRUE
+  #
+  # syzkaller fuzzing build: SyzCoverLib provides the named library
+  # SyzAgentDxe consumes; the NULL injection that adds the
+  # __sanitizer_cov_trace_pc_guard{,_init} hooks to every DXE driver
+  # is configured per-MODULE_TYPE in the
+  # [LibraryClasses.common.<TYPE>] blocks below.
+  #
+  SyzCoverLib|OvmfPkg/Library/SyzCoverLib/SyzCoverLib.inf
+!endif
+
 !include OvmfPkg/Include/Dsc/OvmfTpmLibs.dsc.inc
 
 [LibraryClasses.common]
@@ -370,6 +391,9 @@
 !endif
   CpuExceptionHandlerLib|UefiCpuPkg/Library/CpuExceptionHandlerLib/DxeCpuExceptionHandlerLib.inf
   PcdLib|MdePkg/Library/DxePcdLib/DxePcdLib.inf
+!if $(SYZ_AGENT_ENABLE) == TRUE
+  NULL|OvmfPkg/Library/SyzCoverLib/SyzCoverLibNull.inf
+!endif
 
 [LibraryClasses.common.DXE_RUNTIME_DRIVER]
   PcdLib|MdePkg/Library/DxePcdLib/DxePcdLib.inf
@@ -391,6 +415,9 @@
   VariablePolicyLib|MdeModulePkg/Library/VariablePolicyLib/VariablePolicyLibRuntimeDxe.inf
 !if $(SMM_REQUIRE) == TRUE
   MmUnblockMemoryLib|MdePkg/Library/MmUnblockMemoryLib/MmUnblockMemoryLibNull.inf
+!endif
+!if $(SYZ_AGENT_ENABLE) == TRUE
+  NULL|OvmfPkg/Library/SyzCoverLib/SyzCoverLibNull.inf
 !endif
 
 [LibraryClasses.common.UEFI_DRIVER]
@@ -439,6 +466,10 @@
   NestedInterruptTplLib|OvmfPkg/Library/NestedInterruptTplLib/NestedInterruptTplLib.inf
   QemuFwCfgS3Lib|OvmfPkg/Library/QemuFwCfgS3Lib/DxeQemuFwCfgS3LibFwCfg.inf
   QemuLoadImageLib|OvmfPkg/Library/X86QemuLoadImageLib/X86QemuLoadImageLib.inf
+
+!if $(SYZ_AGENT_ENABLE) == TRUE
+  NULL|OvmfPkg/Library/SyzCoverLib/SyzCoverLibNull.inf
+!endif
 
 [LibraryClasses.common.UEFI_APPLICATION]
   PcdLib|MdePkg/Library/DxePcdLib/DxePcdLib.inf
@@ -1043,6 +1074,10 @@
     PciLib|MdePkg/Library/BasePciLibCf8/BasePciLibCf8.inf
   }
   OvmfPkg/IoMmuDxe/IoMmuDxe.inf
+
+!if $(SYZ_AGENT_ENABLE) == TRUE
+  OvmfPkg/SyzAgentDxe/SyzAgentDxe.inf
+!endif
 
   OvmfPkg/TdxDxe/TdxDxe.inf
 
