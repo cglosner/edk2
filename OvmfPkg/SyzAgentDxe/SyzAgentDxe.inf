@@ -1,0 +1,52 @@
+## @file
+#  SyzAgentDxe - in-firmware dispatcher for syzkaller's edk2 fuzzing target.
+#
+#  SyzAgentDxe waits on a shared memory page (mapped via QEMU's
+#  ivshmem-plain device) for a fuzzer-generated program from the host
+#  syz-executor, then dispatches each command in the program to the
+#  corresponding UEFI Boot Services / Runtime Services entry point. The
+#  wire format is documented in executor/common_edk2.h on the syzkaller
+#  side and OvmfPkg/SyzAgentDxe/SyzAgentDxe.h here.
+#
+#  Copyright (c) 2026, syzkaller project authors. All rights reserved.<BR>
+#
+#  SPDX-License-Identifier: BSD-2-Clause-Patent
+##
+
+[Defines]
+  INF_VERSION                    = 0x00010005
+  BASE_NAME                      = SyzAgentDxe
+  FILE_GUID                      = 6D90F1F0-5A8B-4F1E-9B83-3F4A2C7E4D11
+  MODULE_TYPE                    = DXE_DRIVER
+  VERSION_STRING                 = 0.1
+  ENTRY_POINT                    = SyzAgentDxeEntryPoint
+
+[Sources]
+  SyzAgentDxe.c
+  SyzAgentDxe.h
+  SyzAgentDispatch.c
+  SyzAgentTransport.c
+
+[Packages]
+  MdePkg/MdePkg.dec
+  MdeModulePkg/MdeModulePkg.dec
+  OvmfPkg/OvmfPkg.dec
+
+[LibraryClasses]
+  BaseLib
+  BaseMemoryLib
+  DebugLib
+  MemoryAllocationLib
+  PciLib
+  UefiBootServicesTableLib
+  UefiDriverEntryPoint
+  UefiLib
+  UefiRuntimeServicesTableLib
+
+[Protocols]
+  gEfiHiiDatabaseProtocolGuid              ## SOMETIMES_CONSUMES
+  gEfiPciIoProtocolGuid                    ## CONSUMES
+
+[Depex]
+  gEfiVariableArchProtocolGuid       AND
+  gEfiVariableWriteArchProtocolGuid
