@@ -58,10 +58,12 @@
   gEfiSimpleNetworkProtocolGuid            ## SOMETIMES_CONSUMES
   gEfiSimpleTextOutProtocolGuid            ## SOMETIMES_CONSUMES
   gEfiPciIoProtocolGuid                    ## CONSUMES
+  gAsanShadowReadyProtocolGuid             ## SOMETIMES_PRODUCES
 
 [Guids]
   gEfiGlobalVariableGuid                   ## SOMETIMES_CONSUMES
   gEfiImageSecurityDatabaseGuid            ## SOMETIMES_CONSUMES
+  gAsanInfoGuid                            ## SOMETIMES_CONSUMES
 
 [Depex]
   gEfiVariableArchProtocolGuid       AND

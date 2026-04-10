@@ -39,6 +39,14 @@
 #define SYZ_EDK2_OFF_GUEST_SEQ      0x1004U
 #define SYZ_EDK2_OFF_GUEST_STATUS   0x1008U
 #define SYZ_EDK2_OFF_COVER          0x2000U
+//
+// Everything from SYZ_EDK2_OFF_SHADOW onwards is reserved for the
+// AddressSanitizer shadow window. The host backs the ivshmem file
+// with a region large enough that the shadow can cover the DXE
+// physical-memory range we care about (256 MiB host file ⇒ 254 MiB
+// shadow ⇒ ~2 GiB of shadowed addresses at SHADOW_SCALE=3).
+//
+#define SYZ_EDK2_OFF_SHADOW         0x200000U
 
 #define SYZ_EDK2_MAX_CALLS          32U
 #define SYZ_EDK2_MAX_PROGRAM_BYTES  (SYZ_EDK2_OFF_HOST_SEQ - SYZ_EDK2_OFF_CALLS)
@@ -362,6 +370,13 @@ SyzEdk2TransportReadBytes (
   IN UINT32  Offset,
   OUT VOID   *Dest,
   IN UINT32  Length
+  );
+
+EFI_STATUS
+EFIAPI
+SyzEdk2TransportGetShadowRegion (
+  OUT VOID    **ShadowBase,
+  OUT UINTN   *ShadowSize
   );
 
 //

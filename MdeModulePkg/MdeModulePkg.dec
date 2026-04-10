@@ -532,6 +532,16 @@
   gEdkiiPeiBootInCapsuleOnDiskModePpiGuid   = { 0xb08a11e4, 0xe2b7, 0x4b75, { 0xb5, 0x15, 0xaf, 0x61, 0x6, 0x68, 0xbf, 0xd1  } }
 
 [Protocols]
+  ## Late-binding rendezvous protocol for AsanLib. Each per-module
+  #  AsanLibFull instance whose constructor finds no gAsanInfoGuid HOB
+  #  registers a notify on this GUID and waits. SyzAgentDxe (or any
+  #  other module that has the shadow region ready) installs the
+  #  protocol with a ASAN_SHADOW_INFO interface, which causes every
+  #  pending notify to fire and patch its module's per-instance asan
+  #  globals (mShadowOffset, mAsanShadowMemoryStart, ..., asan_inited).
+  #  Include/Guid/AsanInfo.h
+  gAsanShadowReadyProtocolGuid  = { 0x9b1f6ad9, 0x33d2, 0x4e21, { 0x96, 0x44, 0x29, 0x1d, 0x05, 0x1f, 0x1d, 0x4f }}
+
   ## Load File protocol provides capability to load and unload EFI image into memory and execute it.
   #  Include/Protocol/LoadPe32Image.h
   #  This protocol is deprecated. Native EDKII module should NOT use this protocol to load/unload image.

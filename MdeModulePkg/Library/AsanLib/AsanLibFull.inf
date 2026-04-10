@@ -24,6 +24,16 @@
   MODULE_TYPE                    = DXE_DRIVER
   VERSION_STRING                 = 1.0
   LIBRARY_CLASS                  = NULL|DXE_DRIVER DXE_RUNTIME_DRIVER DXE_SMM_DRIVER UEFI_APPLICATION UEFI_DRIVER DXE_CORE
+  #
+  # NOTE: we deliberately do NOT declare CONSTRUCTOR=AsanLibConstructor
+  # for the NULL injection. The constructor's late-binding protocol
+  # notify path activates asan in DxeCore (and a couple of other early
+  # modules) when SyzAgentDxe installs gAsanShadowReadyProtocolGuid,
+  # and that activation appears to hang the boot timer (likely a
+  # cascading shadow-lookup in DxeCore's instrumented memory accesses).
+  # The deactivation guards in Asan.c keep every shadow mutator a
+  # no-op without the constructor running, so this is safe.
+  #
 
 [Sources]
   AsanLibFullStub.c
@@ -35,9 +45,13 @@
 
 [LibraryClasses]
   HobLib
+  UefiBootServicesTableLib
 
 [Guids]
   gAsanInfoGuid
+
+[Protocols]
+  gAsanShadowReadyProtocolGuid              ## SOMETIMES_CONSUMES
 
 [BuildOptions]
   GCC:*_*_*_CC_FLAGS = -Wno-frame-address -Wno-error=unused-but-set-variable -Wno-error=comment -fno-sanitize=all -fno-sanitize-coverage=trace-pc

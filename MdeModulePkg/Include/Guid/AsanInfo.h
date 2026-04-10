@@ -28,4 +28,17 @@ typedef struct {
 
 extern EFI_GUID gAsanInfoGuid;
 
+//
+// Late-binding shadow rendezvous (see MdeModulePkg.dec for the matching
+// gAsanShadowReadyProtocolGuid). The producer (SyzAgentDxe) allocates
+// one ASAN_SHADOW_INFO and installs it as the protocol interface; each
+// per-module AsanLib instance reads it from its notify callback.
+//
+typedef struct {
+  UINT64       ShadowMemoryStart;   ///< CPU-virtual base of the shadow window
+  UINT64       ShadowMemorySize;    ///< byte length of the shadow window
+} ASAN_SHADOW_INFO;
+
+extern EFI_GUID gAsanShadowReadyProtocolGuid;
+
 #endif

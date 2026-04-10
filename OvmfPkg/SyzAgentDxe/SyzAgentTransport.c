@@ -227,6 +227,39 @@ SyzEdk2TransportReadBytes (
   SyzBarReadBytes (Offset, Dest, Length);
 }
 
+//
+// Return the directly-mapped CPU view of the asan shadow region
+// hosted at the tail of the ivshmem BAR. The first
+// SYZ_EDK2_OFF_SHADOW bytes of the BAR are reserved for the SyzAgent
+// control region; everything beyond that is shadow.
+//
+// We can only hand out a CPU pointer if the direct mapping passed
+// the init-time probe. When mUseBarIo == TRUE the asan runtime cannot
+// use this region (its instrumentation issues plain CPU stores) and
+// the caller is expected to leave asan deactivated.
+//
+EFI_STATUS
+EFIAPI
+SyzEdk2TransportGetShadowRegion (
+  OUT VOID    **ShadowBase,
+  OUT UINTN   *ShadowSize
+  )
+{
+  *ShadowBase = NULL;
+  *ShadowSize = 0;
+
+  if ((mShared == NULL) || mUseBarIo) {
+    return EFI_UNSUPPORTED;
+  }
+  if (mSharedSize <= SYZ_EDK2_OFF_SHADOW) {
+    return EFI_BUFFER_TOO_SMALL;
+  }
+
+  *ShadowBase = mShared + SYZ_EDK2_OFF_SHADOW;
+  *ShadowSize = mSharedSize - SYZ_EDK2_OFF_SHADOW;
+  return EFI_SUCCESS;
+}
+
 EFI_STATUS
 EFIAPI
 SyzEdk2TransportInit (

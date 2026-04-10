@@ -19,6 +19,8 @@
 #include "SyzAgentDxe.h"
 
 #include <Library/SyzCoverLib.h>
+#include <Library/BaseMemoryLib.h>
+#include <Guid/AsanInfo.h>
 
 SYZ_EDK2_AGENT  gSyzEdk2Agent;
 
@@ -96,6 +98,59 @@ SyzAgentOnPciIo (
   gSyzEdk2Agent.LastSeq    = 0;
 
   SyzCoverSetShared (SharedBase, SharedSize);
+
+  //
+  // Late-bind the AddressSanitizer shadow region. The tail of the
+  // ivshmem BAR (everything past SYZ_EDK2_OFF_SHADOW) is the shadow
+  // window. We allocate one ASAN_SHADOW_INFO and install the
+  // gAsanShadowReadyProtocolGuid; this fans out to every loaded
+  // instrumented module via the per-module RegisterProtocolNotify
+  // that AsanLib's constructor put in place.
+  //
+  // The static lifetime is intentional: every per-module notify call
+  // back keeps reading this struct via LocateProtocol, and we don't
+  // want it to disappear when this function returns.
+  //
+  {
+    STATIC ASAN_SHADOW_INFO  mShadowInfo;
+    STATIC EFI_HANDLE        mShadowHandle = NULL;
+    VOID                     *ShadowBase = NULL;
+    UINTN                    ShadowSize = 0;
+    EFI_STATUS               ShadowStatus;
+
+    ShadowStatus = SyzEdk2TransportGetShadowRegion (&ShadowBase, &ShadowSize);
+    if (!EFI_ERROR (ShadowStatus) && (ShadowBase != NULL) && (ShadowSize >= SIZE_8MB)) {
+      //
+      // Don't ZeroMem the entire 254 MiB shadow region — the host
+      // already pre-zeros the backing file when it allocates it, and
+      // a 254 MiB MMIO memset here adds many seconds to boot. The
+      // host-side mmap of the same file is the source of truth.
+      //
+      mShadowInfo.ShadowMemoryStart = (UINT64)(UINTN)ShadowBase;
+      mShadowInfo.ShadowMemorySize  = (UINT64)ShadowSize;
+      ShadowStatus = gBS->InstallProtocolInterface (
+                            &mShadowHandle,
+                            &gAsanShadowReadyProtocolGuid,
+                            EFI_NATIVE_INTERFACE,
+                            &mShadowInfo
+                            );
+      DEBUG ((
+        DEBUG_INFO,
+        "[SYZ-AGENT] asan shadow at 0x%lx size 0x%lx (%r)\n",
+        mShadowInfo.ShadowMemoryStart,
+        mShadowInfo.ShadowMemorySize,
+        ShadowStatus
+        ));
+    } else {
+      DEBUG ((
+        DEBUG_INFO,
+        "[SYZ-AGENT] asan shadow unavailable (%r, base=%p size=0x%lx)\n",
+        ShadowStatus,
+        ShadowBase,
+        (UINT64)ShadowSize
+        ));
+    }
+  }
 
   //
   // Arm a 1 ms periodic timer that drives the dispatch loop. We

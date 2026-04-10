@@ -16,6 +16,8 @@
 #include <Uefi.h>
 #include <Library/Asan.h>
 #include <Library/HobLib.h>
+#include <Library/UefiBootServicesTableLib.h>
+#include <Guid/AsanInfo.h>
 
 static const UINT64 kDefaultShadowScale = 3;
 #define SHADOW_SCALE kDefaultShadowScale
@@ -1958,6 +1960,67 @@ SetupAsanShadowMemory (
 }
 
 
+//
+// Late-binding rendezvous: per-module instances that did NOT find a
+// gAsanInfoGuid HOB at constructor time wait on a protocol install
+// from SyzAgentDxe (or another setup driver) and then update their
+// own globals from the ASAN_SHADOW_INFO interface.
+//
+// We deliberately use a private cached pointer to BootServices instead
+// of the gBS UefiBootServicesTableLib global, because AsanLibFull is a
+// NULL library injection whose constructor may run BEFORE
+// UefiBootServicesTableLib's constructor has a chance to populate gBS.
+// AsanLibConstructor receives SystemTable directly as a parameter, so
+// we capture BootServices from there.
+//
+STATIC EFI_BOOT_SERVICES  *mAsanBs                       = NULL;
+STATIC EFI_EVENT          mAsanShadowReadyEvent          = NULL;
+STATIC VOID               *mAsanShadowReadyRegistration  = NULL;
+
+
+STATIC
+VOID
+EFIAPI
+OnAsanShadowReady (
+  IN EFI_EVENT  Event,
+  IN VOID       *Context
+  )
+{
+  EFI_STATUS         Status;
+  ASAN_SHADOW_INFO   *Info = NULL;
+
+  if (mAsanBs == NULL) {
+    return;
+  }
+  //
+  // Pass NULL as Registration: with the registration handle, EDK2's
+  // LocateProtocol only walks instances installed AFTER our notify
+  // was registered. We may be running synchronously from the
+  // constructor against a protocol install that already happened, so
+  // we need to see the existing instance too.
+  //
+  Status = mAsanBs->LocateProtocol (
+                      &gAsanShadowReadyProtocolGuid,
+                      NULL,
+                      (VOID **)&Info
+                      );
+  if (EFI_ERROR (Status) || (Info == NULL)) {
+    return;
+  }
+  if ((Info->ShadowMemorySize == 0) || (Info->ShadowMemoryStart == 0)) {
+    return;
+  }
+
+  mAsanShadowMemoryStart = Info->ShadowMemoryStart;
+  mAsanShadowMemorySize  = Info->ShadowMemorySize;
+  mAsanShadowMemoryEnd   = mAsanShadowMemoryStart + mAsanShadowMemorySize - 1;
+  mShadowOffset          = mAsanShadowMemoryStart;
+  __asan_shadow_memory_dynamic_address = mAsanShadowMemoryStart;
+
+  asan_inited            = TRUE;
+  asan_is_deactivated    = FALSE;
+}
+
 RETURN_STATUS
 EFIAPI
 AsanLibConstructor (
@@ -1977,8 +2040,41 @@ AsanLibConstructor (
     AsanCtorFlag = TRUE;
   }
 
+  //
+  // Cache BootServices from the SystemTable parameter rather than
+  // gBS — UefiBootServicesTableLib's constructor may not have run
+  // yet for this module instance.
+  //
+  if ((SystemTable != NULL) && (SystemTable->BootServices != NULL)) {
+    mAsanBs = SystemTable->BootServices;
+  }
+
   Status = SetupAsanShadowMemory();
   if (EFI_ERROR(Status)){
+    //
+    // No HOB available — register a notify on the late-binding
+    // gAsanShadowReadyProtocolGuid. The producer (SyzAgentDxe) will
+    // install the protocol once it has the BAR-backed shadow region
+    // ready, and our notify callback will patch this module's per-
+    // instance asan globals.
+    //
+    if (mAsanBs != NULL) {
+      EFI_STATUS NotifyStatus;
+      NotifyStatus = mAsanBs->CreateEvent (
+                                EVT_NOTIFY_SIGNAL,
+                                TPL_CALLBACK,
+                                OnAsanShadowReady,
+                                NULL,
+                                &mAsanShadowReadyEvent
+                                );
+      if (!EFI_ERROR (NotifyStatus)) {
+        mAsanBs->RegisterProtocolNotify (
+                   &gAsanShadowReadyProtocolGuid,
+                   mAsanShadowReadyEvent,
+                   &mAsanShadowReadyRegistration
+                   );
+      }
+    }
     return RETURN_SUCCESS;//Status;
   }
 
