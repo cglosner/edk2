@@ -374,7 +374,9 @@ INF  OvmfPkg/IoMmuDxe/IoMmuDxe.inf
 
 !if $(SYZ_AGENT_ENABLE) == TRUE
 INF  OvmfPkg/SyzAgentDxe/SyzAgentDxe.inf
-!if $(ASAN_INSTRUMENT) == TRUE
+!if FALSE
+# SyzAsanTestDxe: planted OOB test driver. Enable temporarily to verify
+# asan is working, then disable so it doesn't pollute real campaigns.
 INF  OvmfPkg/SyzAsanTestDxe/SyzAsanTestDxe.inf
 !endif
 !endif
