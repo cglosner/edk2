@@ -374,6 +374,9 @@ INF  OvmfPkg/IoMmuDxe/IoMmuDxe.inf
 
 !if $(SYZ_AGENT_ENABLE) == TRUE
 INF  OvmfPkg/SyzAgentDxe/SyzAgentDxe.inf
+!if $(ASAN_INSTRUMENT) == TRUE
+INF  OvmfPkg/SyzAsanTestDxe/SyzAsanTestDxe.inf
+!endif
 !endif
 
 !if $(SMM_REQUIRE) == TRUE

@@ -100,18 +100,18 @@ SyzAgentOnPciIo (
   SyzCoverSetShared (SharedBase, SharedSize);
 
   //
-  // Discover the BAR-backed asan shadow region but DEFER installing
-  // gAsanShadowReadyProtocolGuid — installing it from this PciIo
-  // notify path activates asan in every loaded instrumented module
-  // (via the AsanLibFull constructor's RegisterProtocolNotify), and
-  // that activation has been observed to wedge the boot dispatcher
-  // before the SyzAgent timer ever fires (suspected: a slow shadow-
-  // poison loop inside AllocatePool's redzone path running on the
-  // ivshmem BAR). The shadow region info is stashed in
-  // gSyzEdk2Agent.AsanShadow* so an external "activate now" command
-  // can flip the install on demand from the fuzzer side.
+  // Discover the BAR-backed asan shadow region and install
+  // gAsanShadowReadyProtocolGuid so consumers (SyzAsanTestDxe and
+  // any other module that explicitly references AsanLib in its inf
+  // and calls AsanLibActivate from its entry point) can locate it.
+  // We do NOT use the protocol-notify fan-out pattern here — that
+  // attempted to flip every loaded module's per-instance asan flags
+  // at once and cascaded into a boot hang. Instead, modules opt in
+  // explicitly via AsanLibActivate.
   //
   {
+    STATIC ASAN_SHADOW_INFO  mShadowInfo;
+    STATIC EFI_HANDLE        mShadowHandle = NULL;
     VOID                     *ShadowBase = NULL;
     UINTN                    ShadowSize  = 0;
     EFI_STATUS               ShadowStatus;
@@ -120,11 +120,20 @@ SyzAgentOnPciIo (
     if (!EFI_ERROR (ShadowStatus) && (ShadowBase != NULL) && (ShadowSize >= SIZE_8MB)) {
       gSyzEdk2Agent.AsanShadowBase = ShadowBase;
       gSyzEdk2Agent.AsanShadowSize = ShadowSize;
+      mShadowInfo.ShadowMemoryStart = (UINT64)(UINTN)ShadowBase;
+      mShadowInfo.ShadowMemorySize  = (UINT64)ShadowSize;
+      ShadowStatus = gBS->InstallProtocolInterface (
+                            &mShadowHandle,
+                            &gAsanShadowReadyProtocolGuid,
+                            EFI_NATIVE_INTERFACE,
+                            &mShadowInfo
+                            );
       DEBUG ((
         DEBUG_INFO,
-        "[SYZ-AGENT] asan shadow region at 0x%lx size 0x%lx (deferred install)\n",
+        "[SYZ-AGENT] asan shadow at 0x%lx size 0x%lx (%r)\n",
         (UINT64)(UINTN)ShadowBase,
-        (UINT64)ShadowSize
+        (UINT64)ShadowSize,
+        ShadowStatus
         ));
     } else {
       DEBUG ((
@@ -150,7 +159,7 @@ SyzAgentOnPciIo (
                   &mTickEvent
                   );
   if (!EFI_ERROR (Status)) {
-    gBS->SetTimer (mTickEvent, TimerPeriodic, 10000); // 1 ms in 100ns units
+    gBS->SetTimer (mTickEvent, TimerPeriodic, 10000);
   }
   SyzAgentLog ("transport ready, dispatch timer armed");
 }

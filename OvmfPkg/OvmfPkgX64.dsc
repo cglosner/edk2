@@ -112,68 +112,37 @@
   #
   GCC:*_*_*_CC_FLAGS                   = -DSYZ_AGENT_ENABLE=1
 
+#
+# Coverage-only by default for every DXE/SMM module — sanitizer-
+# coverage trace-pc has zero runtime side effects beyond writing PCs
+# into the SyzAgent cover ring, so it's safe everywhere.
+#
+# ASan and UBSan are NOT applied per MODULE_TYPE here. They are
+# enabled per-component on a deny-list basis: every module is
+# uninstrumented by default and we OPT IN specific MdeModulePkg
+# drivers further down via the [Components] section's per-INF
+# <BuildOptions> override. This avoids dragging asan into the
+# OvmfPkg early-boot drivers (QemuFwCfgLib's DMA path, IoMmuDxe's
+# bounce-buffer encryption, the SEV/TDX libs) where activating asan
+# wedges the boot dispatcher before SyzAgent's timer fires.
+#
 [BuildOptions.common.EDKII.DXE_DRIVER]
   GCC:*_*_*_CC_FLAGS = -fsanitize-coverage=trace-pc
-!if $(ASAN_INSTRUMENT) == TRUE
-  GCC:*_*_*_CC_FLAGS = -fsanitize=address -fsanitize-recover=address -fno-omit-frame-pointer
-!if $(UBSAN_INSTRUMENT) == TRUE
-  GCC:*_*_*_CC_FLAGS = -fsanitize=undefined -fno-sanitize=alignment -fsanitize-recover=undefined
-!endif
-!endif
 
 [BuildOptions.common.EDKII.DXE_RUNTIME_DRIVER]
   GCC:*_*_*_CC_FLAGS = -fsanitize-coverage=trace-pc
-!if $(ASAN_INSTRUMENT) == TRUE
-  GCC:*_*_*_CC_FLAGS = -fsanitize=address -fsanitize-recover=address -fno-omit-frame-pointer
-!if $(UBSAN_INSTRUMENT) == TRUE
-  GCC:*_*_*_CC_FLAGS = -fsanitize=undefined -fno-sanitize=alignment -fsanitize-recover=undefined
-!endif
-!endif
 
 [BuildOptions.common.EDKII.UEFI_DRIVER]
   GCC:*_*_*_CC_FLAGS = -fsanitize-coverage=trace-pc
-!if $(ASAN_INSTRUMENT) == TRUE
-  GCC:*_*_*_CC_FLAGS = -fsanitize=address -fsanitize-recover=address -fno-omit-frame-pointer
-!if $(UBSAN_INSTRUMENT) == TRUE
-  GCC:*_*_*_CC_FLAGS = -fsanitize=undefined -fno-sanitize=alignment -fsanitize-recover=undefined
-!endif
-!endif
 
 [BuildOptions.common.EDKII.DXE_SMM_DRIVER]
   GCC:*_*_*_CC_FLAGS = -fsanitize-coverage=trace-pc
-!if $(ASAN_INSTRUMENT) == TRUE
-  GCC:*_*_*_CC_FLAGS = -fsanitize=address -fsanitize-recover=address -fno-omit-frame-pointer
-!if $(UBSAN_INSTRUMENT) == TRUE
-  GCC:*_*_*_CC_FLAGS = -fsanitize=undefined -fno-sanitize=alignment -fsanitize-recover=undefined
-!endif
-!endif
 
 [BuildOptions.common.EDKII.SMM_CORE]
   GCC:*_*_*_CC_FLAGS = -fsanitize-coverage=trace-pc
-!if $(ASAN_INSTRUMENT) == TRUE
-  GCC:*_*_*_CC_FLAGS = -fsanitize=address -fsanitize-recover=address -fno-omit-frame-pointer
-!if $(UBSAN_INSTRUMENT) == TRUE
-  GCC:*_*_*_CC_FLAGS = -fsanitize=undefined -fno-sanitize=alignment -fsanitize-recover=undefined
-!endif
-!endif
 
-#
-# DXE_CORE is intentionally NOT instrumented with -fsanitize=address.
-# Activating asan checks inside DxeCore wedges the boot before the
-# SyzAgent dispatch timer fires (almost certainly a recursive shadow
-# lookup against the MMIO-backed shadow window from inside DxeCore's
-# pool allocator). It still gets sanitizer-coverage so we don't lose
-# DxeCore PCs in the cover ring; only the asan load/store checks are
-# disabled for it. UBSan IS still applied because its traps are
-# stateless and don't touch shadow memory.
-#
 [BuildOptions.common.EDKII.DXE_CORE]
   GCC:*_*_*_CC_FLAGS = -fsanitize-coverage=trace-pc
-!if $(ASAN_INSTRUMENT) == TRUE
-!if $(UBSAN_INSTRUMENT) == TRUE
-  GCC:*_*_*_CC_FLAGS = -fsanitize=undefined -fno-sanitize=alignment -fsanitize-recover=undefined
-!endif
-!endif
 
 [BuildOptions]
 !endif
@@ -371,7 +340,15 @@
   # so modules that explicitly reference AsanLib (like the agent's
   # SyzAgentDispatch.c when SYZ_AGENT_HAS_ASAN_SYZ is set) still link.
   #
+!if $(ASAN_INSTRUMENT) == TRUE
+  # Modules that explicitly reference AsanLib in their .inf get the
+  # real (full) runtime. The default for un-instrumented modules
+  # remains AsanLibNull (just below) since they wouldn't activate
+  # asan anyway.
+  AsanLib|MdeModulePkg/Library/AsanLib/AsanLibFull.inf
+!else
   AsanLib|MdeModulePkg/Library/AsanLibNull/AsanLibNull.inf
+!endif
 
 !if $(SYZ_AGENT_ENABLE) == TRUE
   #
@@ -1085,7 +1062,15 @@
   MdeModulePkg/Bus/Ata/AtaAtapiPassThru/AtaAtapiPassThru.inf
   MdeModulePkg/Bus/Ata/AtaBusDxe/AtaBusDxe.inf
   MdeModulePkg/Bus/Pci/NvmExpressDxe/NvmExpressDxe.inf
-  MdeModulePkg/Universal/HiiDatabaseDxe/HiiDatabaseDxe.inf
+  MdeModulePkg/Universal/HiiDatabaseDxe/HiiDatabaseDxe.inf {
+!if $(ASAN_INSTRUMENT) == TRUE
+    <BuildOptions>
+      GCC:*_*_*_CC_FLAGS = -fsanitize=address -fsanitize-recover=address -fno-omit-frame-pointer
+!if $(UBSAN_INSTRUMENT) == TRUE
+      GCC:*_*_*_CC_FLAGS = -fsanitize=undefined -fno-sanitize=alignment -fsanitize-recover=undefined
+!endif
+!endif
+  }
   MdeModulePkg/Universal/SetupBrowserDxe/SetupBrowserDxe.inf
   MdeModulePkg/Universal/DisplayEngineDxe/DisplayEngineDxe.inf
   MdeModulePkg/Universal/MemoryTest/NullMemoryTestDxe/NullMemoryTestDxe.inf
@@ -1204,6 +1189,9 @@
     <BuildOptions>
       GCC:*_*_*_CC_FLAGS = -fno-sanitize-coverage=trace-pc -fno-sanitize=all
   }
+!if $(ASAN_INSTRUMENT) == TRUE
+  OvmfPkg/SyzAsanTestDxe/SyzAsanTestDxe.inf
+!endif
 !endif
 
   OvmfPkg/TdxDxe/TdxDxe.inf
@@ -1267,6 +1255,13 @@
   MdeModulePkg/Universal/Variable/RuntimeDxe/VariableRuntimeDxe.inf {
     <LibraryClasses>
       NULL|MdeModulePkg/Library/VarCheckUefiLib/VarCheckUefiLib.inf
+!if $(ASAN_INSTRUMENT) == TRUE
+    <BuildOptions>
+      GCC:*_*_*_CC_FLAGS = -fsanitize=address -fsanitize-recover=address -fno-omit-frame-pointer
+!if $(UBSAN_INSTRUMENT) == TRUE
+      GCC:*_*_*_CC_FLAGS = -fsanitize=undefined -fno-sanitize=alignment -fsanitize-recover=undefined
+!endif
+!endif
   }
 !endif
 

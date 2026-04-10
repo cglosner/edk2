@@ -304,8 +304,33 @@ static CONST CHAR8 *asan_shadow_to_bug_string(UINT8 shadow_val) {
 // debug output, so any tooling depending on the original simics format
 // keeps working.
 //
+//
+// Drop a single byte to QEMU's isa-debugcon (port 0x402). The
+// SerialOutput path goes to COM1, which is `-serial null` in our
+// launcher and never reaches the OVMF debug log; debugcon is the
+// channel that DOES make it through.
+//
+static inline void asan_dbgcon_byte(UINT8 c) {
+  __asm__ __volatile__ ("outb %b0, %w1" : : "a" (c), "Nd" ((UINT16)0x402));
+}
+
+static void asan_dbgcon_str(const char *s) {
+  while (*s) asan_dbgcon_byte((UINT8)*s++);
+}
+
+static void asan_dbgcon_hex64(UINT64 v) {
+  asan_dbgcon_byte('0');
+  asan_dbgcon_byte('x');
+  for (int i = 60; i >= 0; i -= 4) {
+    UINT8 nyb = (v >> i) & 0xF;
+    asan_dbgcon_byte(nyb < 10 ? '0' + nyb : 'a' + nyb - 10);
+  }
+}
+
 static void asan_emit_syz_report(UINTN addr, UINTN ip, UINT8 shadow_val) {
   CHAR8 NumStr[19];
+  // Simics-format report kept for backwards compat (goes to /dev/null
+  // in the syz launcher today, but real hardware setups still parse it).
   SerialOutput("==ERROR: AddressSanitizer: ");
   SerialOutput(asan_shadow_to_bug_string(shadow_val));
   SerialOutput(" on address ");
@@ -315,14 +340,28 @@ static void asan_emit_syz_report(UINTN addr, UINTN ip, UINT8 shadow_val) {
   Num2Str64bit(ip, NumStr);
   SerialOutput(NumStr);
   SerialOutput("\n");
+  // Same line, but to debugcon so the syz-edk2-fuzz log scanner sees
+  // it. Format mirrors the Linux KASAN one-liner intentionally.
+  asan_dbgcon_str("==ERROR: AddressSanitizer: ");
+  asan_dbgcon_str(asan_shadow_to_bug_string(shadow_val));
+  asan_dbgcon_str(" on address ");
+  asan_dbgcon_hex64((UINT64)addr);
+  asan_dbgcon_str(" at pc ");
+  asan_dbgcon_hex64((UINT64)ip);
+  asan_dbgcon_str(" shadow=");
+  asan_dbgcon_hex64((UINT64)shadow_val);
+  asan_dbgcon_str("\n");
 }
 
 void asan_bug_report2(UINTN addr, UINTN size,
                       UINTN buggy_shadow_address, UINT8 is_write,
                       UINTN ip, CHAR8 *file, UINTN line) {
-  UINTN buggy_address = SHADOW_TO_MEM(buggy_shadow_address);
   UINT8 shadow_val = *(UINT8 *)buggy_shadow_address;
   asan_emit_syz_report(addr, ip, shadow_val);
+  // The remaining SerialOutput / asan_print_shadow_memory2 calls
+  // below go to /dev/null in the syz launcher and are kept only for
+  // legacy hardware-debug consumers.
+  UINTN buggy_address = SHADOW_TO_MEM(buggy_shadow_address);
 
   // printf("[ASan] ===================================================\n");
   SerialOutput("[ASan] ===================================================\n");
@@ -617,137 +656,35 @@ void __asan_store##size(UINTN addr)         \
   }                                                                                   \
 }
 
-#define DEFINE_ASAN_LOAD_NOABORT(size)                \
-void __asan_load##size##_noabort(UINTN addr)  \
-{                                                   \
-  CHAR8 NumStr[19];                                 \
-  if (asan_inited && !asan_is_deactivated){         \
-    UINTN sp = MEM_TO_SHADOW(addr);                                                 \
-    if(mAsanShadowMemoryStart <= sp && sp <= mAsanShadowMemoryEnd) {                \
-      UINTN s = size <= SHADOW_GRANULARITY ? *(UINT8 *)(sp)                         \
-                                          : *(UINT16 *)(sp);                        \
-      if (s) {                                                                      \
-        if ((size >= SHADOW_GRANULARITY) || (                                       \
-                     ((INT8)((addr & (SHADOW_GRANULARITY - 1)) + size - 1)) >=      \
-                         (INT8)s)) {                                                \
-              SerialOutput2 ("ASAN MEMORY ACCESS check fail! ");                    \
-              gSerialOutputSwitch = 1;                                              \
-              Num2Str8bit ( size , NumStr);                                         \
-              SerialOutput ("__asan_load");                                         \
-              SerialOutput (NumStr);                                                \
-              SerialOutput ("_noabort is called\n");                                  \
-              SerialOutput ("Return IP address is ");                                 \
-              Num2Str64bit ((UINTN)__builtin_return_address(0),NumStr);       \
-              SerialOutput (NumStr);                                                  \
-              SerialOutput ("\n");                                                    \
-              Num2Str64bit ((UINTN)__builtin_return_address(1),NumStr);       \
-              SerialOutput (NumStr);                                                  \
-              SerialOutput ("\n");                                                    \
-              Num2Str64bit ((UINTN)__builtin_return_address(2),NumStr);       \
-              SerialOutput (NumStr);                                                  \
-              SerialOutput ("\n");                                                    \
-              Num2Str64bit ((UINTN)__builtin_return_address(3),NumStr);       \
-              SerialOutput (NumStr);                                                  \
-              SerialOutput ("\n");                                                    \
-              Num2Str64bit ((UINTN)__builtin_return_address(4),NumStr);       \
-              SerialOutput (NumStr);                                                  \
-              SerialOutput ("\n");                                                    \
-              Num2Str64bit ((UINTN)__builtin_return_address(5),NumStr);       \
-              SerialOutput (NumStr);                                                  \
-              SerialOutput ("\n");                                                    \
-              Num2Str64bit ((UINTN)__builtin_return_address(6),NumStr);       \
-              SerialOutput (NumStr);                                                  \
-              SerialOutput ("\n");                                                    \
-              Num2Str64bit ((UINTN)__builtin_return_address(7),NumStr);       \
-              SerialOutput (NumStr);                                                  \
-              SerialOutput ("\n");                                                    \
-              SerialOutput ("Access Address= ");                                   \
-              Num2Str64bit (addr, NumStr);                                            \
-              SerialOutput (NumStr);                                                  \
-              SerialOutput (", Shadow Memory Address= ");                             \
-              Num2Str64bit ( sp , NumStr);                                            \
-              SerialOutput (NumStr);                                                  \
-              SerialOutput (", Shadow Memory content= ");                             \
-              Num2Str64bit ( s , NumStr);                                             \
-              SerialOutput (NumStr);                                                  \
-              SerialOutput (", (addr & (SHADOW_GRANULARITY - 1)) + size - 1)= ");     \
-              Num2Str64bit (((addr & (SHADOW_GRANULARITY - 1)) + size - 1), NumStr);  \
-              SerialOutput (NumStr);                                                  \
-              SerialOutput ("\n\n");                                                  \
-              UINTN buggy_shadow_address = MEM_TO_SHADOW(addr);                                  \
-              UINTN ip = (UINTN)__builtin_return_address(0);                                     \
-              asan_bug_report2(addr, size, buggy_shadow_address, 0, ip, __FILE__, __LINE__); \
-        }                                                                             \
-      }                                                                               \
-    }                                                                                 \
-  }                                                                                   \
+#define DEFINE_ASAN_LOAD_NOABORT(size)                                                  \
+void __asan_load##size##_noabort(UINTN addr) {                                          \
+  if (!asan_inited || asan_is_deactivated) return;                                      \
+  UINTN sp = MEM_TO_SHADOW(addr);                                                        \
+  if (sp < mAsanShadowMemoryStart || sp > mAsanShadowMemoryEnd) return;                 \
+  UINTN s = size <= SHADOW_GRANULARITY ? *(UINT8 *)(sp) : *(UINT16 *)(sp);              \
+  if (!s) return;                                                                        \
+  if ((size < SHADOW_GRANULARITY) &&                                                    \
+      (((INT8)((addr & (SHADOW_GRANULARITY - 1)) + size - 1)) < (INT8)s)) return;       \
+  /* Real OOB. Emit one-line report and DON'T walk back-traces — */                     \
+  /* __builtin_return_address(N) for N>=1 can fault on shallow stacks. */               \
+  asan_bug_report2 (addr, size, sp, 0,                                                  \
+                    (UINTN)__builtin_return_address(0),                                 \
+                    __FILE__, __LINE__);                                                \
 }
 
 
-#define DEFINE_ASAN_STORE_NOABORT(size)                 \
-void __asan_store##size##_noabort(UINTN addr)   \
-{                                                   \
-  CHAR8 NumStr[19];                                 \
-  if (asan_inited && !asan_is_deactivated){         \
-    UINTN sp = MEM_TO_SHADOW(addr);                                                 \
-    if(mAsanShadowMemoryStart <= sp && sp <= mAsanShadowMemoryEnd) {                \
-      UINTN s = size <= SHADOW_GRANULARITY ? *(UINT8 *)(sp)                         \
-                                          : *(UINT16 *)(sp);                        \
-      if (s) {                                                                      \
-        if ((size >= SHADOW_GRANULARITY) || (                                       \
-                     ((INT8)((addr & (SHADOW_GRANULARITY - 1)) + size - 1)) >=      \
-                         (INT8)s)) {                                                \
-              SerialOutput2 ("ASAN MEMORY ACCESS check fail! ");                    \
-              gSerialOutputSwitch = 1;                                              \
-              Num2Str8bit ( size , NumStr);                                         \
-              SerialOutput ("__asan_store");                                        \
-              SerialOutput (NumStr);                                                \
-              SerialOutput ("_noabort is called\n");                                  \
-              SerialOutput ("Return IP address is ");                                 \
-              Num2Str64bit ((UINTN)__builtin_return_address(0),NumStr);       \
-              SerialOutput (NumStr);                                                  \
-              SerialOutput ("\n");                                                    \
-              Num2Str64bit ((UINTN)__builtin_return_address(1),NumStr);       \
-              SerialOutput (NumStr);                                                  \
-              SerialOutput ("\n");                                                    \
-              Num2Str64bit ((UINTN)__builtin_return_address(2),NumStr);       \
-              SerialOutput (NumStr);                                                  \
-              SerialOutput ("\n");                                                    \
-              Num2Str64bit ((UINTN)__builtin_return_address(3),NumStr);       \
-              SerialOutput (NumStr);                                                  \
-              SerialOutput ("\n");                                                    \
-              Num2Str64bit ((UINTN)__builtin_return_address(4),NumStr);       \
-              SerialOutput (NumStr);                                                  \
-              SerialOutput ("\n");                                                    \
-              Num2Str64bit ((UINTN)__builtin_return_address(5),NumStr);       \
-              SerialOutput (NumStr);                                                  \
-              SerialOutput ("\n");                                                    \
-              Num2Str64bit ((UINTN)__builtin_return_address(6),NumStr);       \
-              SerialOutput (NumStr);                                                  \
-              SerialOutput ("\n");                                                    \
-              Num2Str64bit ((UINTN)__builtin_return_address(7),NumStr);       \
-              SerialOutput (NumStr);                                                  \
-              SerialOutput ("\n");                                                    \
-              SerialOutput ("Access Address= ");                                      \
-              Num2Str64bit (addr, NumStr);                                            \
-              SerialOutput (NumStr);                                                  \
-              SerialOutput (", Shadow Memory Address= ");                             \
-              Num2Str64bit ( sp , NumStr);                                            \
-              SerialOutput (NumStr);                                                  \
-              SerialOutput (", Shadow Memory content= ");                             \
-              Num2Str64bit ( s , NumStr);                                             \
-              SerialOutput (NumStr);                                                  \
-              SerialOutput (", (addr & (SHADOW_GRANULARITY - 1)) + size - 1)= ");     \
-              Num2Str64bit (((addr & (SHADOW_GRANULARITY - 1)) + size - 1), NumStr);  \
-              SerialOutput (NumStr);                                                  \
-              SerialOutput ("\n\n");                                                  \
-              UINTN buggy_shadow_address = MEM_TO_SHADOW(addr);                                  \
-              UINTN ip = (UINTN)__builtin_return_address(0);                                     \
-              asan_bug_report2(addr, size, buggy_shadow_address, 1, ip, __FILE__, __LINE__); \
-        }                                                                             \
-      }                                                                               \
-    }                                                                                 \
-  }                                                                                   \
+#define DEFINE_ASAN_STORE_NOABORT(size)                                                 \
+void __asan_store##size##_noabort(UINTN addr) {                                         \
+  if (!asan_inited || asan_is_deactivated) return;                                      \
+  UINTN sp = MEM_TO_SHADOW(addr);                                                        \
+  if (sp < mAsanShadowMemoryStart || sp > mAsanShadowMemoryEnd) return;                 \
+  UINTN s = size <= SHADOW_GRANULARITY ? *(UINT8 *)(sp) : *(UINT16 *)(sp);              \
+  if (!s) return;                                                                        \
+  if ((size < SHADOW_GRANULARITY) &&                                                    \
+      (((INT8)((addr & (SHADOW_GRANULARITY - 1)) + size - 1)) < (INT8)s)) return;       \
+  asan_bug_report2 (addr, size, sp, 1,                                                  \
+                    (UINTN)__builtin_return_address(0),                                 \
+                    __FILE__, __LINE__);                                                \
 }
 
 DEFINE_ASAN_LOAD(1);
@@ -2021,6 +1958,31 @@ OnAsanShadowReady (
   asan_is_deactivated    = FALSE;
 }
 
+//
+// Direct, no-fan-out activation entry point. The module that wants
+// asan checks active calls this from its entry point with a CPU
+// pointer to the BAR-backed shadow region. Only this module's
+// per-instance AsanLib globals are touched.
+//
+VOID
+EFIAPI
+AsanLibActivate (
+  IN VOID    *ShadowBase,
+  IN UINTN   ShadowSize
+  )
+{
+  if ((ShadowBase == NULL) || (ShadowSize == 0)) {
+    return;
+  }
+  mAsanShadowMemoryStart = (UINT64)(UINTN)ShadowBase;
+  mAsanShadowMemorySize  = (UINT64)ShadowSize;
+  mAsanShadowMemoryEnd   = mAsanShadowMemoryStart + mAsanShadowMemorySize - 1;
+  mShadowOffset          = mAsanShadowMemoryStart;
+  __asan_shadow_memory_dynamic_address = mAsanShadowMemoryStart;
+  asan_inited            = TRUE;
+  asan_is_deactivated    = FALSE;
+}
+
 RETURN_STATUS
 EFIAPI
 AsanLibConstructor (
@@ -2062,7 +2024,7 @@ AsanLibConstructor (
       EFI_STATUS NotifyStatus;
       NotifyStatus = mAsanBs->CreateEvent (
                                 EVT_NOTIFY_SIGNAL,
-                                TPL_CALLBACK,
+                                TPL_NOTIFY,
                                 OnAsanShadowReady,
                                 NULL,
                                 &mAsanShadowReadyEvent

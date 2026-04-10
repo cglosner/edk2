@@ -32,8 +32,7 @@
   # cascade we hit when activating asan inside DxeCore's pool
   # allocator.
   #
-  LIBRARY_CLASS                  = NULL|DXE_DRIVER DXE_RUNTIME_DRIVER DXE_SMM_DRIVER UEFI_APPLICATION UEFI_DRIVER SMM_CORE
-  CONSTRUCTOR                    = AsanLibConstructor
+  LIBRARY_CLASS                  = AsanLib|DXE_DRIVER DXE_RUNTIME_DRIVER DXE_SMM_DRIVER UEFI_APPLICATION UEFI_DRIVER DXE_CORE SMM_CORE
 
 [Sources]
   AsanLibFullStub.c

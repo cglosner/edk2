@@ -41,4 +41,20 @@ typedef struct {
 
 extern EFI_GUID gAsanShadowReadyProtocolGuid;
 
+//
+// AsanLib direct activation entry point. A module that explicitly
+// wants its own per-instance asan checks turned on calls this from
+// its entry point with a directly-mapped CPU pointer to the shadow
+// region (i.e. the BAR base + 0x200000 the agent published). The
+// per-module AsanLib copy then starts checking every instrumented
+// load/store. No protocol notify, no fan-out — exactly the calling
+// module's instance is affected.
+//
+VOID
+EFIAPI
+AsanLibActivate (
+  IN VOID    *ShadowBase,
+  IN UINTN   ShadowSize
+  );
+
 #endif

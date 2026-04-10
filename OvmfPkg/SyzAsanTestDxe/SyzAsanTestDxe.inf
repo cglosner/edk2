@@ -1,0 +1,76 @@
+## @file
+#  SyzAsanTestDxe — minimal asan demonstrator. The driver explicitly
+#  pulls in AsanLib (the named library class, which under
+#  ASAN_INSTRUMENT=TRUE resolves to AsanLibFull), is built with
+#  -fsanitize=address, looks up gAsanShadowReadyProtocolGuid that
+#  SyzAgentDxe installed earlier in DXE, calls AsanLibActivate() to
+#  flip its OWN per-instance asan globals on, then deliberately reads
+#  past the end of an AllocatePool() buffer. The expected output is
+#  an "==ERROR: AddressSanitizer:" line in the OVMF debug log.
+#
+#  This module is intentionally narrow: only its own AsanLibFull
+#  instance gets activated, so the cascading activation hang we hit
+#  with the protocol-notify fan-out doesn't apply here.
+#
+#  Copyright (c) 2026, syzkaller project authors. All rights reserved.<BR>
+#
+#  SPDX-License-Identifier: BSD-2-Clause-Patent
+##
+
+[Defines]
+  INF_VERSION                    = 0x00010005
+  BASE_NAME                      = SyzAsanTestDxe
+  FILE_GUID                      = E3B7C0AA-4F1A-4F62-9C2C-7A21A1B2C3D4
+  MODULE_TYPE                    = DXE_DRIVER
+  VERSION_STRING                 = 0.1
+  ENTRY_POINT                    = SyzAsanTestDxeEntryPoint
+
+[Sources]
+  SyzAsanTestDxe.c
+
+[Packages]
+  MdePkg/MdePkg.dec
+  MdeModulePkg/MdeModulePkg.dec
+  OvmfPkg/OvmfPkg.dec
+
+[LibraryClasses]
+  AsanLib
+  BaseLib
+  BaseMemoryLib
+  DebugLib
+  MemoryAllocationLib
+  UefiBootServicesTableLib
+  UefiDriverEntryPoint
+
+[Guids]
+  gAsanInfoGuid
+
+[Protocols]
+  gAsanShadowReadyProtocolGuid               ## CONSUMES
+
+[Depex]
+  gAsanShadowReadyProtocolGuid
+
+[BuildOptions]
+  #
+  # GCC's -fsanitize=address bakes a hardcoded shadow offset
+  # (0x7fff8000 on x86_64 by default — i.e. KASAN's offset) into
+  # the inline shadow loads/stores it emits. We override that with
+  # -fasan-shadow-offset so the compiler-generated checks use the
+  # exact same shadow window SyzAgentDxe published via
+  # gAsanShadowReadyProtocolGuid (BAR_base + 0x200000). Without this
+  # the runtime asan_inited flag does nothing — every load/store
+  # writes/reads its own private shadow region the compiler picked.
+  #
+  # 0x380000200000 = ivshmem-plain BAR base (0x380000000000) plus
+  # the SyzAgent control region (0x200000).
+  #
+  #
+  # -fsanitize=kernel-address (KASAN mode) instead of the userspace
+  # -fsanitize=address. KASAN is what GCC accepts -fasan-shadow-offset
+  # with — userspace asan hardcodes the shadow offset at compile time
+  # to 0x7fff8000 and ignores any override. Functionally KASAN is the
+  # same set of load/store checks; it just lets the kernel pick the
+  # shadow window.
+  #
+  GCC:*_*_*_CC_FLAGS = -fsanitize=kernel-address -fasan-shadow-offset=0x380000200000 --param asan-stack=1 --param asan-globals=1 -fno-omit-frame-pointer
