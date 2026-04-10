@@ -92,9 +92,38 @@ SyzAsanTestDxeEntryPoint (
   sink ^= StackOob (5);
   DEBUG ((DEBUG_INFO, "[SYZ-ASAN-TEST] in-bounds read OK\n"));
 
-  DEBUG ((DEBUG_INFO, "[SYZ-ASAN-TEST] OOB read buf[20] - expecting asan report\n"));
+  DEBUG ((DEBUG_INFO, "[SYZ-ASAN-TEST] stack OOB read buf[20] - expecting asan report\n"));
   sink ^= StackOob (20);
-  DEBUG ((DEBUG_INFO, "[SYZ-ASAN-TEST] after OOB, sink=%u (recovered)\n", (UINTN)sink));
+  DEBUG ((DEBUG_INFO, "[SYZ-ASAN-TEST] after stack OOB, sink=%u (recovered)\n", (UINTN)sink));
+
+  //
+  // Heap OOB test: allocate 16 bytes, read at buf[24].
+  // The DxeCore pool allocator calls PoisonPool which does lazy
+  // config-table activation via AsanTryLazyActivate. If the shadow
+  // offset is correct and the config table was installed by
+  // SyzAgentDxe, the __asan_load1_noabort at buf[24] should see
+  // the pool right-redzone poison byte and fire a report.
+  //
+  {
+    UINT8 *hbuf = AllocatePool (16);
+    if (hbuf != NULL) {
+      SetMem (hbuf, 16, 0xBB);
+      //
+      // Peek at the shadow byte for hbuf[24] to see if PoisonPool
+      // wrote a redzone marker.
+      //
+      // Dump shadow for offsets 16..55 to see where the redzone starts.
+      for (UINTN si = 16; si <= 55; si += 8) {
+        UINTN sa = ((UINTN)&hbuf[si] >> 3) + 0x380000200000ULL;
+        UINT8 sv = *(volatile UINT8 *)sa;
+        DEBUG ((DEBUG_INFO, "[SYZ-ASAN-TEST] shadow(@hbuf[%u])=0x%02x\n", (UINT32)si, (UINTN)sv));
+      }
+      DEBUG ((DEBUG_INFO, "[SYZ-ASAN-TEST] heap OOB read hbuf[16] - expecting asan report (shadow=0xFA)\n"));
+      sink ^= hbuf[16];
+      DEBUG ((DEBUG_INFO, "[SYZ-ASAN-TEST] after heap OOB, sink=%u (recovered)\n", (UINTN)sink));
+      FreePool (hbuf);
+    }
+  }
 
   return EFI_SUCCESS;
 }

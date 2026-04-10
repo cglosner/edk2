@@ -128,21 +128,54 @@
 #
 [BuildOptions.common.EDKII.DXE_DRIVER]
   GCC:*_*_*_CC_FLAGS = -fsanitize-coverage=trace-pc
+!if $(ASAN_INSTRUMENT) == TRUE
+  GCC:*_*_*_CC_FLAGS = -fsanitize=kernel-address -fasan-shadow-offset=0x380000200000 --param asan-stack=1 --param asan-globals=1 -fsanitize-recover=address -fno-omit-frame-pointer
+!endif
+!if $(UBSAN_INSTRUMENT) == TRUE
+  GCC:*_*_*_CC_FLAGS = -fsanitize=undefined -fno-sanitize=alignment -fsanitize-recover=undefined
+!endif
 
 [BuildOptions.common.EDKII.DXE_RUNTIME_DRIVER]
   GCC:*_*_*_CC_FLAGS = -fsanitize-coverage=trace-pc
+!if $(ASAN_INSTRUMENT) == TRUE
+  GCC:*_*_*_CC_FLAGS = -fsanitize=kernel-address -fasan-shadow-offset=0x380000200000 --param asan-stack=1 --param asan-globals=1 -fsanitize-recover=address -fno-omit-frame-pointer
+!endif
+!if $(UBSAN_INSTRUMENT) == TRUE
+  GCC:*_*_*_CC_FLAGS = -fsanitize=undefined -fno-sanitize=alignment -fsanitize-recover=undefined
+!endif
 
 [BuildOptions.common.EDKII.UEFI_DRIVER]
   GCC:*_*_*_CC_FLAGS = -fsanitize-coverage=trace-pc
+!if $(ASAN_INSTRUMENT) == TRUE
+  GCC:*_*_*_CC_FLAGS = -fsanitize=kernel-address -fasan-shadow-offset=0x380000200000 --param asan-stack=1 --param asan-globals=1 -fsanitize-recover=address -fno-omit-frame-pointer
+!endif
+!if $(UBSAN_INSTRUMENT) == TRUE
+  GCC:*_*_*_CC_FLAGS = -fsanitize=undefined -fno-sanitize=alignment -fsanitize-recover=undefined
+!endif
 
 [BuildOptions.common.EDKII.DXE_SMM_DRIVER]
   GCC:*_*_*_CC_FLAGS = -fsanitize-coverage=trace-pc
+!if $(ASAN_INSTRUMENT) == TRUE
+  GCC:*_*_*_CC_FLAGS = -fsanitize=kernel-address -fasan-shadow-offset=0x380000200000 --param asan-stack=1 --param asan-globals=1 -fsanitize-recover=address -fno-omit-frame-pointer
+!endif
+!if $(UBSAN_INSTRUMENT) == TRUE
+  GCC:*_*_*_CC_FLAGS = -fsanitize=undefined -fno-sanitize=alignment -fsanitize-recover=undefined
+!endif
 
 [BuildOptions.common.EDKII.SMM_CORE]
   GCC:*_*_*_CC_FLAGS = -fsanitize-coverage=trace-pc
+!if $(ASAN_INSTRUMENT) == TRUE
+  GCC:*_*_*_CC_FLAGS = -fsanitize=kernel-address -fasan-shadow-offset=0x380000200000 --param asan-stack=1 --param asan-globals=1 -fsanitize-recover=address -fno-omit-frame-pointer
+!endif
+!if $(UBSAN_INSTRUMENT) == TRUE
+  GCC:*_*_*_CC_FLAGS = -fsanitize=undefined -fno-sanitize=alignment -fsanitize-recover=undefined
+!endif
 
 [BuildOptions.common.EDKII.DXE_CORE]
   GCC:*_*_*_CC_FLAGS = -fsanitize-coverage=trace-pc
+!if $(UBSAN_INSTRUMENT) == TRUE
+  GCC:*_*_*_CC_FLAGS = -fsanitize=undefined -fno-sanitize=alignment -fsanitize-recover=undefined
+!endif
 
 [BuildOptions]
 !endif
@@ -930,6 +963,10 @@
     <LibraryClasses>
       NULL|MdeModulePkg/Library/LzmaCustomDecompressLib/LzmaCustomDecompressLib.inf
       DevicePathLib|MdePkg/Library/UefiDevicePathLib/UefiDevicePathLib.inf
+!if $(ASAN_INSTRUMENT) == TRUE
+    <BuildOptions>
+      GCC:*_*_*_CC_FLAGS = -DASAN_ENABLE
+!endif
   }
 
   MdeModulePkg/Universal/ReportStatusCodeRouter/RuntimeDxe/ReportStatusCodeRouterRuntimeDxe.inf
@@ -1062,15 +1099,7 @@
   MdeModulePkg/Bus/Ata/AtaAtapiPassThru/AtaAtapiPassThru.inf
   MdeModulePkg/Bus/Ata/AtaBusDxe/AtaBusDxe.inf
   MdeModulePkg/Bus/Pci/NvmExpressDxe/NvmExpressDxe.inf
-  MdeModulePkg/Universal/HiiDatabaseDxe/HiiDatabaseDxe.inf {
-!if $(ASAN_INSTRUMENT) == TRUE
-    <BuildOptions>
-      GCC:*_*_*_CC_FLAGS = -fsanitize=address -fsanitize-recover=address -fno-omit-frame-pointer
-!if $(UBSAN_INSTRUMENT) == TRUE
-      GCC:*_*_*_CC_FLAGS = -fsanitize=undefined -fno-sanitize=alignment -fsanitize-recover=undefined
-!endif
-!endif
-  }
+  MdeModulePkg/Universal/HiiDatabaseDxe/HiiDatabaseDxe.inf
   MdeModulePkg/Universal/SetupBrowserDxe/SetupBrowserDxe.inf
   MdeModulePkg/Universal/DisplayEngineDxe/DisplayEngineDxe.inf
   MdeModulePkg/Universal/MemoryTest/NullMemoryTestDxe/NullMemoryTestDxe.inf
@@ -1187,7 +1216,12 @@
 !if $(SYZ_AGENT_ENABLE) == TRUE
   OvmfPkg/SyzAgentDxe/SyzAgentDxe.inf {
     <BuildOptions>
-      GCC:*_*_*_CC_FLAGS = -fno-sanitize-coverage=trace-pc -fno-sanitize=all
+      #
+      # SyzAgentDxe must not be instrumented. The per-MODULE_TYPE block
+      # prepends -fsanitize=kernel-address -fasan-shadow-offset=...; we
+      # strip kernel-address which also disables the shadow-offset.
+      #
+      GCC:*_*_*_CC_FLAGS = -fno-sanitize-coverage=trace-pc -fno-sanitize=kernel-address -fno-sanitize=undefined
   }
 !if $(ASAN_INSTRUMENT) == TRUE
   OvmfPkg/SyzAsanTestDxe/SyzAsanTestDxe.inf
@@ -1255,13 +1289,6 @@
   MdeModulePkg/Universal/Variable/RuntimeDxe/VariableRuntimeDxe.inf {
     <LibraryClasses>
       NULL|MdeModulePkg/Library/VarCheckUefiLib/VarCheckUefiLib.inf
-!if $(ASAN_INSTRUMENT) == TRUE
-    <BuildOptions>
-      GCC:*_*_*_CC_FLAGS = -fsanitize=address -fsanitize-recover=address -fno-omit-frame-pointer
-!if $(UBSAN_INSTRUMENT) == TRUE
-      GCC:*_*_*_CC_FLAGS = -fsanitize=undefined -fno-sanitize=alignment -fsanitize-recover=undefined
-!endif
-!endif
   }
 !endif
 

@@ -15,6 +15,7 @@
 
 #include <Uefi.h>
 #include <Library/Asan.h>
+#include <Library/BaseMemoryLib.h>
 #include <Library/HobLib.h>
 #include <Library/UefiBootServicesTableLib.h>
 #include <Guid/AsanInfo.h>
@@ -65,6 +66,7 @@ do {                            \
 static BOOLEAN asan_inited = FALSE;
 static BOOLEAN asan_is_deactivated = TRUE;
 static BOOLEAN AsanCtorFlag = FALSE;
+STATIC EFI_SYSTEM_TABLE *mAsanST = NULL;
 UINT64 mAsanShadowMemoryStart = 0;
 UINT64 mAsanShadowMemorySize = 0;
 UINT64 mAsanShadowMemoryEnd = 0;
@@ -358,9 +360,14 @@ void asan_bug_report2(UINTN addr, UINTN size,
                       UINTN ip, CHAR8 *file, UINTN line) {
   UINT8 shadow_val = *(UINT8 *)buggy_shadow_address;
   asan_emit_syz_report(addr, ip, shadow_val);
-  // The remaining SerialOutput / asan_print_shadow_memory2 calls
-  // below go to /dev/null in the syz launcher and are kept only for
-  // legacy hardware-debug consumers.
+  //
+  // Return immediately after the one-liner. The legacy verbose
+  // report below calls asan_print_shadow_memory2 which dereferences
+  // SHADOW_TO_MEM addresses that can fault on shallow call stacks
+  // and crash the driver before -fsanitize-recover gets a chance to
+  // continue. We rely solely on the one-line debugcon report now.
+  //
+  return;
   UINTN buggy_address = SHADOW_TO_MEM(buggy_shadow_address);
 
   // printf("[ASan] ===================================================\n");
@@ -1248,6 +1255,54 @@ ComputePoolRightRedzoneSize(
 // void PoisonShadowForGlobal(const Global *g, UINT8 value) {
   // FastPoisonShadow(g->beg, g->size_with_redzone, value);
 // }
+//
+// Lazy config-table activation. Called from PoisonPool/UnpoisonPool
+// on every invocation where asan is still deactivated. Scans the
+// EFI Configuration Table for gAsanInfoGuid and, if found, activates
+// the per-module asan globals from the ASAN_INFO the producer
+// (SyzAgentDxe) installed. No LocateProtocol, no events, no TPL.
+//
+STATIC
+VOID
+AsanTryLazyActivate (
+  VOID
+  )
+{
+  UINTN             Index;
+  EFI_SYSTEM_TABLE  *ST;
+
+  //
+  // Try the cached SystemTable first (set in the constructor).
+  // Fall back to gST from UefiBootServicesTableLib — this covers
+  // DxeCore's AsanLib instance whose constructor never ran because
+  // AsanLibFull has no CONSTRUCTOR declaration.
+  //
+  ST = mAsanST;
+  if (ST == NULL) {
+    ST = gST;
+  }
+  if (ST == NULL) {
+    return;
+  }
+  for (Index = 0; Index < ST->NumberOfTableEntries; Index++) {
+    if (CompareGuid (&ST->ConfigurationTable[Index].VendorGuid,
+                     &gAsanInfoGuid)) {
+      ASAN_INFO *Info = (ASAN_INFO *)ST->ConfigurationTable[Index].VendorTable;
+      if (Info == NULL || Info->AsanShadowMemorySize == 0) {
+        return;
+      }
+      mAsanShadowMemoryStart = Info->AsanShadowMemoryStart;
+      mAsanShadowMemorySize  = Info->AsanShadowMemorySize;
+      mAsanShadowMemoryEnd   = mAsanShadowMemoryStart + mAsanShadowMemorySize - 1;
+      mShadowOffset          = mAsanShadowMemoryStart;
+      __asan_shadow_memory_dynamic_address = mAsanShadowMemoryStart;
+      asan_inited            = TRUE;
+      asan_is_deactivated    = FALSE;
+      return;
+    }
+  }
+}
+
 void
 PoisonPool(
   IN const UINTN Addr,
@@ -1265,7 +1320,10 @@ PoisonPool(
   // SerialOutput (NumStr);
   // SerialOutput ("\n");
   if (asan_is_deactivated || !asan_inited){
-    return ;
+    AsanTryLazyActivate ();
+    if (asan_is_deactivated || !asan_inited) {
+      return;
+    }
   }
 
   ASAN_ASSERT(Size != 0);
@@ -1309,7 +1367,10 @@ UnpoisonPool(
 
   //SerialOutput ("UnpoisonPool begin\n");
   if (asan_is_deactivated || !asan_inited){
-    return ;
+    AsanTryLazyActivate ();
+    if (asan_is_deactivated || !asan_inited) {
+      return;
+    }
   }
 
   ASAN_ASSERT(Size != 0);
@@ -1341,7 +1402,10 @@ void PoisonPages (
 {
   //SerialOutput ("PoisonPages begin\n");
   if (asan_is_deactivated || !asan_inited){
-    return ;
+    AsanTryLazyActivate ();
+    if (asan_is_deactivated || !asan_inited) {
+      return;
+    }
   }
 
   FastPoisonShadow(Start, EFI_PAGES_TO_SIZE(PageNum), kAsanInternalHeapMagic);
@@ -1354,7 +1418,10 @@ void UnpoisonPages (
 {
   //SerialOutput ("UnpoisonPages begin\n");
   if (asan_is_deactivated || !asan_inited){
-    return ;
+    AsanTryLazyActivate ();
+    if (asan_is_deactivated || !asan_inited) {
+      return;
+    }
   }
 
   FastPoisonShadow(Start, EFI_PAGES_TO_SIZE(PageNum), 0);
@@ -2002,6 +2069,10 @@ AsanLibConstructor (
     AsanCtorFlag = TRUE;
   }
 
+  if (SystemTable != NULL) {
+    mAsanST = SystemTable;
+  }
+
   //
   // Cache BootServices from the SystemTable parameter rather than
   // gBS — UefiBootServicesTableLib's constructor may not have run
@@ -2014,11 +2085,25 @@ AsanLibConstructor (
   Status = SetupAsanShadowMemory();
   if (EFI_ERROR(Status)){
     //
-    // No HOB available — register a notify on the late-binding
-    // gAsanShadowReadyProtocolGuid. The producer (SyzAgentDxe) will
-    // install the protocol once it has the BAR-backed shadow region
-    // ready, and our notify callback will patch this module's per-
-    // instance asan globals.
+    // No HOB available — try the config-table path first: if
+    // SyzAgentDxe already installed the ASAN_INFO config table
+    // we can activate immediately without protocol-notify.
+    //
+    AsanTryLazyActivate ();
+    if (!asan_is_deactivated && asan_inited) {
+      //
+      // Config-table activation succeeded — skip the protocol-
+      // notify registration entirely.
+      //
+      return RETURN_SUCCESS;
+    }
+
+    //
+    // Config-table not available yet — fall back to registering a
+    // notify on the late-binding gAsanShadowReadyProtocolGuid.
+    // The producer (SyzAgentDxe) will install the protocol once it
+    // has the BAR-backed shadow region ready, and our notify
+    // callback will patch this module's per-instance asan globals.
     //
     if (mAsanBs != NULL) {
       EFI_STATUS NotifyStatus;

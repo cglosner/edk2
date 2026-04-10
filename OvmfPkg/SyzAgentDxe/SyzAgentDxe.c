@@ -135,6 +135,16 @@ SyzAgentOnPciIo (
         (UINT64)ShadowSize,
         ShadowStatus
         ));
+
+      {
+        STATIC ASAN_INFO mConfigTableAsanInfo;
+        mConfigTableAsanInfo.AsanShadowMemoryStart = (UINT64)(UINTN)ShadowBase;
+        mConfigTableAsanInfo.AsanShadowMemorySize  = (UINT64)ShadowSize;
+        mConfigTableAsanInfo.AsanInited             = 1;
+        mConfigTableAsanInfo.AsanActivated          = 1;
+        gBS->InstallConfigurationTable (&gAsanInfoGuid, &mConfigTableAsanInfo);
+        DEBUG ((DEBUG_INFO, "[SYZ-AGENT] asan config table installed\n"));
+      }
     } else {
       DEBUG ((
         DEBUG_INFO,

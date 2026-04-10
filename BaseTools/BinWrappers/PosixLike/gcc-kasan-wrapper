@@ -1,0 +1,31 @@
+#!/bin/bash
+# Wrapper around gcc that strips -fasan-shadow-offset when
+# -fno-sanitize=kernel-address is also present on the same
+# command line. This works around GCC's refusal to accept
+# -fasan-shadow-offset without an active -fsanitize=kernel-address,
+# which happens when EDK2's per-MODULE_TYPE BuildOptions prepend
+# the asan flags and a per-component <BuildOptions> subsequently
+# appends -fno-sanitize=kernel-address to exempt a specific module.
+args=("$@")
+has_fno=false
+for arg in "${args[@]}"; do
+    case "$arg" in
+        -fno-sanitize=kernel-address|-fno-sanitize=all)
+            has_fno=true
+            ;;
+    esac
+done
+if $has_fno; then
+    filtered=()
+    for arg in "${args[@]}"; do
+        case "$arg" in
+            -fasan-shadow-offset=*) ;;
+            --param) ;; # skip --param and next arg if it's asan-*
+            asan-stack=*|asan-globals=*) ;;
+            *) filtered+=("$arg") ;;
+        esac
+    done
+    exec gcc "${filtered[@]}"
+else
+    exec gcc "${args[@]}"
+fi

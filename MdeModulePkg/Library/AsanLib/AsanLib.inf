@@ -39,6 +39,7 @@
   MdeModulePkg/MdeModulePkg.dec
 
 [LibraryClasses]
+  BaseMemoryLib
   HobLib
   UefiBootServicesTableLib
 
