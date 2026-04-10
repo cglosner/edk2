@@ -22,6 +22,12 @@
 
 #include "SyzAgentDxe.h"
 
+#include <Protocol/BlockIo.h>
+#include <Protocol/DiskIo.h>
+#include <Protocol/PciIo.h>
+#include <Protocol/SimpleNetwork.h>
+#include <Protocol/UsbIo.h>
+#include <Protocol/GraphicsOutput.h>
 #include <Protocol/HiiDatabase.h>
 
 //
@@ -1172,6 +1178,453 @@ HandleInstallConfigTable (
   return EFI_SUCCESS;
 }
 
+// ----------------------------------------------------------------------
+// Protocol method call handlers (600+).
+// ----------------------------------------------------------------------
+
+STATIC
+EFI_STATUS
+HandleBlockIoReadBlocks (
+  IN CONST UINT8  *Payload,
+  IN UINTN        PayloadSize
+  )
+{
+  CONST SYZ_EDK2_BLOCK_IO_READ_PAYLOAD  *P;
+  EFI_BLOCK_IO_PROTOCOL                 *BlockIo;
+  EFI_STATUS                            Status;
+  SYZ_EDK2_ALLOC_SLOT                   *Slot;
+  VOID                                  *Buffer;
+  UINTN                                 BufSize;
+  UINTN                                 ReadSize;
+
+  if (PayloadSize < sizeof (*P)) {
+    return EFI_INVALID_PARAMETER;
+  }
+  P = (CONST SYZ_EDK2_BLOCK_IO_READ_PAYLOAD *)Payload;
+
+  Status = gBS->LocateProtocol (&gEfiBlockIoProtocolGuid, NULL, (VOID **)&BlockIo);
+  if (EFI_ERROR (Status)) {
+    return EFI_SUCCESS;
+  }
+
+  Slot    = GetAllocSlot (P->DstIndex);
+  Buffer  = (Slot != NULL) ? Slot->Pointer : NULL;
+  BufSize = (Slot != NULL) ? Slot->Bytes   : 0;
+  if (Buffer == NULL) {
+    return EFI_SUCCESS;
+  }
+
+  ReadSize = MIN ((UINTN)P->BufferSize, BufSize);
+  BlockIo->ReadBlocks (BlockIo, P->MediaId, P->Lba, ReadSize, Buffer);
+  return EFI_SUCCESS;
+}
+
+STATIC
+EFI_STATUS
+HandleBlockIoWriteBlocks (
+  IN CONST UINT8  *Payload,
+  IN UINTN        PayloadSize
+  )
+{
+  CONST SYZ_EDK2_BLOCK_IO_WRITE_PAYLOAD  *P;
+  EFI_BLOCK_IO_PROTOCOL                  *BlockIo;
+  EFI_STATUS                             Status;
+  SYZ_EDK2_ALLOC_SLOT                    *Slot;
+  VOID                                   *Buffer;
+  UINTN                                  BufSize;
+  UINTN                                  WriteSize;
+
+  if (PayloadSize < sizeof (*P)) {
+    return EFI_INVALID_PARAMETER;
+  }
+  P = (CONST SYZ_EDK2_BLOCK_IO_WRITE_PAYLOAD *)Payload;
+
+  Status = gBS->LocateProtocol (&gEfiBlockIoProtocolGuid, NULL, (VOID **)&BlockIo);
+  if (EFI_ERROR (Status)) {
+    return EFI_SUCCESS;
+  }
+
+  Slot    = GetAllocSlot (P->SrcIndex);
+  Buffer  = (Slot != NULL) ? Slot->Pointer : NULL;
+  BufSize = (Slot != NULL) ? Slot->Bytes   : 0;
+  if (Buffer == NULL) {
+    return EFI_SUCCESS;
+  }
+
+  WriteSize = MIN ((UINTN)P->BufferSize, BufSize);
+  BlockIo->WriteBlocks (BlockIo, P->MediaId, P->Lba, WriteSize, Buffer);
+  return EFI_SUCCESS;
+}
+
+STATIC
+EFI_STATUS
+HandleDiskIoReadDisk (
+  IN CONST UINT8  *Payload,
+  IN UINTN        PayloadSize
+  )
+{
+  CONST SYZ_EDK2_DISK_IO_READ_PAYLOAD  *P;
+  EFI_DISK_IO_PROTOCOL                 *DiskIo;
+  EFI_STATUS                           Status;
+  SYZ_EDK2_ALLOC_SLOT                  *Slot;
+  VOID                                 *Buffer;
+  UINTN                                BufSize;
+  UINTN                                ReadSize;
+
+  if (PayloadSize < sizeof (*P)) {
+    return EFI_INVALID_PARAMETER;
+  }
+  P = (CONST SYZ_EDK2_DISK_IO_READ_PAYLOAD *)Payload;
+
+  Status = gBS->LocateProtocol (&gEfiDiskIoProtocolGuid, NULL, (VOID **)&DiskIo);
+  if (EFI_ERROR (Status)) {
+    return EFI_SUCCESS;
+  }
+
+  Slot    = GetAllocSlot (P->DstIndex);
+  Buffer  = (Slot != NULL) ? Slot->Pointer : NULL;
+  BufSize = (Slot != NULL) ? Slot->Bytes   : 0;
+  if (Buffer == NULL) {
+    return EFI_SUCCESS;
+  }
+
+  ReadSize = MIN ((UINTN)P->BufferSize, BufSize);
+  DiskIo->ReadDisk (DiskIo, P->MediaId, P->Offset, ReadSize, Buffer);
+  return EFI_SUCCESS;
+}
+
+STATIC
+EFI_STATUS
+HandlePciIoMemRead (
+  IN CONST UINT8  *Payload,
+  IN UINTN        PayloadSize
+  )
+{
+  CONST SYZ_EDK2_PCI_IO_MEM_READ_PAYLOAD  *P;
+  EFI_PCI_IO_PROTOCOL                     *PciIo;
+  EFI_STATUS                              Status;
+  SYZ_EDK2_ALLOC_SLOT                     *Slot;
+  VOID                                    *Buffer;
+  UINTN                                   BufSize;
+  UINT32                                  Width;
+  UINTN                                   Count;
+
+  if (PayloadSize < sizeof (*P)) {
+    return EFI_INVALID_PARAMETER;
+  }
+  P = (CONST SYZ_EDK2_PCI_IO_MEM_READ_PAYLOAD *)Payload;
+
+  Status = gBS->LocateProtocol (&gEfiPciIoProtocolGuid, NULL, (VOID **)&PciIo);
+  if (EFI_ERROR (Status)) {
+    return EFI_SUCCESS;
+  }
+
+  Slot    = GetAllocSlot (P->DstIndex);
+  Buffer  = (Slot != NULL) ? Slot->Pointer : NULL;
+  BufSize = (Slot != NULL) ? Slot->Bytes   : 0;
+  if (Buffer == NULL) {
+    return EFI_SUCCESS;
+  }
+
+  Width = P->Width;
+  if (Width > EfiPciIoWidthFifoUint64) {
+    Width = EfiPciIoWidthUint8;
+  }
+  Count = MIN ((UINTN)P->Count, BufSize);
+  PciIo->Mem.Read (PciIo, (EFI_PCI_IO_PROTOCOL_WIDTH)Width,
+                   P->BarIndex, P->Offset, Count, Buffer);
+  return EFI_SUCCESS;
+}
+
+STATIC
+EFI_STATUS
+HandlePciIoPciRead (
+  IN CONST UINT8  *Payload,
+  IN UINTN        PayloadSize
+  )
+{
+  CONST SYZ_EDK2_PCI_IO_PCI_READ_PAYLOAD  *P;
+  EFI_PCI_IO_PROTOCOL                     *PciIo;
+  EFI_STATUS                              Status;
+  SYZ_EDK2_ALLOC_SLOT                     *Slot;
+  VOID                                    *Buffer;
+  UINTN                                   BufSize;
+  UINT32                                  Width;
+  UINTN                                   Count;
+
+  if (PayloadSize < sizeof (*P)) {
+    return EFI_INVALID_PARAMETER;
+  }
+  P = (CONST SYZ_EDK2_PCI_IO_PCI_READ_PAYLOAD *)Payload;
+
+  Status = gBS->LocateProtocol (&gEfiPciIoProtocolGuid, NULL, (VOID **)&PciIo);
+  if (EFI_ERROR (Status)) {
+    return EFI_SUCCESS;
+  }
+
+  Slot    = GetAllocSlot (P->DstIndex);
+  Buffer  = (Slot != NULL) ? Slot->Pointer : NULL;
+  BufSize = (Slot != NULL) ? Slot->Bytes   : 0;
+  if (Buffer == NULL) {
+    return EFI_SUCCESS;
+  }
+
+  Width = P->Width;
+  if (Width > EfiPciIoWidthFifoUint64) {
+    Width = EfiPciIoWidthUint8;
+  }
+  Count = MIN ((UINTN)P->Count, BufSize);
+  PciIo->Pci.Read (PciIo, (EFI_PCI_IO_PROTOCOL_WIDTH)Width,
+                   P->PciOffset, Count, Buffer);
+  return EFI_SUCCESS;
+}
+
+STATIC
+EFI_STATUS
+HandleSnpTransmit (
+  IN CONST UINT8  *Payload,
+  IN UINTN        PayloadSize
+  )
+{
+  CONST SYZ_EDK2_SNP_TRANSMIT_PAYLOAD  *P;
+  EFI_SIMPLE_NETWORK_PROTOCOL          *Snp;
+  EFI_STATUS                           Status;
+  SYZ_EDK2_ALLOC_SLOT                  *Slot;
+  VOID                                 *Buffer;
+  UINTN                                BufSize;
+  UINTN                                TxSize;
+  UINTN                                HdrSize;
+  EFI_MAC_ADDRESS                      SrcAddr;
+  EFI_MAC_ADDRESS                      DestAddr;
+
+  if (PayloadSize < sizeof (*P)) {
+    return EFI_INVALID_PARAMETER;
+  }
+  P = (CONST SYZ_EDK2_SNP_TRANSMIT_PAYLOAD *)Payload;
+
+  Status = gBS->LocateProtocol (&gEfiSimpleNetworkProtocolGuid, NULL, (VOID **)&Snp);
+  if (EFI_ERROR (Status)) {
+    return EFI_SUCCESS;
+  }
+
+  Slot    = GetAllocSlot (P->SrcIndex);
+  Buffer  = (Slot != NULL) ? Slot->Pointer : NULL;
+  BufSize = (Slot != NULL) ? Slot->Bytes   : 0;
+  if (Buffer == NULL) {
+    return EFI_SUCCESS;
+  }
+
+  TxSize  = MIN ((UINTN)P->BufferSize, BufSize);
+  HdrSize = MIN ((UINTN)P->HeaderSize, TxSize);
+
+  ZeroMem (&SrcAddr, sizeof (SrcAddr));
+  ZeroMem (&DestAddr, sizeof (DestAddr));
+  CopyMem (&SrcAddr,  P->SrcAddr,  sizeof (P->SrcAddr));
+  CopyMem (&DestAddr, P->DestAddr, sizeof (P->DestAddr));
+
+  {
+    UINT16 Proto = P->Protocol;
+    Snp->Transmit (Snp, HdrSize, TxSize, Buffer, &SrcAddr, &DestAddr, &Proto);
+  }
+  return EFI_SUCCESS;
+}
+
+STATIC
+EFI_STATUS
+HandleUsbIoControlTransfer (
+  IN CONST UINT8  *Payload,
+  IN UINTN        PayloadSize
+  )
+{
+  CONST SYZ_EDK2_USB_IO_CONTROL_TRANSFER_PAYLOAD  *P;
+  EFI_USB_IO_PROTOCOL                             *UsbIo;
+  EFI_STATUS                                      Status;
+  SYZ_EDK2_ALLOC_SLOT                             *Slot;
+  VOID                                            *Buffer;
+  UINTN                                           BufSize;
+  EFI_USB_DEVICE_REQUEST                          Request;
+  UINT32                                          UsbStatus;
+  UINT16                                          DataLen;
+
+  if (PayloadSize < sizeof (*P)) {
+    return EFI_INVALID_PARAMETER;
+  }
+  P = (CONST SYZ_EDK2_USB_IO_CONTROL_TRANSFER_PAYLOAD *)Payload;
+
+  Status = gBS->LocateProtocol (&gEfiUsbIoProtocolGuid, NULL, (VOID **)&UsbIo);
+  if (EFI_ERROR (Status)) {
+    return EFI_SUCCESS;
+  }
+
+  Slot    = GetAllocSlot (P->DataIndex);
+  Buffer  = (Slot != NULL) ? Slot->Pointer : NULL;
+  BufSize = (Slot != NULL) ? Slot->Bytes   : 0;
+
+  ZeroMem (&Request, sizeof (Request));
+  Request.RequestType = P->RequestType;
+  Request.Request     = P->Request;
+  Request.Value       = P->Value;
+  Request.Index       = P->Index;
+
+  DataLen = (Buffer != NULL) ? (UINT16)MIN ((UINTN)P->DataLength, BufSize) : 0;
+  Request.Length = DataLen;
+
+  UsbIo->UsbControlTransfer (
+           UsbIo,
+           &Request,
+           (EFI_USB_DATA_DIRECTION)MIN (P->Direction, EfiUsbNoData),
+           MIN (P->Timeout, 5000),
+           Buffer,
+           DataLen,
+           &UsbStatus
+           );
+  return EFI_SUCCESS;
+}
+
+STATIC
+EFI_STATUS
+HandleGopBlt (
+  IN CONST UINT8  *Payload,
+  IN UINTN        PayloadSize
+  )
+{
+  CONST SYZ_EDK2_GOP_BLT_PAYLOAD          *P;
+  EFI_GRAPHICS_OUTPUT_PROTOCOL             *Gop;
+  EFI_STATUS                               Status;
+  SYZ_EDK2_ALLOC_SLOT                      *Slot;
+  EFI_GRAPHICS_OUTPUT_BLT_PIXEL            *BltBuffer;
+  UINTN                                    BufSize;
+  UINTN                                    Width;
+  UINTN                                    Height;
+  EFI_GRAPHICS_OUTPUT_BLT_OPERATION        BltOp;
+
+  if (PayloadSize < sizeof (*P)) {
+    return EFI_INVALID_PARAMETER;
+  }
+  P = (CONST SYZ_EDK2_GOP_BLT_PAYLOAD *)Payload;
+
+  Status = gBS->LocateProtocol (&gEfiGraphicsOutputProtocolGuid, NULL, (VOID **)&Gop);
+  if (EFI_ERROR (Status)) {
+    return EFI_SUCCESS;
+  }
+
+  Slot      = GetAllocSlot (P->SrcIndex);
+  BltBuffer = (Slot != NULL) ? (EFI_GRAPHICS_OUTPUT_BLT_PIXEL *)Slot->Pointer : NULL;
+  BufSize   = (Slot != NULL) ? Slot->Bytes : 0;
+  if (BltBuffer == NULL) {
+    return EFI_SUCCESS;
+  }
+
+  BltOp  = (EFI_GRAPHICS_OUTPUT_BLT_OPERATION)MIN (P->BltOp, EfiBltBufferToVideo);
+  Width  = MIN ((UINTN)P->Width,  256);
+  Height = MIN ((UINTN)P->Height, 256);
+
+  //
+  // Make sure the BLT buffer is large enough for the requested rectangle.
+  //
+  if (Width * Height * sizeof (EFI_GRAPHICS_OUTPUT_BLT_PIXEL) > BufSize) {
+    return EFI_SUCCESS;
+  }
+
+  Gop->Blt (Gop, BltBuffer, BltOp,
+            P->SrcX, P->SrcY,
+            P->DstX, P->DstY,
+            Width, Height,
+            P->Delta);
+  return EFI_SUCCESS;
+}
+
+STATIC
+EFI_STATUS
+HandleHiiUpdatePackageList (
+  IN CONST UINT8  *Payload,
+  IN UINTN        PayloadSize
+  )
+{
+  CONST SYZ_EDK2_HII_UPDATE_PACKAGE_LIST_PAYLOAD  *P;
+  EFI_HII_DATABASE_PROTOCOL                       *Hii;
+  EFI_HII_HANDLE                                  Handle;
+  EFI_HII_PACKAGE_LIST_HEADER                     *List;
+  EFI_STATUS                                      Status;
+
+  if (PayloadSize < sizeof (*P)) {
+    return EFI_INVALID_PARAMETER;
+  }
+  P = (CONST SYZ_EDK2_HII_UPDATE_PACKAGE_LIST_PAYLOAD *)Payload;
+  if ((UINTN)P->PackageSize + sizeof (*P) > PayloadSize) {
+    return EFI_INVALID_PARAMETER;
+  }
+  if (P->PackageSize < sizeof (EFI_HII_PACKAGE_LIST_HEADER)) {
+    return EFI_INVALID_PARAMETER;
+  }
+  if (P->HandleIndex >= SYZ_EDK2_MAX_HII_HANDLES) {
+    return EFI_INVALID_PARAMETER;
+  }
+
+  Handle = gSyzEdk2Agent.HiiHandles[P->HandleIndex].Handle;
+  if (Handle == NULL) {
+    return EFI_SUCCESS;
+  }
+
+  Status = gBS->LocateProtocol (&gEfiHiiDatabaseProtocolGuid, NULL, (VOID **)&Hii);
+  if (EFI_ERROR (Status)) {
+    return EFI_SUCCESS;
+  }
+
+  List = AllocatePool (P->PackageSize);
+  if (List == NULL) {
+    return EFI_OUT_OF_RESOURCES;
+  }
+  CopyMem (List, Payload + sizeof (*P), P->PackageSize);
+
+  Hii->UpdatePackageList (Hii, Handle, List);
+  FreePool (List);
+  return EFI_SUCCESS;
+}
+
+STATIC
+EFI_STATUS
+HandleHiiExportPackageLists (
+  IN CONST UINT8  *Payload,
+  IN UINTN        PayloadSize
+  )
+{
+  CONST SYZ_EDK2_HII_EXPORT_PACKAGE_LISTS_PAYLOAD  *P;
+  EFI_HII_DATABASE_PROTOCOL                        *Hii;
+  EFI_HII_HANDLE                                   Handle;
+  EFI_STATUS                                       Status;
+  SYZ_EDK2_ALLOC_SLOT                              *Slot;
+  VOID                                             *Buffer;
+  UINTN                                            BufSize;
+  UINTN                                            ExportSize;
+
+  if (PayloadSize < sizeof (*P)) {
+    return EFI_INVALID_PARAMETER;
+  }
+  P = (CONST SYZ_EDK2_HII_EXPORT_PACKAGE_LISTS_PAYLOAD *)Payload;
+
+  if (P->HandleIndex >= SYZ_EDK2_MAX_HII_HANDLES) {
+    return EFI_INVALID_PARAMETER;
+  }
+  Handle = gSyzEdk2Agent.HiiHandles[P->HandleIndex].Handle;
+
+  Status = gBS->LocateProtocol (&gEfiHiiDatabaseProtocolGuid, NULL, (VOID **)&Hii);
+  if (EFI_ERROR (Status)) {
+    return EFI_SUCCESS;
+  }
+
+  Slot    = GetAllocSlot (P->DstIndex);
+  Buffer  = (Slot != NULL) ? Slot->Pointer : NULL;
+  BufSize = (Slot != NULL) ? Slot->Bytes   : 0;
+  if (Buffer == NULL) {
+    return EFI_SUCCESS;
+  }
+
+  ExportSize = MIN ((UINTN)P->BufferSize, BufSize);
+  Hii->ExportPackageLists (Hii, Handle, &ExportSize, (EFI_HII_PACKAGE_LIST_HEADER *)Buffer);
+  return EFI_SUCCESS;
+}
+
 EFI_STATUS
 EFIAPI
 SyzEdk2Dispatch (
@@ -1274,6 +1727,26 @@ SyzEdk2Dispatch (
       HandleAsanUnpoison (Payload, PayloadSize);
     } else if (Hdr->Call == SyzEdk2ApiAsanReportAlloc) {
       HandleAsanReport (Payload, PayloadSize);
+    } else if (Hdr->Call == SyzEdk2ApiBlockIoReadBlocks) {
+      HandleBlockIoReadBlocks (Payload, PayloadSize);
+    } else if (Hdr->Call == SyzEdk2ApiBlockIoWriteBlocks) {
+      HandleBlockIoWriteBlocks (Payload, PayloadSize);
+    } else if (Hdr->Call == SyzEdk2ApiDiskIoReadDisk) {
+      HandleDiskIoReadDisk (Payload, PayloadSize);
+    } else if (Hdr->Call == SyzEdk2ApiPciIoMemRead) {
+      HandlePciIoMemRead (Payload, PayloadSize);
+    } else if (Hdr->Call == SyzEdk2ApiPciIoPciRead) {
+      HandlePciIoPciRead (Payload, PayloadSize);
+    } else if (Hdr->Call == SyzEdk2ApiSnpTransmit) {
+      HandleSnpTransmit (Payload, PayloadSize);
+    } else if (Hdr->Call == SyzEdk2ApiUsbIoControlTransfer) {
+      HandleUsbIoControlTransfer (Payload, PayloadSize);
+    } else if (Hdr->Call == SyzEdk2ApiGopBlt) {
+      HandleGopBlt (Payload, PayloadSize);
+    } else if (Hdr->Call == SyzEdk2ApiHiiUpdatePackageList) {
+      HandleHiiUpdatePackageList (Payload, PayloadSize);
+    } else if (Hdr->Call == SyzEdk2ApiHiiExportPackageLists) {
+      HandleHiiExportPackageLists (Payload, PayloadSize);
     } else {
       DEBUG ((DEBUG_VERBOSE, "[SYZ-AGENT] unknown call %u\n", (UINTN)Hdr->Call));
     }

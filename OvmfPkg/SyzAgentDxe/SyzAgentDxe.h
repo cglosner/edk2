@@ -86,6 +86,17 @@ typedef enum {
   SyzEdk2ApiAsanPoisonAlloc          = 500,
   SyzEdk2ApiAsanUnpoisonAlloc        = 501,
   SyzEdk2ApiAsanReportAlloc          = 502,
+  // Protocol method calls (600+)
+  SyzEdk2ApiBlockIoReadBlocks      = 600,
+  SyzEdk2ApiBlockIoWriteBlocks     = 601,
+  SyzEdk2ApiDiskIoReadDisk         = 610,
+  SyzEdk2ApiPciIoMemRead           = 620,
+  SyzEdk2ApiPciIoPciRead           = 621,
+  SyzEdk2ApiSnpTransmit            = 630,
+  SyzEdk2ApiUsbIoControlTransfer   = 640,
+  SyzEdk2ApiGopBlt                 = 650,
+  SyzEdk2ApiHiiUpdatePackageList   = 660,
+  SyzEdk2ApiHiiExportPackageLists  = 661,
 } SYZ_EDK2_API_ID;
 
 //
@@ -322,6 +333,90 @@ typedef struct {
   UINT8     IsWrite;        ///< only used by AsanReportAlloc
   UINT8     Pad[3];
 } SYZ_EDK2_ASAN_PAYLOAD;
+
+typedef struct {
+  UINT32    MediaId;
+  UINT64    Lba;
+  UINT32    BufferSize;
+  UINT32    DstIndex;
+} SYZ_EDK2_BLOCK_IO_READ_PAYLOAD;
+
+typedef struct {
+  UINT32    MediaId;
+  UINT64    Lba;
+  UINT32    BufferSize;
+  UINT32    SrcIndex;
+} SYZ_EDK2_BLOCK_IO_WRITE_PAYLOAD;
+
+typedef struct {
+  UINT32    MediaId;
+  UINT64    Offset;
+  UINT32    BufferSize;
+  UINT32    DstIndex;
+} SYZ_EDK2_DISK_IO_READ_PAYLOAD;
+
+typedef struct {
+  UINT32    Width;
+  UINT32    BarIndex;
+  UINT64    Offset;
+  UINT32    Count;
+  UINT32    DstIndex;
+} SYZ_EDK2_PCI_IO_MEM_READ_PAYLOAD;
+
+typedef struct {
+  UINT32    Width;
+  UINT32    PciOffset;
+  UINT32    Count;
+  UINT32    DstIndex;
+} SYZ_EDK2_PCI_IO_PCI_READ_PAYLOAD;
+
+typedef struct {
+  UINT32    HeaderSize;
+  UINT32    BufferSize;
+  UINT32    SrcIndex;
+  UINT8     SrcAddr[6];
+  UINT8     DestAddr[6];
+  UINT16    Protocol;
+  UINT16    Pad0;
+} SYZ_EDK2_SNP_TRANSMIT_PAYLOAD;
+
+typedef struct {
+  UINT8     RequestType;
+  UINT8     Request;
+  UINT16    Value;
+  UINT16    Index;
+  UINT16    Pad0;
+  UINT32    Direction;
+  UINT32    Timeout;
+  UINT32    DataIndex;
+  UINT16    DataLength;
+  UINT16    Pad1;
+} SYZ_EDK2_USB_IO_CONTROL_TRANSFER_PAYLOAD;
+
+typedef struct {
+  UINT32    SrcIndex;
+  UINT32    BltOp;
+  UINT32    SrcX;
+  UINT32    SrcY;
+  UINT32    DstX;
+  UINT32    DstY;
+  UINT32    Width;
+  UINT32    Height;
+  UINT32    Delta;
+} SYZ_EDK2_GOP_BLT_PAYLOAD;
+
+typedef struct {
+  UINT32    HandleIndex;
+  UINT16    PackageSize;
+  UINT16    Pad0;
+  // UINT8  Data[PackageSize];
+} SYZ_EDK2_HII_UPDATE_PACKAGE_LIST_PAYLOAD;
+
+typedef struct {
+  UINT32    HandleIndex;
+  UINT32    BufferSize;
+  UINT32    DstIndex;
+} SYZ_EDK2_HII_EXPORT_PACKAGE_LISTS_PAYLOAD;
 
 #pragma pack ()
 
