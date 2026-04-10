@@ -44,6 +44,7 @@
   DEFINE SYZ_AGENT_ENABLE        = FALSE
   DEFINE ASAN_ENABLE             = FALSE
   DEFINE ASAN_INSTRUMENT         = FALSE
+  DEFINE UBSAN_INSTRUMENT        = FALSE
 
 !include OvmfPkg/Include/Dsc/OvmfTpmDefines.dsc.inc
 
@@ -115,21 +116,63 @@
   GCC:*_*_*_CC_FLAGS = -fsanitize-coverage=trace-pc
 !if $(ASAN_INSTRUMENT) == TRUE
   GCC:*_*_*_CC_FLAGS = -fsanitize=address -fsanitize-recover=address -fno-omit-frame-pointer
+!if $(UBSAN_INSTRUMENT) == TRUE
+  GCC:*_*_*_CC_FLAGS = -fsanitize=undefined -fno-sanitize=alignment -fsanitize-recover=undefined
 !endif
+!endif
+
 [BuildOptions.common.EDKII.DXE_RUNTIME_DRIVER]
   GCC:*_*_*_CC_FLAGS = -fsanitize-coverage=trace-pc
 !if $(ASAN_INSTRUMENT) == TRUE
   GCC:*_*_*_CC_FLAGS = -fsanitize=address -fsanitize-recover=address -fno-omit-frame-pointer
+!if $(UBSAN_INSTRUMENT) == TRUE
+  GCC:*_*_*_CC_FLAGS = -fsanitize=undefined -fno-sanitize=alignment -fsanitize-recover=undefined
 !endif
+!endif
+
 [BuildOptions.common.EDKII.UEFI_DRIVER]
   GCC:*_*_*_CC_FLAGS = -fsanitize-coverage=trace-pc
 !if $(ASAN_INSTRUMENT) == TRUE
   GCC:*_*_*_CC_FLAGS = -fsanitize=address -fsanitize-recover=address -fno-omit-frame-pointer
+!if $(UBSAN_INSTRUMENT) == TRUE
+  GCC:*_*_*_CC_FLAGS = -fsanitize=undefined -fno-sanitize=alignment -fsanitize-recover=undefined
 !endif
-[BuildOptions.common.EDKII.DXE_CORE]
+!endif
+
+[BuildOptions.common.EDKII.DXE_SMM_DRIVER]
   GCC:*_*_*_CC_FLAGS = -fsanitize-coverage=trace-pc
 !if $(ASAN_INSTRUMENT) == TRUE
   GCC:*_*_*_CC_FLAGS = -fsanitize=address -fsanitize-recover=address -fno-omit-frame-pointer
+!if $(UBSAN_INSTRUMENT) == TRUE
+  GCC:*_*_*_CC_FLAGS = -fsanitize=undefined -fno-sanitize=alignment -fsanitize-recover=undefined
+!endif
+!endif
+
+[BuildOptions.common.EDKII.SMM_CORE]
+  GCC:*_*_*_CC_FLAGS = -fsanitize-coverage=trace-pc
+!if $(ASAN_INSTRUMENT) == TRUE
+  GCC:*_*_*_CC_FLAGS = -fsanitize=address -fsanitize-recover=address -fno-omit-frame-pointer
+!if $(UBSAN_INSTRUMENT) == TRUE
+  GCC:*_*_*_CC_FLAGS = -fsanitize=undefined -fno-sanitize=alignment -fsanitize-recover=undefined
+!endif
+!endif
+
+#
+# DXE_CORE is intentionally NOT instrumented with -fsanitize=address.
+# Activating asan checks inside DxeCore wedges the boot before the
+# SyzAgent dispatch timer fires (almost certainly a recursive shadow
+# lookup against the MMIO-backed shadow window from inside DxeCore's
+# pool allocator). It still gets sanitizer-coverage so we don't lose
+# DxeCore PCs in the cover ring; only the asan load/store checks are
+# disabled for it. UBSan IS still applied because its traps are
+# stateless and don't touch shadow memory.
+#
+[BuildOptions.common.EDKII.DXE_CORE]
+  GCC:*_*_*_CC_FLAGS = -fsanitize-coverage=trace-pc
+!if $(ASAN_INSTRUMENT) == TRUE
+!if $(UBSAN_INSTRUMENT) == TRUE
+  GCC:*_*_*_CC_FLAGS = -fsanitize=undefined -fno-sanitize=alignment -fsanitize-recover=undefined
+!endif
 !endif
 
 [BuildOptions]
@@ -441,7 +484,13 @@
 !if $(SYZ_AGENT_ENABLE) == TRUE
   NULL|OvmfPkg/Library/SyzCoverLib/SyzCoverLibNull.inf
 !if $(ASAN_INSTRUMENT) == TRUE
-  NULL|MdeModulePkg/Library/AsanLib/AsanLibFull.inf
+  #
+  # Intentionally NO NULL|AsanLibFull injection for DXE_CORE — DxeMain
+  # is built without -fsanitize=address (see [BuildOptions.common
+  # .EDKII.DXE_CORE]) so the asan runtime symbols only need to be
+  # provided as weak no-op stubs from AsanLibNull. Activating asan
+  # inside DxeCore wedged the boot dispatch loop in earlier sessions.
+  #
 !endif
 !endif
 
@@ -569,6 +618,12 @@
   BaseCryptLib|CryptoPkg/Library/BaseCryptLib/SmmCryptLib.inf
   PciLib|OvmfPkg/Library/DxePciLibI440FxQ35/DxePciLibI440FxQ35.inf
   SmmCpuRendezvousLib|UefiCpuPkg/Library/SmmCpuRendezvousLib/SmmCpuRendezvousLib.inf
+!if $(SYZ_AGENT_ENABLE) == TRUE
+  NULL|OvmfPkg/Library/SyzCoverLib/SyzCoverLibNull.inf
+!if $(ASAN_INSTRUMENT) == TRUE
+  NULL|MdeModulePkg/Library/AsanLib/AsanLibFull.inf
+!endif
+!endif
 
 [LibraryClasses.common.SMM_CORE]
   PcdLib|MdePkg/Library/DxePcdLib/DxePcdLib.inf

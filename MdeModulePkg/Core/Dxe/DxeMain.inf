@@ -73,6 +73,7 @@
   MdeModulePkg/MdeModulePkg.dec
 
 [LibraryClasses]
+  AsanLib
   BaseMemoryLib
   CacheMaintenanceLib
   UefiDecompressLib

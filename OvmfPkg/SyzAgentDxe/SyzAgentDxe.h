@@ -337,6 +337,11 @@ typedef struct {
   CHAR16                NextVarName[SYZ_EDK2_MAX_VARNAME / sizeof (CHAR16)];
   EFI_GUID              NextVarGuid;
   BOOLEAN               NextVarValid;
+  // BAR-backed asan shadow region — discovered at PciIo time but the
+  // actual gAsanShadowReadyProtocolGuid install is deferred so the
+  // dispatcher can choose when to activate asan checks system-wide.
+  VOID                  *AsanShadowBase;
+  UINTN                 AsanShadowSize;
 } SYZ_EDK2_AGENT;
 
 extern SYZ_EDK2_AGENT  gSyzEdk2Agent;

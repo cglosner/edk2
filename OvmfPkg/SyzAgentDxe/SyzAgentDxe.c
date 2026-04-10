@@ -100,46 +100,31 @@ SyzAgentOnPciIo (
   SyzCoverSetShared (SharedBase, SharedSize);
 
   //
-  // Late-bind the AddressSanitizer shadow region. The tail of the
-  // ivshmem BAR (everything past SYZ_EDK2_OFF_SHADOW) is the shadow
-  // window. We allocate one ASAN_SHADOW_INFO and install the
-  // gAsanShadowReadyProtocolGuid; this fans out to every loaded
-  // instrumented module via the per-module RegisterProtocolNotify
-  // that AsanLib's constructor put in place.
-  //
-  // The static lifetime is intentional: every per-module notify call
-  // back keeps reading this struct via LocateProtocol, and we don't
-  // want it to disappear when this function returns.
+  // Discover the BAR-backed asan shadow region but DEFER installing
+  // gAsanShadowReadyProtocolGuid — installing it from this PciIo
+  // notify path activates asan in every loaded instrumented module
+  // (via the AsanLibFull constructor's RegisterProtocolNotify), and
+  // that activation has been observed to wedge the boot dispatcher
+  // before the SyzAgent timer ever fires (suspected: a slow shadow-
+  // poison loop inside AllocatePool's redzone path running on the
+  // ivshmem BAR). The shadow region info is stashed in
+  // gSyzEdk2Agent.AsanShadow* so an external "activate now" command
+  // can flip the install on demand from the fuzzer side.
   //
   {
-    STATIC ASAN_SHADOW_INFO  mShadowInfo;
-    STATIC EFI_HANDLE        mShadowHandle = NULL;
     VOID                     *ShadowBase = NULL;
-    UINTN                    ShadowSize = 0;
+    UINTN                    ShadowSize  = 0;
     EFI_STATUS               ShadowStatus;
 
     ShadowStatus = SyzEdk2TransportGetShadowRegion (&ShadowBase, &ShadowSize);
     if (!EFI_ERROR (ShadowStatus) && (ShadowBase != NULL) && (ShadowSize >= SIZE_8MB)) {
-      //
-      // Don't ZeroMem the entire 254 MiB shadow region — the host
-      // already pre-zeros the backing file when it allocates it, and
-      // a 254 MiB MMIO memset here adds many seconds to boot. The
-      // host-side mmap of the same file is the source of truth.
-      //
-      mShadowInfo.ShadowMemoryStart = (UINT64)(UINTN)ShadowBase;
-      mShadowInfo.ShadowMemorySize  = (UINT64)ShadowSize;
-      ShadowStatus = gBS->InstallProtocolInterface (
-                            &mShadowHandle,
-                            &gAsanShadowReadyProtocolGuid,
-                            EFI_NATIVE_INTERFACE,
-                            &mShadowInfo
-                            );
+      gSyzEdk2Agent.AsanShadowBase = ShadowBase;
+      gSyzEdk2Agent.AsanShadowSize = ShadowSize;
       DEBUG ((
         DEBUG_INFO,
-        "[SYZ-AGENT] asan shadow at 0x%lx size 0x%lx (%r)\n",
-        mShadowInfo.ShadowMemoryStart,
-        mShadowInfo.ShadowMemorySize,
-        ShadowStatus
+        "[SYZ-AGENT] asan shadow region at 0x%lx size 0x%lx (deferred install)\n",
+        (UINT64)(UINTN)ShadowBase,
+        (UINT64)ShadowSize
         ));
     } else {
       DEBUG ((
