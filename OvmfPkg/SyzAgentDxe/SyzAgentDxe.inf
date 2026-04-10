@@ -30,6 +30,7 @@
 [Packages]
   MdePkg/MdePkg.dec
   MdeModulePkg/MdeModulePkg.dec
+  NetworkPkg/NetworkPkg.dec
   OvmfPkg/OvmfPkg.dec
 
 [LibraryClasses]
@@ -46,18 +47,55 @@
   UefiRuntimeServicesTableLib
 
 [Protocols]
-  gEfiHiiDatabaseProtocolGuid              ## SOMETIMES_CONSUMES
-  gEfiHiiStringProtocolGuid                ## SOMETIMES_CONSUMES
-  gEfiHiiFontProtocolGuid                  ## SOMETIMES_CONSUMES
+  # Storage
   gEfiBlockIoProtocolGuid                  ## SOMETIMES_CONSUMES
+  gEfiBlockIo2ProtocolGuid                 ## SOMETIMES_CONSUMES
   gEfiDevicePathProtocolGuid               ## SOMETIMES_CONSUMES
   gEfiDiskIoProtocolGuid                   ## SOMETIMES_CONSUMES
+  gEfiDiskIo2ProtocolGuid                  ## SOMETIMES_CONSUMES
   gEfiLoadedImageProtocolGuid              ## SOMETIMES_CONSUMES
   gEfiSerialIoProtocolGuid                 ## SOMETIMES_CONSUMES
   gEfiSimpleFileSystemProtocolGuid         ## SOMETIMES_CONSUMES
+  gEfiScsiIoProtocolGuid                   ## SOMETIMES_CONSUMES
+  gEfiExtScsiPassThruProtocolGuid          ## SOMETIMES_CONSUMES
+  gEfiAtaPassThruProtocolGuid              ## SOMETIMES_CONSUMES
+  gEfiNvmExpressPassThruProtocolGuid       ## SOMETIMES_CONSUMES
+  # Network
   gEfiSimpleNetworkProtocolGuid            ## SOMETIMES_CONSUMES
+  gEfiManagedNetworkProtocolGuid           ## SOMETIMES_CONSUMES
+  gEfiIp4ProtocolGuid                      ## SOMETIMES_CONSUMES
+  gEfiIp6ProtocolGuid                      ## SOMETIMES_CONSUMES
+  gEfiTcp4ProtocolGuid                     ## SOMETIMES_CONSUMES
+  gEfiTcp6ProtocolGuid                     ## SOMETIMES_CONSUMES
+  gEfiUdp4ProtocolGuid                     ## SOMETIMES_CONSUMES
+  gEfiUdp6ProtocolGuid                     ## SOMETIMES_CONSUMES
+  gEfiDhcp4ProtocolGuid                    ## SOMETIMES_CONSUMES
+  gEfiDhcp6ProtocolGuid                    ## SOMETIMES_CONSUMES
+  gEfiDns4ProtocolGuid                     ## SOMETIMES_CONSUMES
+  gEfiDns6ProtocolGuid                     ## SOMETIMES_CONSUMES
+  gEfiHttpProtocolGuid                     ## SOMETIMES_CONSUMES
+  gEfiMtftp4ProtocolGuid                   ## SOMETIMES_CONSUMES
+  gEfiMtftp6ProtocolGuid                   ## SOMETIMES_CONSUMES
+  gEfiArpProtocolGuid                      ## SOMETIMES_CONSUMES
+  gEfiIp4Config2ProtocolGuid               ## SOMETIMES_CONSUMES
+  gEfiIp6ConfigProtocolGuid                ## SOMETIMES_CONSUMES
+  # HII
+  gEfiHiiDatabaseProtocolGuid              ## SOMETIMES_CONSUMES
+  gEfiHiiStringProtocolGuid                ## SOMETIMES_CONSUMES
+  gEfiHiiFontProtocolGuid                  ## SOMETIMES_CONSUMES
+  # Graphics + Input
+  gEfiGraphicsOutputProtocolGuid           ## SOMETIMES_CONSUMES
+  gEfiSimpleTextInProtocolGuid             ## SOMETIMES_CONSUMES
   gEfiSimpleTextOutProtocolGuid            ## SOMETIMES_CONSUMES
+  # USB
+  gEfiUsbIoProtocolGuid                    ## SOMETIMES_CONSUMES
+  gEfiUsb2HcProtocolGuid                   ## SOMETIMES_CONSUMES
+  # PCI
   gEfiPciIoProtocolGuid                    ## CONSUMES
+  gEfiPciRootBridgeIoProtocolGuid          ## SOMETIMES_CONSUMES
+  # ACPI
+  gEfiAcpiSdtProtocolGuid                  ## SOMETIMES_CONSUMES
+  # Asan
   gAsanShadowReadyProtocolGuid             ## SOMETIMES_PRODUCES
 
 [Guids]

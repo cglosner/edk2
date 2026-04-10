@@ -62,17 +62,54 @@ typedef struct {
 } SYZ_EDK2_PROTO_ENTRY;
 
 STATIC CONST SYZ_EDK2_PROTO_ENTRY  mProtocolTable[] = {
-  { SyzEdk2ProtoBlockIo,       &gEfiBlockIoProtocolGuid           },
-  { SyzEdk2ProtoDevicePath,    &gEfiDevicePathProtocolGuid        },
-  { SyzEdk2ProtoDiskIo,        &gEfiDiskIoProtocolGuid            },
-  { SyzEdk2ProtoLoadedImage,   &gEfiLoadedImageProtocolGuid       },
-  { SyzEdk2ProtoSerialIo,      &gEfiSerialIoProtocolGuid          },
-  { SyzEdk2ProtoSimpleFs,      &gEfiSimpleFileSystemProtocolGuid  },
-  { SyzEdk2ProtoSimpleNetwork, &gEfiSimpleNetworkProtocolGuid     },
-  { SyzEdk2ProtoSimpleTextOut, &gEfiSimpleTextOutProtocolGuid     },
-  { SyzEdk2ProtoHiiDatabase,   &gEfiHiiDatabaseProtocolGuid       },
-  { SyzEdk2ProtoHiiString,     &gEfiHiiStringProtocolGuid         },
-  { SyzEdk2ProtoHiiFont,       &gEfiHiiFontProtocolGuid           },
+  // --- Storage ---
+  { SyzEdk2ProtoBlockIo,         &gEfiBlockIoProtocolGuid           },
+  { SyzEdk2ProtoDevicePath,      &gEfiDevicePathProtocolGuid        },
+  { SyzEdk2ProtoDiskIo,          &gEfiDiskIoProtocolGuid            },
+  { SyzEdk2ProtoLoadedImage,     &gEfiLoadedImageProtocolGuid       },
+  { SyzEdk2ProtoSerialIo,        &gEfiSerialIoProtocolGuid          },
+  { SyzEdk2ProtoSimpleFs,        &gEfiSimpleFileSystemProtocolGuid  },
+  { SyzEdk2ProtoSimpleNetwork,   &gEfiSimpleNetworkProtocolGuid     },
+  { SyzEdk2ProtoSimpleTextOut,   &gEfiSimpleTextOutProtocolGuid     },
+  { SyzEdk2ProtoBlockIo2,        &gEfiBlockIo2ProtocolGuid          },
+  { SyzEdk2ProtoDiskIo2,         &gEfiDiskIo2ProtocolGuid           },
+  { SyzEdk2ProtoScsiIo,          &gEfiScsiIoProtocolGuid            },
+  { SyzEdk2ProtoExtScsiPassThru, &gEfiExtScsiPassThruProtocolGuid   },
+  { SyzEdk2ProtoAtaPassThru,     &gEfiAtaPassThruProtocolGuid       },
+  { SyzEdk2ProtoNvmePassThru,    &gEfiNvmExpressPassThruProtocolGuid },
+  // --- Network ---
+  { SyzEdk2ProtoManagedNetwork,  &gEfiManagedNetworkProtocolGuid    },
+  { SyzEdk2ProtoIp4,             &gEfiIp4ProtocolGuid               },
+  { SyzEdk2ProtoIp6,             &gEfiIp6ProtocolGuid               },
+  { SyzEdk2ProtoTcp4,            &gEfiTcp4ProtocolGuid              },
+  { SyzEdk2ProtoTcp6,            &gEfiTcp6ProtocolGuid              },
+  { SyzEdk2ProtoUdp4,            &gEfiUdp4ProtocolGuid              },
+  { SyzEdk2ProtoUdp6,            &gEfiUdp6ProtocolGuid              },
+  { SyzEdk2ProtoDhcp4,           &gEfiDhcp4ProtocolGuid             },
+  { SyzEdk2ProtoDhcp6,           &gEfiDhcp6ProtocolGuid             },
+  { SyzEdk2ProtoDns4,            &gEfiDns4ProtocolGuid              },
+  { SyzEdk2ProtoDns6,            &gEfiDns6ProtocolGuid              },
+  { SyzEdk2ProtoHttp,            &gEfiHttpProtocolGuid              },
+  { SyzEdk2ProtoMtftp4,          &gEfiMtftp4ProtocolGuid            },
+  { SyzEdk2ProtoMtftp6,          &gEfiMtftp6ProtocolGuid            },
+  { SyzEdk2ProtoArp,             &gEfiArpProtocolGuid               },
+  { SyzEdk2ProtoIp4Config2,      &gEfiIp4Config2ProtocolGuid        },
+  { SyzEdk2ProtoIp6Config,       &gEfiIp6ConfigProtocolGuid         },
+  // --- HII ---
+  { SyzEdk2ProtoHiiDatabase,     &gEfiHiiDatabaseProtocolGuid       },
+  { SyzEdk2ProtoHiiString,       &gEfiHiiStringProtocolGuid         },
+  { SyzEdk2ProtoHiiFont,         &gEfiHiiFontProtocolGuid           },
+  // --- Graphics + Input ---
+  { SyzEdk2ProtoGraphicsOutput,  &gEfiGraphicsOutputProtocolGuid    },
+  { SyzEdk2ProtoSimpleTextIn,    &gEfiSimpleTextInProtocolGuid      },
+  // --- USB ---
+  { SyzEdk2ProtoUsbIo,           &gEfiUsbIoProtocolGuid             },
+  { SyzEdk2ProtoUsb2Hc,          &gEfiUsb2HcProtocolGuid            },
+  // --- PCI ---
+  { SyzEdk2ProtoPciIo,           &gEfiPciIoProtocolGuid             },
+  { SyzEdk2ProtoPciRootBridgeIo, &gEfiPciRootBridgeIoProtocolGuid   },
+  // --- ACPI ---
+  { SyzEdk2ProtoAcpiSdt,         &gEfiAcpiSdtProtocolGuid           },
 };
 
 //

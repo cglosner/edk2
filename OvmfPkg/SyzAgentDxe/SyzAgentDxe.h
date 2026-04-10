@@ -106,6 +106,7 @@ typedef enum {
 // the corresponding gEfi*Guid via gSyzEdk2ProtocolTable.
 //
 typedef enum {
+  // --- Storage ---
   SyzEdk2ProtoBlockIo            = 100,
   SyzEdk2ProtoDevicePath         = 101,
   SyzEdk2ProtoDiskIo             = 102,
@@ -114,9 +115,45 @@ typedef enum {
   SyzEdk2ProtoSimpleFs           = 105,
   SyzEdk2ProtoSimpleNetwork      = 106,
   SyzEdk2ProtoSimpleTextOut      = 107,
+  SyzEdk2ProtoBlockIo2           = 108,
+  SyzEdk2ProtoDiskIo2            = 109,
+  SyzEdk2ProtoScsiIo             = 110,
+  SyzEdk2ProtoExtScsiPassThru    = 111,
+  SyzEdk2ProtoAtaPassThru        = 112,
+  SyzEdk2ProtoNvmePassThru       = 113,
+  // --- Network ---
+  SyzEdk2ProtoManagedNetwork     = 150,
+  SyzEdk2ProtoIp4                = 151,
+  SyzEdk2ProtoIp6                = 152,
+  SyzEdk2ProtoTcp4               = 153,
+  SyzEdk2ProtoTcp6               = 154,
+  SyzEdk2ProtoUdp4               = 155,
+  SyzEdk2ProtoUdp6               = 156,
+  SyzEdk2ProtoDhcp4              = 157,
+  SyzEdk2ProtoDhcp6              = 158,
+  SyzEdk2ProtoDns4               = 159,
+  SyzEdk2ProtoDns6               = 160,
+  SyzEdk2ProtoHttp               = 161,
+  SyzEdk2ProtoMtftp4             = 162,
+  SyzEdk2ProtoMtftp6             = 163,
+  SyzEdk2ProtoArp                = 164,
+  SyzEdk2ProtoIp4Config2         = 165,
+  SyzEdk2ProtoIp6Config          = 166,
+  // --- HII ---
   SyzEdk2ProtoHiiDatabase        = 200,
   SyzEdk2ProtoHiiString          = 201,
   SyzEdk2ProtoHiiFont            = 202,
+  // --- Graphics + Input ---
+  SyzEdk2ProtoGraphicsOutput     = 210,
+  SyzEdk2ProtoSimpleTextIn       = 211,
+  // --- USB ---
+  SyzEdk2ProtoUsbIo              = 220,
+  SyzEdk2ProtoUsb2Hc             = 221,
+  // --- PCI ---
+  SyzEdk2ProtoPciIo              = 230,
+  SyzEdk2ProtoPciRootBridgeIo    = 231,
+  // --- ACPI ---
+  SyzEdk2ProtoAcpiSdt            = 240,
 } SYZ_EDK2_PROTO_ID;
 
 //
