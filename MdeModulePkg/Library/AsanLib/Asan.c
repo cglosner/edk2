@@ -15,6 +15,7 @@
 
 #include <Uefi.h>
 #include <Library/Asan.h>
+#include <Library/BaseLib.h>
 #include <Library/BaseMemoryLib.h>
 #include <Library/HobLib.h>
 #include <Library/UefiBootServicesTableLib.h>
@@ -67,6 +68,10 @@ static BOOLEAN asan_inited = FALSE;
 static BOOLEAN asan_is_deactivated = TRUE;
 static BOOLEAN AsanCtorFlag = FALSE;
 STATIC EFI_SYSTEM_TABLE *mAsanST = NULL;
+
+// Forward declaration — defined further down, used by the
+// DEFINE_ASAN_LOAD_NOABORT / DEFINE_ASAN_STORE_NOABORT macros.
+STATIC VOID AsanTryLazyActivate (VOID);
 UINT64 mAsanShadowMemoryStart = 0;
 UINT64 mAsanShadowMemorySize = 0;
 UINT64 mAsanShadowMemoryEnd = 0;
@@ -665,7 +670,10 @@ void __asan_store##size(UINTN addr)         \
 
 #define DEFINE_ASAN_LOAD_NOABORT(size)                                                  \
 void __asan_load##size##_noabort(UINTN addr) {                                          \
-  if (!asan_inited || asan_is_deactivated) return;                                      \
+  if (!asan_inited || asan_is_deactivated) {                                            \
+    AsanTryLazyActivate();                                                              \
+    if (!asan_inited || asan_is_deactivated) return;                                    \
+  }                                                                                     \
   UINTN sp = MEM_TO_SHADOW(addr);                                                        \
   if (sp < mAsanShadowMemoryStart || sp > mAsanShadowMemoryEnd) return;                 \
   UINTN s = size <= SHADOW_GRANULARITY ? *(UINT8 *)(sp) : *(UINT16 *)(sp);              \
@@ -682,7 +690,10 @@ void __asan_load##size##_noabort(UINTN addr) {                                  
 
 #define DEFINE_ASAN_STORE_NOABORT(size)                                                 \
 void __asan_store##size##_noabort(UINTN addr) {                                         \
-  if (!asan_inited || asan_is_deactivated) return;                                      \
+  if (!asan_inited || asan_is_deactivated) {                                            \
+    AsanTryLazyActivate();                                                              \
+    if (!asan_inited || asan_is_deactivated) return;                                    \
+  }                                                                                     \
   UINTN sp = MEM_TO_SHADOW(addr);                                                        \
   if (sp < mAsanShadowMemoryStart || sp > mAsanShadowMemoryEnd) return;                 \
   UINTN s = size <= SHADOW_GRANULARITY ? *(UINT8 *)(sp) : *(UINT16 *)(sp);              \
@@ -794,7 +805,8 @@ void __asan_loadN_noabort(UINTN addr, UINTN size)
   CHAR8 NumStr[19];
 
   if (asan_is_deactivated || !asan_inited){
-    return;
+    AsanTryLazyActivate();
+    if (asan_is_deactivated || !asan_inited) return;
   }
 
   if (__asan_region_is_poisoned(addr, size)) {
@@ -847,7 +859,8 @@ void __asan_storeN_noabort(UINTN addr, UINTN size)
 {
   CHAR8 NumStr[19];
   if (asan_is_deactivated || !asan_inited){
-    return ;
+    AsanTryLazyActivate();
+    if (asan_is_deactivated || !asan_inited) return;
   }
   //SerialOutput ("__asan_storeN_noabort is called\n");
   if (__asan_region_is_poisoned(addr, size)) {
@@ -1262,6 +1275,8 @@ ComputePoolRightRedzoneSize(
 // the per-module asan globals from the ASAN_INFO the producer
 // (SyzAgentDxe) installed. No LocateProtocol, no events, no TPL.
 //
+STATIC UINT64  mAsanLazyLastCheck = 0;
+
 STATIC
 VOID
 AsanTryLazyActivate (
@@ -1272,11 +1287,17 @@ AsanTryLazyActivate (
   EFI_SYSTEM_TABLE  *ST;
 
   //
-  // Try the cached SystemTable first (set in the constructor).
-  // Fall back to gST from UefiBootServicesTableLib — this covers
-  // DxeCore's AsanLib instance whose constructor never ran because
-  // AsanLibFull has no CONSTRUCTOR declaration.
+  // Rate-limit the config-table scan. Before SyzAgentDxe installs
+  // the table, every instrumented load/store would call us — that's
+  // millions of times per second. We re-check at most every 100ms
+  // worth of TSC ticks (~200M cycles on a 2 GHz host).
   //
+  UINT64 now = AsmReadTsc ();
+  if (mAsanLazyLastCheck != 0 && (now - mAsanLazyLastCheck) < 200000000ULL) {
+    return;
+  }
+  mAsanLazyLastCheck = now;
+
   ST = mAsanST;
   if (ST == NULL) {
     ST = gST;
