@@ -24,4 +24,10 @@ SyzCoverReset (
   VOID
   );
 
+VOID
+EFIAPI
+SyzCoverStop (
+  VOID
+  );
+
 #endif // SYZ_COVER_LIB_H_

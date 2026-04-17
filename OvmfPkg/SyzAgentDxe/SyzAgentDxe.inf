@@ -26,11 +26,14 @@
   SyzAgentDxe.h
   SyzAgentDispatch.c
   SyzAgentTransport.c
+  SyzFwfuzzTrigger.c
 
 [Packages]
   MdePkg/MdePkg.dec
   MdeModulePkg/MdeModulePkg.dec
   NetworkPkg/NetworkPkg.dec
+  SecurityPkg/SecurityPkg.dec
+  CryptoPkg/CryptoPkg.dec
   OvmfPkg/OvmfPkg.dec
 
 [LibraryClasses]
@@ -38,6 +41,9 @@
   BaseLib
   BaseMemoryLib
   DebugLib
+  DxeServicesTableLib
+  HobLib
+  IoLib
   MemoryAllocationLib
   PciLib
   SyzCoverLib
@@ -93,16 +99,42 @@
   # PCI
   gEfiPciIoProtocolGuid                    ## CONSUMES
   gEfiPciRootBridgeIoProtocolGuid          ## SOMETIMES_CONSUMES
+  # Hardware / SMI
+  gEfiCpuIo2ProtocolGuid                   ## SOMETIMES_CONSUMES
+  gEfiSmmCommunicationProtocolGuid         ## SOMETIMES_CONSUMES
+  gEfiSmbiosProtocolGuid                   ## SOMETIMES_CONSUMES
   # ACPI
   gEfiAcpiSdtProtocolGuid                  ## SOMETIMES_CONSUMES
+  # Device Path utilities
+  gEfiDevicePathFromTextProtocolGuid       ## SOMETIMES_CONSUMES
+  gEfiDevicePathToTextProtocolGuid         ## SOMETIMES_CONSUMES
+  # Crypto / Security
+  gEfiHash2ProtocolGuid                    ## SOMETIMES_CONSUMES
+  gEfiRngProtocolGuid                      ## SOMETIMES_CONSUMES
+  gEfiTcg2ProtocolGuid                     ## SOMETIMES_CONSUMES
+  gEfiPkcs7VerifyProtocolGuid              ## SOMETIMES_CONSUMES
   # Asan
   gAsanShadowReadyProtocolGuid             ## SOMETIMES_PRODUCES
 
 [Guids]
   gEfiGlobalVariableGuid                   ## SOMETIMES_CONSUMES
   gEfiImageSecurityDatabaseGuid            ## SOMETIMES_CONSUMES
+  gEfiFileInfoGuid                         ## SOMETIMES_CONSUMES
+  gEfiHashAlgorithmSha256Guid              ## SOMETIMES_CONSUMES
   gAsanInfoGuid                            ## SOMETIMES_CONSUMES
 
 [Depex]
   gEfiVariableArchProtocolGuid       AND
-  gEfiVariableWriteArchProtocolGuid
+  gEfiVariableWriteArchProtocolGuid  AND
+  #
+  # Also depend on PciIo so the agent's entry point runs AFTER
+  # PciBusDxe has published PciIo handles. This lets us grab the
+  # ivshmem BAR + set up the ASan shadow region + install the
+  # gAsanShadowReadyProtocolGuid SYNCHRONOUSLY in the entry point,
+  # before the DXE dispatcher finishes its loop. Without this
+  # DEPEX, shadow setup was deferred to a PciIo protocol-notify
+  # callback that fired AFTER the dispatcher gave up, so drivers
+  # DEPEX-ed on the shadow protocol (SyzAsanTestDxe etc.) never
+  # got their chance to load.
+  #
+  gEfiPciIoProtocolGuid

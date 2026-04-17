@@ -38,7 +38,11 @@
 [BuildOptions]
   #
   # The runtime itself must NOT be coverage-instrumented or it will
-  # recurse on the very first call.
+  # recurse on the very first call. With trace-cmp enabled every `if`
+  # in SyzCoverRecordCmp would call __sanitizer_cov_trace_cmp*, which
+  # calls SyzCoverRecordCmp, which has more ifs, ad infinitum. On GCC
+  # <12 the per-function `no_sanitize_coverage` attribute is a no-op,
+  # so we have to gate the whole library via these INF BuildOptions.
   #
   GCC:*_*_*_SAN_FLAGS == -fno-sanitize=all
-  GCC:*_*_*_CC_FLAGS  = -fno-sanitize-coverage=trace-pc
+  GCC:*_*_*_CC_FLAGS  = -fno-sanitize-coverage=trace-pc,trace-cmp

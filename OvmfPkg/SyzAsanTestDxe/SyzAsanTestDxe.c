@@ -109,15 +109,13 @@ SyzAsanTestDxeEntryPoint (
     if (hbuf != NULL) {
       SetMem (hbuf, 16, 0xBB);
       //
-      // Peek at the shadow byte for hbuf[24] to see if PoisonPool
-      // wrote a redzone marker.
+      // The old debug peek hardcoded shadow offset 0x380000200000,
+      // which no longer matches the runtime BAR-backed shadow
+      // (published by SyzAgentDxe) so reading it page-faulted. We
+      // now rely on the compiler-emitted __asan_load1_noabort call
+      // for the OOB detection — it consults the runtime shadow via
+      // mShadowOffset / __asan_shadow_memory_dynamic_address.
       //
-      // Dump shadow for offsets 16..55 to see where the redzone starts.
-      for (UINTN si = 16; si <= 55; si += 8) {
-        UINTN sa = ((UINTN)&hbuf[si] >> 3) + 0x380000200000ULL;
-        UINT8 sv = *(volatile UINT8 *)sa;
-        DEBUG ((DEBUG_INFO, "[SYZ-ASAN-TEST] shadow(@hbuf[%u])=0x%02x\n", (UINT32)si, (UINTN)sv));
-      }
       DEBUG ((DEBUG_INFO, "[SYZ-ASAN-TEST] heap OOB read hbuf[16] - expecting asan report (shadow=0xFA)\n"));
       sink ^= hbuf[16];
       DEBUG ((DEBUG_INFO, "[SYZ-ASAN-TEST] after heap OOB, sink=%u (recovered)\n", (UINTN)sink));

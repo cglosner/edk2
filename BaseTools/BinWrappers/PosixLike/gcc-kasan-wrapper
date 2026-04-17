@@ -1,11 +1,13 @@
 #!/bin/bash
-# Wrapper around gcc that strips -fasan-shadow-offset when
-# -fno-sanitize=kernel-address is also present on the same
-# command line. This works around GCC's refusal to accept
-# -fasan-shadow-offset without an active -fsanitize=kernel-address,
-# which happens when EDK2's per-MODULE_TYPE BuildOptions prepend
-# the asan flags and a per-component <BuildOptions> subsequently
-# appends -fno-sanitize=kernel-address to exempt a specific module.
+# Wrapper around gcc that strips -fasan-shadow-offset, --param asan-*,
+# and --param asan-instrumentation-with-call-threshold when
+# -fno-sanitize=kernel-address is also present on the same command line.
+# Works around GCC's refusal to accept these options without an active
+# -fsanitize=kernel-address.
+#
+# EDK2's per-MODULE_TYPE BuildOptions prepend the full asan flag set and
+# a per-component <BuildOptions> appends -fno-sanitize=kernel-address to
+# exempt a specific module — this wrapper reconciles the two.
 args=("$@")
 has_fno=false
 for arg in "${args[@]}"; do
@@ -17,11 +19,28 @@ for arg in "${args[@]}"; do
 done
 if $has_fno; then
     filtered=()
+    skip_next=false
     for arg in "${args[@]}"; do
+        if $skip_next; then
+            skip_next=false
+            continue
+        fi
         case "$arg" in
-            -fasan-shadow-offset=*) ;;
-            --param) ;; # skip --param and next arg if it's asan-*
-            asan-stack=*|asan-globals=*) ;;
+            -fasan-shadow-offset=*)
+                # drop
+                ;;
+            --param)
+                # The *next* argument belongs to --param; drop both
+                # unconditionally. Every --param in our build is an
+                # asan-related one (asan-stack, asan-globals,
+                # asan-instrumentation-with-call-threshold). If the
+                # build ever uses a non-asan --param, filter here.
+                skip_next=true
+                ;;
+            --param=*)
+                # Combined form "--param=name=value". Always drop —
+                # we only emit asan-related params in this build.
+                ;;
             *) filtered+=("$arg") ;;
         esac
     done

@@ -374,10 +374,17 @@ INF  OvmfPkg/IoMmuDxe/IoMmuDxe.inf
 
 !if $(SYZ_AGENT_ENABLE) == TRUE
 INF  OvmfPkg/SyzAgentDxe/SyzAgentDxe.inf
+# SyzAsanTestDxe: legacy single-bug canary, kept for comparison.
+# Disabled by default — SyzBugsDxe is the comprehensive canary.
 !if FALSE
-# SyzAsanTestDxe: planted OOB test driver. Enable temporarily to verify
-# asan is working, then disable so it doesn't pollute real campaigns.
 INF  OvmfPkg/SyzAsanTestDxe/SyzAsanTestDxe.inf
+!endif
+# SyzBugsDxe: comprehensive ASan+UBSan canary — verified all 6 phases.
+# Disabled for production fuzzing so deliberate bugs don't drown out
+# real fuzz-discovered bugs. Flip to TRUE to re-enable for plumbing
+# verification.
+!if FALSE
+INF  OvmfPkg/SyzBugsDxe/SyzBugsDxe.inf
 !endif
 !endif
 

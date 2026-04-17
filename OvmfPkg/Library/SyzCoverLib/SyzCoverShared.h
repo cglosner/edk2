@@ -29,6 +29,20 @@
 #define SYZ_EDK2_OFF_COVER  0x2000U
 #define SYZ_COVER_MAX_PCS   0x10000U
 
+// Comparison ring: (type, pc, arg1, arg2) quadruples of uint64.
+// Lives at offset 0x80000 (512 KiB past the PC ring). 16 KiB total,
+// which fits about 512 comparison records per program.
+#define SYZ_EDK2_OFF_COMPS  0x80000U
+#define SYZ_COMPS_MAX       512U
+
+// Comparison "type" encoding: low 3 bits = log2(size in bytes),
+// bit 3 = is_const (rhs is a compile-time constant).
+#define SYZ_CMP_SIZE_1  0
+#define SYZ_CMP_SIZE_2  1
+#define SYZ_CMP_SIZE_4  2
+#define SYZ_CMP_SIZE_8  3
+#define SYZ_CMP_CONST   8
+
 //
 // {3C8E5F4A-7BD2-4F5E-A3F1-9C28A7CF12B0}
 // gSyzCoverGuid - vendor table the named SyzCoverLib installs and the
@@ -40,6 +54,7 @@
 typedef struct {
   volatile UINT8  *Base;
   UINTN           Size;
+  volatile UINT32 Enabled;  ///< 1 = recording PCs, 0 = gated off
 } SYZ_COVER_TABLE;
 
 #if defined (__clang__)

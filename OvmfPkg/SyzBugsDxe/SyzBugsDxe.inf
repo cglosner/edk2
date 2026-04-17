@@ -1,0 +1,43 @@
+## @file
+#  SyzBugsDxe — canary driver that triggers one bug of every class
+#  ASan + UBSan can detect. Used to verify sanitizer plumbing after
+#  each phase of the "instrument everything" rollout.
+#
+#  Copyright (c) 2026, syzkaller project authors. All rights reserved.<BR>
+#
+#  SPDX-License-Identifier: BSD-2-Clause-Patent
+##
+
+[Defines]
+  INF_VERSION                    = 0x00010005
+  BASE_NAME                      = SyzBugsDxe
+  FILE_GUID                      = B85F8A40-1C92-42E0-9E31-7D6CA1F4B022
+  MODULE_TYPE                    = DXE_DRIVER
+  VERSION_STRING                 = 0.1
+  ENTRY_POINT                    = SyzBugsDxeEntryPoint
+
+[Sources]
+  SyzBugsDxe.c
+
+[Packages]
+  MdePkg/MdePkg.dec
+  MdeModulePkg/MdeModulePkg.dec
+  OvmfPkg/OvmfPkg.dec
+
+[LibraryClasses]
+  AsanLib
+  BaseLib
+  BaseMemoryLib
+  DebugLib
+  MemoryAllocationLib
+  UefiBootServicesTableLib
+  UefiDriverEntryPoint
+
+[Guids]
+  gAsanInfoGuid
+
+[Protocols]
+  gAsanShadowReadyProtocolGuid               ## CONSUMES
+
+[Depex]
+  gAsanShadowReadyProtocolGuid

@@ -334,6 +334,51 @@ static void asan_dbgcon_hex64(UINT64 v) {
   }
 }
 
+//
+// Walk the RBP chain and print up to 8 return addresses on the
+// debugcon in the form "  at pc 0x...\n" — the same format the host
+// symbolizer (pkg/report/edk2.go::Symbolize) matches with a regex
+// against `at pc (0x[0-9A-Fa-f]+)`, so each frame gets resolved to
+// `function at file:line` on the host.
+//
+// This is safe because every instrumented module compiles with
+// -fno-omit-frame-pointer (see the BuildOptions blocks in
+// OvmfPkgX64.dsc). Bounds checks ensure we stop before dereferencing
+// an unmapped RBP or a stack address that would crash the guest —
+// critical since we're already inside an ASan report handler where
+// any further fault halts the fuzzer iteration.
+//
+// Marked no_sanitize_address so the walker itself doesn't trip ASan
+// checks (it reads arbitrary stack memory and the shadow for that
+// memory may legitimately be 0xF1/0xF3 red-zone).
+//
+__attribute__((no_sanitize_address, unused))
+static void asan_print_stack_trace(void) {
+  UINT64 *rbp;
+  __asm__ __volatile__ ("mov %%rbp, %0" : "=r" (rbp));
+  //
+  // Caller of this function is asan_emit_syz_report, whose caller is
+  // asan_bug_report2, whose caller is one of the __asan_loadN_noabort
+  // macro expansions. Skip the first two frames so the first printed
+  // PC is the actual bug site.
+  //
+  for (int skip = 0; skip < 2 && rbp != NULL; skip++) {
+    if ((UINT64)rbp < 0x100000 || (UINT64)rbp > 0xFFFFFFFFF) return;
+    rbp = (UINT64 *)rbp[0];
+  }
+  for (int i = 0; i < 8 && rbp != NULL; i++) {
+    if ((UINT64)rbp < 0x100000 || (UINT64)rbp > 0xFFFFFFFFF) break;
+    UINT64 ret = rbp[1];
+    if (ret == 0) break;
+    asan_dbgcon_str("  at pc ");
+    asan_dbgcon_hex64(ret);
+    asan_dbgcon_str("\n");
+    UINT64 *next = (UINT64 *)rbp[0];
+    if (next <= rbp) break;
+    rbp = next;
+  }
+}
+
 static void asan_emit_syz_report(UINTN addr, UINTN ip, UINT8 shadow_val) {
   CHAR8 NumStr[19];
   // Simics-format report kept for backwards compat (goes to /dev/null
@@ -365,6 +410,16 @@ void asan_bug_report2(UINTN addr, UINTN size,
                       UINTN ip, CHAR8 *file, UINTN line) {
   UINT8 shadow_val = *(UINT8 *)buggy_shadow_address;
   asan_emit_syz_report(addr, ip, shadow_val);
+  //
+  // We don't walk the stack manually here — -fsanitize-recover=
+  // address makes every instrumented access in a buggy function emit
+  // its own ==ERROR report, which is a far better trace than a
+  // synthetic RBP walk: each PC is an actual memory access site, and
+  // the host-side Symbolize() in pkg/report/edk2.go translates each
+  // to its source line. See the CoreInternalAllocatePool reports in
+  // the workdir-edk2-fwsnap/crashes tree for an example showing the
+  // progression through Pool.c:244 → 264 → 266 → 296 automatically.
+  //
   //
   // Return immediately after the one-liner. The legacy verbose
   // report below calls asan_print_shadow_memory2 which dereferences

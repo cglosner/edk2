@@ -126,55 +126,158 @@
 # bounce-buffer encryption, the SEV/TDX libs) where activating asan
 # wedges the boot dispatcher before SyzAgent's timer fires.
 #
+#
+# IMPORTANT: do NOT add -fsanitize=kernel-address blanket-fashion to
+# these per-MODULE_TYPE blocks. Under TCG each instrumented memory
+# access becomes a helper call into AsanLibFull, and applying ASan
+# to every DXE driver makes BdsConnectAll take hours to complete
+# (the PCI enumeration + driver binding walk is O(handles * accesses)
+# and each access now triggers a shadow read). This is incompatible
+# with the fwsnap snapshot-fuzzing path, which needs to reach
+# SyzAgentDxe's init in reasonable time.
+#
+# ASan/UBSan are therefore applied PER COMPONENT via <BuildOptions>
+# overrides in the [Components] section further down. Only the
+# modules actually being fuzzed get the instrumentation. The
+# SyzAgentDxe dispatch host itself stays uninstrumented.
+#
+# Phase 1 of "instrument everything": the ASan and UBSan flags below
+# are now applied at the MODULE_TYPE wildcard level, not per-component.
+# Every DXE_DRIVER / UEFI_DRIVER / DXE_RUNTIME_DRIVER / DXE_SMM_DRIVER
+# built under ASAN_INSTRUMENT=TRUE picks them up automatically. Modules
+# that must stay un-instrumented (SyzAgentDxe, SyzCoverLib, the
+# protocol-notify-sensitive early drivers) use a per-component
+# <BuildOptions> override with -fno-sanitize=kernel-address /
+# -fno-sanitize=undefined to opt out — the gcc-wrap wrapper strips
+# -fasan-shadow-offset automatically when it sees -fno-sanitize=
+# kernel-address, so the opt-out pattern is just "append -fno-*".
+#
+# Outlined instrumentation (--param asan-instrumentation-with-call-
+# threshold=0) is mandatory: inlined mode bakes the compile-time
+# shadow offset into every memory access callsite, which #PFs the
+# moment the module is loaded at a relocation that doesn't match.
+# Outlined mode puts the shadow lookup inside __asan_load1_noabort
+# where the runtime sees mShadowOffset / mAsanShadowMemoryStart.
+#
+# asan-stack=0 / asan-globals=0: these instrumentation passes write
+# stack red-zones in every function prologue and poison global red-
+# zones at __asan_register_globals time. Both need the shadow to
+# already cover those addresses. Phase 1 keeps the shadow in the
+# ivshmem BAR at 0xC000200000, which covers only the DRAM range that
+# falls in (addr>>3)+0xC000200000 — the stack and global-data
+# addresses mostly fall inside that, but the early boot stack does
+# not. Phase 2 moves the shadow to reserved DRAM and re-enables both.
+#
 [BuildOptions.common.EDKII.DXE_DRIVER]
   GCC:*_*_*_CC_FLAGS = -fsanitize-coverage=trace-pc
-!if $(ASAN_INSTRUMENT) == TRUE
-  GCC:*_*_*_CC_FLAGS = -fsanitize=kernel-address -fasan-shadow-offset=0x380000200000 --param asan-stack=1 --param asan-globals=1 -fsanitize-recover=address -fno-omit-frame-pointer
-!endif
 !if $(UBSAN_INSTRUMENT) == TRUE
-  GCC:*_*_*_CC_FLAGS = -fsanitize=undefined -fno-sanitize=alignment -fsanitize-recover=undefined
+  GCC:*_*_*_CC_FLAGS = -fsanitize=undefined -fsanitize=pointer-overflow -fno-sanitize=alignment -fsanitize-recover=undefined -fsanitize-recover=pointer-overflow
+!endif
+!if $(ASAN_INSTRUMENT) == TRUE
+  GCC:*_*_*_CC_FLAGS = -fsanitize=kernel-address -fasan-shadow-offset=0x30000000 --param asan-stack=1 --param asan-globals=1 --param asan-instrumentation-with-call-threshold=0 -fsanitize-recover=address -fno-omit-frame-pointer
 !endif
 
 [BuildOptions.common.EDKII.DXE_RUNTIME_DRIVER]
   GCC:*_*_*_CC_FLAGS = -fsanitize-coverage=trace-pc
-!if $(ASAN_INSTRUMENT) == TRUE
-  GCC:*_*_*_CC_FLAGS = -fsanitize=kernel-address -fasan-shadow-offset=0x380000200000 --param asan-stack=1 --param asan-globals=1 -fsanitize-recover=address -fno-omit-frame-pointer
-!endif
 !if $(UBSAN_INSTRUMENT) == TRUE
-  GCC:*_*_*_CC_FLAGS = -fsanitize=undefined -fno-sanitize=alignment -fsanitize-recover=undefined
+  GCC:*_*_*_CC_FLAGS = -fsanitize=undefined -fsanitize=pointer-overflow -fno-sanitize=alignment -fsanitize-recover=undefined -fsanitize-recover=pointer-overflow
+!endif
+!if $(ASAN_INSTRUMENT) == TRUE
+  GCC:*_*_*_CC_FLAGS = -fsanitize=kernel-address -fasan-shadow-offset=0x30000000 --param asan-stack=1 --param asan-globals=1 --param asan-instrumentation-with-call-threshold=0 -fsanitize-recover=address -fno-omit-frame-pointer
 !endif
 
 [BuildOptions.common.EDKII.UEFI_DRIVER]
   GCC:*_*_*_CC_FLAGS = -fsanitize-coverage=trace-pc
-!if $(ASAN_INSTRUMENT) == TRUE
-  GCC:*_*_*_CC_FLAGS = -fsanitize=kernel-address -fasan-shadow-offset=0x380000200000 --param asan-stack=1 --param asan-globals=1 -fsanitize-recover=address -fno-omit-frame-pointer
-!endif
 !if $(UBSAN_INSTRUMENT) == TRUE
-  GCC:*_*_*_CC_FLAGS = -fsanitize=undefined -fno-sanitize=alignment -fsanitize-recover=undefined
+  GCC:*_*_*_CC_FLAGS = -fsanitize=undefined -fsanitize=pointer-overflow -fno-sanitize=alignment -fsanitize-recover=undefined -fsanitize-recover=pointer-overflow
+!endif
+!if $(ASAN_INSTRUMENT) == TRUE
+  GCC:*_*_*_CC_FLAGS = -fsanitize=kernel-address -fasan-shadow-offset=0x30000000 --param asan-stack=1 --param asan-globals=1 --param asan-instrumentation-with-call-threshold=0 -fsanitize-recover=address -fno-omit-frame-pointer
+!endif
+
+[BuildOptions.common.EDKII.UEFI_APPLICATION]
+  GCC:*_*_*_CC_FLAGS = -fsanitize-coverage=trace-pc
+!if $(UBSAN_INSTRUMENT) == TRUE
+  GCC:*_*_*_CC_FLAGS = -fsanitize=undefined -fsanitize=pointer-overflow -fno-sanitize=alignment -fsanitize-recover=undefined -fsanitize-recover=pointer-overflow
+!endif
+!if $(ASAN_INSTRUMENT) == TRUE
+  # Covers UiApp (BDS menu) and Shell — same wildcard pattern as DXE
+  # drivers. Boot applications run AFTER all DXE drivers dispatch so
+  # the DRAM shadow is already initialized.
+  GCC:*_*_*_CC_FLAGS = -fsanitize=kernel-address -fasan-shadow-offset=0x30000000 --param asan-stack=1 --param asan-globals=1 --param asan-instrumentation-with-call-threshold=0 -fsanitize-recover=address -fno-omit-frame-pointer
 !endif
 
 [BuildOptions.common.EDKII.DXE_SMM_DRIVER]
   GCC:*_*_*_CC_FLAGS = -fsanitize-coverage=trace-pc
-!if $(ASAN_INSTRUMENT) == TRUE
-  GCC:*_*_*_CC_FLAGS = -fsanitize=kernel-address -fasan-shadow-offset=0x380000200000 --param asan-stack=1 --param asan-globals=1 -fsanitize-recover=address -fno-omit-frame-pointer
-!endif
 !if $(UBSAN_INSTRUMENT) == TRUE
-  GCC:*_*_*_CC_FLAGS = -fsanitize=undefined -fno-sanitize=alignment -fsanitize-recover=undefined
+  GCC:*_*_*_CC_FLAGS = -fsanitize=undefined -fsanitize=pointer-overflow -fno-sanitize=alignment -fsanitize-recover=undefined -fsanitize-recover=pointer-overflow
+!endif
+!if $(ASAN_INSTRUMENT) == TRUE
+  #
+  # Phase 4: SMM ASan. The shadow now lives in normal DRAM at
+  # 0x30000000 (Phase 2), which SMM mode can read/write since
+  # SMI handlers run with full physical-memory access. The only
+  # constraint is that SMRAM must not overlap the shadow range —
+  # Q35 TSEG defaults to the top of low RAM, so for 1 GB DRAM
+  # SMRAM at [0x3F800000, 0x40000000) is clear of the shadow at
+  # [0x30000000, 0x3F800000 overlap!]. To avoid the collision
+  # we shrink TSEG or move the shadow in later iterations.
+  # Phase 4 with SMM_REQUIRE=FALSE builds no SMM drivers, so this
+  # block only takes effect once SMM is enabled in a follow-up
+  # build config.
+  #
+  GCC:*_*_*_CC_FLAGS = -fsanitize=kernel-address -fasan-shadow-offset=0x30000000 --param asan-stack=1 --param asan-globals=1 --param asan-instrumentation-with-call-threshold=0 -fsanitize-recover=address -fno-omit-frame-pointer
 !endif
 
 [BuildOptions.common.EDKII.SMM_CORE]
   GCC:*_*_*_CC_FLAGS = -fsanitize-coverage=trace-pc
-!if $(ASAN_INSTRUMENT) == TRUE
-  GCC:*_*_*_CC_FLAGS = -fsanitize=kernel-address -fasan-shadow-offset=0x380000200000 --param asan-stack=1 --param asan-globals=1 -fsanitize-recover=address -fno-omit-frame-pointer
-!endif
 !if $(UBSAN_INSTRUMENT) == TRUE
-  GCC:*_*_*_CC_FLAGS = -fsanitize=undefined -fno-sanitize=alignment -fsanitize-recover=undefined
+  GCC:*_*_*_CC_FLAGS = -fsanitize=undefined -fsanitize=pointer-overflow -fno-sanitize=alignment -fsanitize-recover=undefined -fsanitize-recover=pointer-overflow
+!endif
+!if $(ASAN_INSTRUMENT) == TRUE
+  GCC:*_*_*_CC_FLAGS = -fsanitize=kernel-address -fasan-shadow-offset=0x30000000 --param asan-stack=1 --param asan-globals=1 --param asan-instrumentation-with-call-threshold=0 -fsanitize-recover=address -fno-omit-frame-pointer
 !endif
 
+#
+# Phase 6 (PEI/SEC instrumentation) infrastructure note:
+#
+# PEIM and PEI_CORE instrumentation requires an AsanLibFullPei.inf
+# with a PEI-compatible CONSTRUCTOR signature:
+#   RETURN_STATUS AsanLibPeiConstructor(EFI_PEI_FILE_HANDLE, EFI_PEI_SERVICES **)
+# that reads the gAsanInfoGuid HOB produced by PlatformPei. Currently
+# SyzCoverLibNull depends on UefiBootServicesTableLib which is
+# DXE-only, so it can't be NULL-injected into PEIMs either.
+#
+# Until both of these are addressed, PEI modules stay uninstrumented.
+# SEC runs in CAR before DRAM exists — instrumentation requires a
+# bootstrap shadow, high effort / low value. SEC stays off.
+#
+
 [BuildOptions.common.EDKII.DXE_CORE]
+  # DXE_CORE processes MILLIONS of comparisons during boot (memory
+  # allocator, image loader, driver dispatcher, ...). Enabling
+  # trace-cmp here makes boot hang under TCG — every cmp becomes a
+  # callback into SyzCoverLibNull, which even with early-return
+  # adds 100x overhead. Trace-pc only for DxeCore; trace-cmp is
+  # enabled only for DXE_DRIVER/DXE_RUNTIME_DRIVER/UEFI_DRIVER.
   GCC:*_*_*_CC_FLAGS = -fsanitize-coverage=trace-pc
 !if $(UBSAN_INSTRUMENT) == TRUE
-  GCC:*_*_*_CC_FLAGS = -fsanitize=undefined -fno-sanitize=alignment -fsanitize-recover=undefined
+  GCC:*_*_*_CC_FLAGS = -fsanitize=undefined -fsanitize=pointer-overflow -fno-sanitize=alignment -fsanitize-recover=undefined -fsanitize-recover=pointer-overflow
+!endif
+!if $(ASAN_INSTRUMENT) == TRUE
+  #
+  # Phase 3: DxeCore ASan. Enabled now that:
+  #   - PlatformPei produces the gAsanInfoGuid HOB (Phase 2), so
+  #     DxeMain's own AsanLibFull CONSTRUCTOR finds the shadow at
+  #     module load time and activates its per-instance globals.
+  #   - PoisonPool / UnpoisonPool / FastPoisonShadow live in
+  #     AsanLibFull which is built with -fno-sanitize=all, so the
+  #     allocator's poison writes don't recursively self-instrument.
+  #   - The shadow range [0x30000000, 0x40000000) is reserved via
+  #     BuildMemoryAllocationHob, so CoreAllocatePool won't hand
+  #     that range out and trip on its own poison bytes.
+  #
+  GCC:*_*_*_CC_FLAGS = -fsanitize=kernel-address -fasan-shadow-offset=0x30000000 --param asan-stack=1 --param asan-globals=1 --param asan-instrumentation-with-call-threshold=0 -fsanitize-recover=address -fno-omit-frame-pointer
 !endif
 
 [BuildOptions]
@@ -495,12 +598,15 @@
   NULL|OvmfPkg/Library/SyzCoverLib/SyzCoverLibNull.inf
 !if $(ASAN_INSTRUMENT) == TRUE
   #
-  # Intentionally NO NULL|AsanLibFull injection for DXE_CORE — DxeMain
-  # is built without -fsanitize=address (see [BuildOptions.common
-  # .EDKII.DXE_CORE]) so the asan runtime symbols only need to be
-  # provided as weak no-op stubs from AsanLibNull. Activating asan
-  # inside DxeCore wedged the boot dispatch loop in earlier sessions.
+  # Phase 3: inject AsanLibFull into DXE_CORE. Earlier attempts
+  # wedged the dispatch loop because no HOB was produced and the
+  # allocator's PoisonPool called into an uninitialized shadow.
+  # Phase 2 fixed both: PlatformPei reserves + zeros the shadow
+  # and publishes the gAsanInfoGuid HOB, and AsanLibConstructor
+  # runs at DxeMain startup to activate the per-instance globals
+  # before the first allocation.
   #
+  NULL|MdeModulePkg/Library/AsanLib/AsanLibFull.inf
 !endif
 !endif
 
@@ -605,6 +711,12 @@
   DebugLib|OvmfPkg/Library/PlatformDebugLibIoPort/PlatformDebugLibIoPort.inf
 !endif
   PciLib|OvmfPkg/Library/DxePciLibI440FxQ35/DxePciLibI440FxQ35.inf
+!if $(SYZ_AGENT_ENABLE) == TRUE
+  NULL|OvmfPkg/Library/SyzCoverLib/SyzCoverLibNull.inf
+!if $(ASAN_INSTRUMENT) == TRUE
+  NULL|MdeModulePkg/Library/AsanLib/AsanLibFull.inf
+!endif
+!endif
 
 [LibraryClasses.common.DXE_SMM_DRIVER]
   PcdLib|MdePkg/Library/DxePcdLib/DxePcdLib.inf
@@ -632,6 +744,13 @@
   NULL|OvmfPkg/Library/SyzCoverLib/SyzCoverLibNull.inf
 !if $(ASAN_INSTRUMENT) == TRUE
   NULL|MdeModulePkg/Library/AsanLib/AsanLibFull.inf
+  #
+  # SMIBVS — inert in smm=off builds (gSmst is NULL, constructor
+  # bails early). Activates when OVMF is rebuilt with SMM_REQUIRE=
+  # TRUE and QEMU launched with smm=on. Rejects CommBuffer pointers
+  # into SMRAM — the classic SMM privilege-escalation pattern.
+  #
+  NULL|MdeModulePkg/Library/SmmBufValLib/SmmBufValLib.inf
 !endif
 !endif
 
@@ -651,6 +770,12 @@
   DebugLib|OvmfPkg/Library/PlatformDebugLibIoPort/PlatformDebugLibIoPort.inf
 !endif
   PciLib|OvmfPkg/Library/DxePciLibI440FxQ35/DxePciLibI440FxQ35.inf
+!if $(SYZ_AGENT_ENABLE) == TRUE
+  NULL|OvmfPkg/Library/SyzCoverLib/SyzCoverLibNull.inf
+!if $(ASAN_INSTRUMENT) == TRUE
+  NULL|MdeModulePkg/Library/AsanLib/AsanLibFull.inf
+!endif
+!endif
 
 ################################################################################
 #
@@ -677,6 +802,19 @@
 !endif
 
 [PcdsFixedAtBuild]
+!if $(ASAN_INSTRUMENT) == TRUE
+  #
+  # ASan-instrumented DXE drivers turn OVMF's per-page memory
+  # protection pass (ProtectUefiImageCommon → SetMemoryAttributes
+  # loop) into a catastrophic per-access shadow-check storm under
+  # TCG. Disable image protection and NX policy entirely so boot
+  # skips that loop. We don't need them for firmware fuzzing — the
+  # guest is throwaway and NX would otherwise break KASAN's own
+  # shadow writes anyway.
+  #
+  gEfiMdeModulePkgTokenSpaceGuid.PcdImageProtectionPolicy|0x00000000
+  gEfiMdeModulePkgTokenSpaceGuid.PcdDxeNxMemoryProtectionPolicy|0x0000000000000000
+!endif
   gEfiMdeModulePkgTokenSpaceGuid.PcdStatusCodeMemorySize|1
 !if $(SMM_REQUIRE) == FALSE
   gEfiMdeModulePkgTokenSpaceGuid.PcdResetOnMemoryTypeInformationChange|FALSE
@@ -1025,10 +1163,34 @@
       PciHostBridgeLib|OvmfPkg/Library/PciHostBridgeLib/PciHostBridgeLib.inf
       PciHostBridgeUtilityLib|OvmfPkg/Library/PciHostBridgeUtilityLib/PciHostBridgeUtilityLib.inf
       NULL|OvmfPkg/Library/PlatformHasIoMmuLib/PlatformHasIoMmuLib.inf
+!if $(ASAN_INSTRUMENT) == TRUE
+      AsanLib|MdeModulePkg/Library/AsanLibNull/AsanLibNull.inf
+    <BuildOptions>
+      #
+      # PCI enumeration storms the ASan runtime with O(devices * MMIO)
+      # shadow checks during root-bridge setup. Under TCG that stalls
+      # boot for minutes and prevents the snapshot VM from ever
+      # reaching SyzFwfuzzTrigger. Opt this component out so the
+      # enumeration runs at native speed; we lose ASan coverage on
+      # PciHostBridgeDxe (mature EDK2 code) but gain the ability to
+      # attach devices the fuzzer actually needs (virtio-net,
+      # virtio-blk).
+      #
+      GCC:*_*_*_CC_FLAGS = -fno-sanitize-coverage=trace-pc -fno-sanitize=undefined -fno-sanitize=kernel-address
+!endif
   }
   MdeModulePkg/Bus/Pci/PciBusDxe/PciBusDxe.inf {
     <LibraryClasses>
       PcdLib|MdePkg/Library/DxePcdLib/DxePcdLib.inf
+!if $(ASAN_INSTRUMENT) == TRUE
+      AsanLib|MdeModulePkg/Library/AsanLibNull/AsanLibNull.inf
+    <BuildOptions>
+      # Same rationale as PciHostBridgeDxe — PCI enumeration is
+      # massively MMIO-heavy and ASan-instrumenting it creates a
+      # TCG boot storm. Target drivers (Ip4Dxe, Fat, etc.) remain
+      # fully instrumented.
+      GCC:*_*_*_CC_FLAGS = -fno-sanitize-coverage=trace-pc -fno-sanitize=undefined -fno-sanitize=kernel-address
+!endif
   }
   MdeModulePkg/Universal/ResetSystemRuntimeDxe/ResetSystemRuntimeDxe.inf
   MdeModulePkg/Universal/Metronome/Metronome.inf
@@ -1218,13 +1380,34 @@
     <BuildOptions>
       #
       # SyzAgentDxe must not be instrumented. The per-MODULE_TYPE block
-      # prepends -fsanitize=kernel-address -fasan-shadow-offset=...; we
-      # strip kernel-address which also disables the shadow-offset.
+      # applies -fsanitize-coverage=trace-pc, -fsanitize=undefined, and
+      # (under ASAN_INSTRUMENT=TRUE) -fsanitize=kernel-address +
+      # -fasan-shadow-offset. gcc-wrap strips -fasan-shadow-offset and
+      # --param asan-* when it sees -fno-sanitize=kernel-address, so we
+      # can just append the disable flags below.
       #
-      GCC:*_*_*_CC_FLAGS = -fno-sanitize-coverage=trace-pc -fno-sanitize=kernel-address -fno-sanitize=undefined
+      GCC:*_*_*_CC_FLAGS = -fno-sanitize-coverage=trace-pc,trace-cmp -fno-sanitize=undefined -fno-sanitize=kernel-address -DSYZ_AGENT_NO_ASAN_RUNTIME=1
+    <LibraryClasses>
+      AsanLib|MdeModulePkg/Library/AsanLibNull/AsanLibNull.inf
   }
 !if $(ASAN_INSTRUMENT) == TRUE
+  #
+  # Phase 1 of the "instrument everything" rollout: wildcard ASan is
+  # now applied at the MODULE_TYPE level in
+  # [BuildOptions.common.EDKII.DXE_DRIVER]. The SyzAsanTestDxe
+  # per-component override below is no longer required (it just
+  # duplicates the wildcard) and is retained purely as a quick
+  # compile-time sanity check that the wildcard matches the legacy
+  # flags verbatim — if you ever want a distinct flag set for the
+  # test module, modify this override.
+  #
   OvmfPkg/SyzAsanTestDxe/SyzAsanTestDxe.inf
+  #
+  # SyzBugsDxe canary — triggers one bug of every class ASan + UBSan
+  # can detect. Inherits wildcard ASan + (if UBSAN_INSTRUMENT=TRUE)
+  # wildcard UBSan. Used to verify each phase of the rollout.
+  #
+  OvmfPkg/SyzBugsDxe/SyzBugsDxe.inf
 !endif
 !endif
 
@@ -1289,6 +1472,14 @@
   MdeModulePkg/Universal/Variable/RuntimeDxe/VariableRuntimeDxe.inf {
     <LibraryClasses>
       NULL|MdeModulePkg/Library/VarCheckUefiLib/VarCheckUefiLib.inf
+!if $(ASAN_INSTRUMENT) == TRUE
+      #
+      # Phase 1: ASan flags come from the wildcard DXE_RUNTIME_DRIVER
+      # BuildOptions block. We only need the named AsanLib instance
+      # here so the module's explicit AsanLib reference resolves.
+      #
+      AsanLib|MdeModulePkg/Library/AsanLib/AsanLibFull.inf
+!endif
   }
 !endif
 

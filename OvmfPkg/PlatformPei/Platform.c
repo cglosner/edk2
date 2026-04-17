@@ -229,6 +229,89 @@ ReserveEmuVariableNvStore (
   ASSERT_RETURN_ERROR (PcdStatus);
 }
 
+#include <Guid/AsanInfo.h>
+
+//
+// Phase 2 of "instrument everything": reserve a fixed-address region of
+// DRAM for the ASan shadow. By pinning the shadow to a compile-time
+// known address (0x30000000), we decouple it from runtime PCI BAR
+// allocation (which moves around from boot to boot). This lets us:
+//
+//   - match the compile-time -fasan-shadow-offset exactly, so
+//     --param asan-stack=1 / asan-globals=1 work (the compiler-emitted
+//     __asan_set_shadow_* calls compute shadow addresses with the
+//     baked-in offset and expect them to be writable),
+//
+//   - have the shadow available BEFORE PciBusDxe runs, so PEIMs and
+//     early DXE drivers can be instrumented later (Phase 2b / 3),
+//
+//   - remove the ivshmem-BAR dependency entirely — the ivshmem device
+//     is still used for SyzCover's per-PC ring, but not for ASan.
+//
+// With -m 1024 (the fuzzing config), DRAM is [0, 0x40000000). We
+// reserve the last 256 MB = [0x30000000, 0x40000000). PEI's permanent
+// memory lives further down, so this range is safely unused.
+//
+// 256 MB shadow covers 2 GB of memory at 1:8 ratio, which is the
+// whole low-2 GB window that DXE drivers live in.
+//
+// SyzAgentDxe and SyzBugsDxe will locate the shadow via the
+// gAsanInfoGuid HOB (or the config-table derived from it); no runtime
+// BAR discovery needed.
+//
+#define SYZ_ASAN_SHADOW_BASE  0x30000000ULL
+#define SYZ_ASAN_SHADOW_SIZE  0x10000000ULL   // 256 MB
+
+STATIC
+VOID
+ReserveAsanShadow (
+  VOID
+  )
+{
+  ASAN_INFO  Info;
+
+  //
+  // Mark the range as EfiBootServicesData so DxeCore's pool allocator
+  // treats it as already-allocated and won't hand it out to anyone.
+  // AsanLib writes 0xF1/0xFA/etc. into it during normal operation and
+  // must not have the allocator step on its writes.
+  //
+  BuildMemoryAllocationHob (
+    (EFI_PHYSICAL_ADDRESS)SYZ_ASAN_SHADOW_BASE,
+    (UINT64)SYZ_ASAN_SHADOW_SIZE,
+    EfiBootServicesData
+    );
+
+  //
+  // Zero the shadow. ASan's "unpoisoned" state is 0x00, so a
+  // fresh-zeroed shadow means every memory access passes the
+  // __asan_load1_noabort check until something explicitly poisons
+  // a red-zone. Without this, DRAM contents at boot can contain
+  // leftover non-zero bytes that cause false-positive reports on
+  // the very first accesses to otherwise-valid memory.
+  //
+  SetMem ((VOID *)(UINTN)SYZ_ASAN_SHADOW_BASE, (UINTN)SYZ_ASAN_SHADOW_SIZE, 0);
+
+  //
+  // Publish the shadow location to DXE via an ASAN_INFO HOB. AsanLib
+  // and SyzAgentDxe read this HOB to install the ASan config table
+  // consumed by the per-module AsanLib instances' lazy-activation.
+  //
+  ZeroMem (&Info, sizeof (Info));
+  Info.AsanShadowMemoryStart = SYZ_ASAN_SHADOW_BASE;
+  Info.AsanShadowMemorySize  = SYZ_ASAN_SHADOW_SIZE;
+  Info.AsanInited            = 1;
+  Info.AsanActivated         = 1;
+  BuildGuidDataHob (&gAsanInfoGuid, &Info, sizeof (Info));
+
+  DEBUG ((
+    DEBUG_INFO,
+    "[SYZ-ASAN] reserved+zeroed DRAM shadow at 0x%lx size 0x%lx\n",
+    (UINT64)SYZ_ASAN_SHADOW_BASE,
+    (UINT64)SYZ_ASAN_SHADOW_SIZE
+    ));
+}
+
 STATIC
 VOID
 S3Verification (
@@ -375,6 +458,13 @@ InitializePlatform (
   PlatformQemuUc32BaseInitialization (PlatformInfoHob);
 
   InitializeRamRegions (PlatformInfoHob);
+
+  //
+  // Phase 2: reserve the ASan shadow region at a fixed DRAM address.
+  // Must happen AFTER PublishPeiMemory (so DRAM is usable) and BEFORE
+  // DxeCore starts allocating over [0x30000000, 0x40000000).
+  //
+  ReserveAsanShadow ();
 
   if (PlatformInfoHob->BootMode != BOOT_ON_S3_RESUME) {
     if (!PlatformInfoHob->SmmSmramRequire) {

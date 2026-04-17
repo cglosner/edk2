@@ -114,9 +114,38 @@ SyzAgentOnPciIo (
     STATIC EFI_HANDLE        mShadowHandle = NULL;
     VOID                     *ShadowBase = NULL;
     UINTN                    ShadowSize  = 0;
-    EFI_STATUS               ShadowStatus;
+    EFI_STATUS               ShadowStatus = EFI_NOT_FOUND;
 
-    ShadowStatus = SyzEdk2TransportGetShadowRegion (&ShadowBase, &ShadowSize);
+    //
+    // Phase 2: prefer the PlatformPei-reserved DRAM shadow over the
+    // ivshmem BAR. PlatformPei produces a gAsanInfoGuid HOB at entry
+    // that points to a 256 MB region at a fixed compile-time offset
+    // (0x30000000). Match on that first; fall back to the BAR-based
+    // path only if the HOB isn't present (legacy builds).
+    //
+    {
+      EFI_HOB_GUID_TYPE  *GuidHob;
+      ASAN_INFO          *Info;
+
+      GuidHob = GetFirstGuidHob (&gAsanInfoGuid);
+      if (GuidHob != NULL) {
+        Info       = (ASAN_INFO *)GET_GUID_HOB_DATA (GuidHob);
+        ShadowBase = (VOID *)(UINTN)Info->AsanShadowMemoryStart;
+        ShadowSize = (UINTN)Info->AsanShadowMemorySize;
+        ShadowStatus = EFI_SUCCESS;
+        DEBUG ((
+          DEBUG_INFO,
+          "[SYZ-AGENT] asan shadow from HOB at 0x%lx size 0x%lx\n",
+          (UINT64)(UINTN)ShadowBase,
+          (UINT64)ShadowSize
+          ));
+      }
+    }
+
+    if (EFI_ERROR (ShadowStatus)) {
+      ShadowStatus = SyzEdk2TransportGetShadowRegion (&ShadowBase, &ShadowSize);
+    }
+
     if (!EFI_ERROR (ShadowStatus) && (ShadowBase != NULL) && (ShadowSize >= SIZE_8MB)) {
       gSyzEdk2Agent.AsanShadowBase = ShadowBase;
       gSyzEdk2Agent.AsanShadowSize = ShadowSize;
@@ -130,7 +159,7 @@ SyzAgentOnPciIo (
                             );
       DEBUG ((
         DEBUG_INFO,
-        "[SYZ-AGENT] asan shadow at 0x%lx size 0x%lx (%r)\n",
+        "[SYZ-AGENT] asan shadow ready protocol at 0x%lx size 0x%lx (%r)\n",
         (UINT64)(UINTN)ShadowBase,
         (UINT64)ShadowSize,
         ShadowStatus
@@ -172,6 +201,16 @@ SyzAgentOnPciIo (
     gBS->SetTimer (mTickEvent, TimerPeriodic, 10000);
   }
   SyzAgentLog ("transport ready, dispatch timer armed");
+  //
+  // ProtocolLifetimeSan — hooks gBS->UninstallProtocolInterface so
+  // any subsequent use of the interface pointer surfaces as
+  // heap-use-after-free via ASan's shadow.
+  //
+  extern VOID SyzPlsInit (VOID);
+  SyzPlsInit ();
+  // Register the fwfuzz trigger shim so qemu-fwfuzz can locate the
+  // input buffer and trigger/exit PCs at runtime.
+  SyzFwfuzzRegister ();
 }
 
 EFI_STATUS
@@ -212,6 +251,29 @@ SyzAgentDxeEntryPoint (
   if (EFI_ERROR (Status)) {
     DEBUG ((DEBUG_ERROR, "[SYZ-AGENT] panic: RegisterProtocolNotify failed (%r)\n", Status));
     return EFI_SUCCESS;
+  }
+
+  //
+  // With the new DEPEX on gEfiPciIoProtocolGuid, PciBusDxe has already
+  // published PciIo handles by the time we get here, but the protocol-
+  // notify event only fires for handles installed AFTER registration.
+  // Signal the event explicitly so DxeCore runs SyzAgentOnPciIo at
+  // TPL_CALLBACK (the notify's expected TPL). We can't just call
+  // SyzAgentOnPciIo directly from the entry point — that runs at
+  // TPL_APPLICATION and the internal CreateEvent/SetTimer ops
+  // trigger Lock->Lock == EfiLockReleased asserts + RaiseTpl
+  // OldTpl > NewTpl fatal errors.
+  //
+  // SignalEvent queues the notify for execution on the next
+  // DispatchEventNotifies() call, which happens inside
+  // gBS->RaiseTPL/RestoreTPL. We force it here by bumping TPL
+  // and restoring it — the event fires during the restore.
+  //
+  {
+    EFI_TPL OldTpl;
+    gBS->SignalEvent (mPciIoNotifyEvent);
+    OldTpl = gBS->RaiseTPL (TPL_HIGH_LEVEL);
+    gBS->RestoreTPL (OldTpl);
   }
 
   return EFI_SUCCESS;
@@ -271,12 +333,13 @@ SyzAgentDispatchOne (
     return;
   }
 
-  SyzCoverReset ();
+  SyzCoverReset ();   // zeros ring + enables gate
   DispatchStatus = SyzEdk2Dispatch (
                      mProgramBuffer + SYZ_EDK2_OFF_CALLS,
                      SYZ_EDK2_MAX_PROGRAM_BYTES,
                      NumCalls
                      );
+  SyzCoverStop ();    // disables gate before ack
 
   AckStatus = (UINT32)((DispatchStatus == EFI_SUCCESS) ? 0 : 3);
   SyzEdk2TransportAck (AckStatus);

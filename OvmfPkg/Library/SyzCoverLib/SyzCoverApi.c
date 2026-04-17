@@ -65,4 +65,21 @@ SyzCoverReset (
   }
   Counter  = (volatile UINT32 *)(mApiTable->Base + SYZ_EDK2_OFF_COVER);
   *Counter = 0;
+  // Enable the gate so trace_pc callbacks start recording.
+  mApiTable->Enabled = 1;
+}
+
+SYZ_COVER_NOTRACE
+VOID
+EFIAPI
+SyzCoverStop (
+  VOID
+  )
+{
+  if (mApiTable == NULL) {
+    return;
+  }
+  // Disable the gate so background DXE activity doesn't pollute
+  // the cover ring between program dispatches.
+  mApiTable->Enabled = 0;
 }

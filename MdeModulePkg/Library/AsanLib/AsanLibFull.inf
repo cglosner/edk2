@@ -24,6 +24,19 @@
   MODULE_TYPE                    = DXE_DRIVER
   VERSION_STRING                 = 1.0
   #
+  # Phase 2: run AsanLibConstructor at module-load time for every
+  # instrumented module. With the PlatformPei-produced gAsanInfoGuid
+  # HOB now available from the start of DXE, the constructor's
+  # SetupAsanShadowMemory() call activates the per-module ASan
+  # globals *before* the compiler-emitted __asan_register_globals
+  # ctor runs, so globals-OOB detection works across all drivers.
+  # Earlier this was disabled because no HOB was produced and the
+  # constructor would always early-return + fall through to a
+  # protocol-notify fallback that triggered the cascading activation
+  # hang.
+  #
+  CONSTRUCTOR                    = AsanLibConstructor
+  #
   # NOTE: DXE_CORE is intentionally NOT in this LIBRARY_CLASS list.
   # DxeMain isn't compiled with -fsanitize=address (the dsc carves it
   # out from the per-MODULE_TYPE BuildOptions block), so it doesn't

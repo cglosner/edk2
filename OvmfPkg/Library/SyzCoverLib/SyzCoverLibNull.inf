@@ -38,5 +38,9 @@
   UefiBootServicesTableLib
 
 [BuildOptions]
+  # See SyzCoverLib.inf for the full explanation — on GCC <12 the
+  # per-function no_sanitize_coverage attribute is a no-op and the
+  # cmps inside SyzCoverRecordCmp would recursively call back into
+  # __sanitizer_cov_trace_cmp*. Gate the whole NULL-injection module.
   GCC:*_*_*_SAN_FLAGS == -fno-sanitize=all
-  GCC:*_*_*_CC_FLAGS  = -fno-sanitize-coverage=trace-pc
+  GCC:*_*_*_CC_FLAGS  = -fno-sanitize-coverage=trace-pc,trace-cmp

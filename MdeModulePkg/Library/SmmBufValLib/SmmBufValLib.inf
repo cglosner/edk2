@@ -1,0 +1,45 @@
+## @file
+#  SMIBVS — SMI Buffer Validation Sanitizer runtime.
+#
+#  NULL library injected into every DXE_SMM_DRIVER. Wraps SMI handler
+#  dispatch so that every pointer the handler dereferences from its
+#  CommBuffer argument is validated to be OUTSIDE SMRAM before use.
+#  Catches the "pointer into SMRAM smuggled through DXE call" class of
+#  SMM privilege-escalation bug (LoJax, ThinkPwn, Dell SmmBde family).
+#
+#  Inert unless SMM_REQUIRE=TRUE — in non-SMM builds the SMM services
+#  table doesn't exist and the constructor bails early.
+#
+#  Copyright (c) 2026, syzkaller project authors. All rights reserved.<BR>
+#
+#  SPDX-License-Identifier: BSD-2-Clause-Patent
+##
+
+[Defines]
+  INF_VERSION                    = 0x00010005
+  BASE_NAME                      = SmmBufValLib
+  FILE_GUID                      = 7E4C8D2A-3F1B-4A7F-B8CE-1E9F2A3B4C5D
+  MODULE_TYPE                    = DXE_SMM_DRIVER
+  VERSION_STRING                 = 1.0
+  LIBRARY_CLASS                  = SmmBufValLib|DXE_SMM_DRIVER SMM_CORE
+  CONSTRUCTOR                    = SmmBufValLibConstructor
+
+[Sources]
+  SmmBufVal.c
+
+[Packages]
+  MdePkg/MdePkg.dec
+  MdeModulePkg/MdeModulePkg.dec
+
+[LibraryClasses]
+  BaseLib
+  BaseMemoryLib
+  DebugLib
+  SmmMemLib
+  SmmServicesTableLib
+
+[BuildOptions]
+  # Runtime must not be self-instrumented — it inspects SMRAM addresses
+  # directly and its own stack frame must not trip ASan redzones.
+  GCC:*_*_*_CC_FLAGS = -fno-sanitize=all -fno-sanitize-coverage=trace-pc
+  GCC:*_*_*_SAN_FLAGS == -fno-sanitize=all
