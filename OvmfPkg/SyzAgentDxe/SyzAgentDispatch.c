@@ -4522,6 +4522,52 @@ STATIC EFI_STATUS HandleLoadImage (IN CONST UINT8 *Payload, IN UINTN PayloadSize
   return EFI_SUCCESS;
 }
 
+//
+// SyzEdk2ApiLoadImagePe: the payload bytes after the single
+// boot_policy byte + 3 pad bytes ARE the PE image. We forward them
+// straight to gBS->LoadImage as SourceBuffer, letting DxeCore's
+// BasePeCoffLib walk every header field the fuzzer produced.
+//
+typedef struct {
+  UINT8   BootPolicy;
+  UINT8   Pad0;
+  UINT16  Pad1;
+  // followed by the raw PE image bytes
+} SYZ_EDK2_LOAD_IMAGE_PE_PAYLOAD;
+
+STATIC EFI_STATUS HandleLoadImagePe (IN CONST UINT8 *Payload, IN UINTN PayloadSize) {
+  CONST SYZ_EDK2_LOAD_IMAGE_PE_PAYLOAD *P;
+  EFI_HANDLE ImageHandle = NULL;
+  UINTN      SlotIdx;
+  UINTN      ImageBytes;
+
+  if (PayloadSize < sizeof (*P)) return EFI_INVALID_PARAMETER;
+  P = (CONST SYZ_EDK2_LOAD_IMAGE_PE_PAYLOAD *)Payload;
+  ImageBytes = PayloadSize - sizeof (*P);
+  if (ImageBytes < 64) return EFI_INVALID_PARAMETER;  // smaller than MZ
+  //
+  // The PE walker inside BasePeCoffLib hand-inspects every length
+  // and offset field — feeding it a fuzzer-controlled image exercises
+  // overlapping-sections, oversized NumberOfRvaAndSizes, bogus
+  // e_lfanew, SizeOfImage < header size, and similar well-known bug
+  // classes. Bounded to SYZ_EDK2_MAX_PROGRAM_BYTES (~4KB) by the
+  // transport layer.
+  //
+  gBS->LoadImage (P->BootPolicy, gImageHandle, NULL,
+                  (VOID *)(Payload + sizeof (*P)), ImageBytes,
+                  &ImageHandle);
+  if (ImageHandle != NULL) {
+    for (SlotIdx = 0; SlotIdx < SYZ_EDK2_MAX_IMAGE_HANDLES; SlotIdx++) {
+      if (gSyzEdk2Agent.ImageHandles[SlotIdx].Handle == NULL) {
+        gSyzEdk2Agent.ImageHandles[SlotIdx].Handle = ImageHandle;
+        return EFI_SUCCESS;
+      }
+    }
+    gBS->UnloadImage (ImageHandle);
+  }
+  return EFI_SUCCESS;
+}
+
 STATIC EFI_STATUS HandleStartImage (IN CONST UINT8 *Payload, IN UINTN PayloadSize) {
   CONST SYZ_EDK2_START_IMAGE_PAYLOAD *P;
   UINTN ExitDataSize = 0;
@@ -4981,6 +5027,8 @@ SyzEdk2Dispatch (
     // --- Boot dispatcher ---
     } else if (Hdr->Call == SyzEdk2ApiLoadImage) {
       HandleLoadImage (Payload, PayloadSize);
+    } else if (Hdr->Call == SyzEdk2ApiLoadImagePe) {
+      HandleLoadImagePe (Payload, PayloadSize);
     } else if (Hdr->Call == SyzEdk2ApiStartImage) {
       HandleStartImage (Payload, PayloadSize);
     } else if (Hdr->Call == SyzEdk2ApiUnloadImage) {

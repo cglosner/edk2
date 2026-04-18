@@ -218,6 +218,7 @@ typedef enum {
   SyzEdk2ApiUnloadImage            = 792,
   SyzEdk2ApiConnectController      = 793,
   SyzEdk2ApiDisconnectController   = 794,
+  SyzEdk2ApiLoadImagePe            = 795,   // inline PE/COFF image
   //
   // Hardware-level / low-level protocols (800-819).
   //
