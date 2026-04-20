@@ -32,7 +32,8 @@
   MemoryAllocationLib
 
 [BuildOptions]
-  # The library itself must be instrumented so sanitizer reports carry
-  # proper shadow context. But the primitives use volatile locals and
-  # the underlying access is what we WANT to trip — do not disable
-  # sanitization here.
+  # MODULE_TYPE=BASE doesn't inherit the DXE_DRIVER wildcard sanitizer
+  # flags, so apply them explicitly here. Without this, the library's
+  # memory accesses inside the trigger primitives would NOT be
+  # instrumented by ASan — tripwire calls would silently return.
+  GCC:*_*_*_CC_FLAGS = -fsanitize=kernel-address -fasan-shadow-offset=0x30000000 --param asan-stack=1 --param asan-globals=1 --param asan-instrumentation-with-call-threshold=0 -fsanitize-recover=address -fno-omit-frame-pointer

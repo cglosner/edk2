@@ -24,27 +24,77 @@ static UINT8 gSyzBugsLibGlobalBuf[16] = { 0 };
 
 #define NOINLINE __attribute__((noinline, used))
 
+// Shadow byte layout for KASan mode (-fasan-shadow-offset=0x30000000):
+//   shadow(addr) = (addr >> 3) + 0x30000000
+//   shadow byte 0x00 = accessible, 0xfa = heap-right-redzone,
+//   0xfd = heap-freed, 0xfb = heap-left-redzone
+#define SYZBUGS_SHADOW_OFFSET  0x30000000UL
+#define SYZBUGS_REDZONE_MAGIC  0xfa
+#define SYZBUGS_FREED_MAGIC    0xfd
+
+STATIC
+VOID
+SyzBugsPoisonRange (
+  IN UINTN   Addr,
+  IN UINTN   Size,
+  IN UINT8   Magic
+  )
+{
+  // Direct shadow-byte write — bypasses AsanLib to work from
+  // any module (SyzAgentDxe links AsanLibNull so AsanLib helpers are
+  // no-ops). Caller must pass an 8-byte-aligned address and size.
+  volatile UINT8 *Shadow = (volatile UINT8 *)(UINTN)((Addr >> 3) + SYZBUGS_SHADOW_OFFSET);
+  UINTN           I;
+  for (I = 0; I < (Size >> 3); I++) {
+    Shadow[I] = Magic;
+  }
+}
+
+STATIC
+VOID
+SyzBugsUnpoisonRange (
+  IN UINTN  Addr,
+  IN UINTN  Size
+  )
+{
+  volatile UINT8 *Shadow = (volatile UINT8 *)(UINTN)((Addr >> 3) + SYZBUGS_SHADOW_OFFSET);
+  UINTN           I;
+  for (I = 0; I < (Size >> 3); I++) {
+    Shadow[I] = 0;
+  }
+}
+
 // =====================================================================
 // ASan-class primitives
 // =====================================================================
 
+//
+// Heap primitives: EDK2's AllocatePool doesn't hook ASan so allocations
+// have no automatic redzones. We work around by allocating a larger
+// buffer, manually poisoning bytes [16..32) as right-redzone, then
+// reading/writing into the poisoned range. ASan's shadow check does fire
+// (shadow byte is non-zero).
+//
 NOINLINE
 UINT64
 SyzBugsLibTriggerHeapOobRead (
   VOID
   )
 {
-  volatile UINT8  *Buf;
-  volatile UINTN  Idx = 20;     // out of bounds (alloc is 16)
-  UINT8            V;
+  UINT8  *Buf;
+  UINT8   V;
 
-  Buf = (volatile UINT8 *)AllocatePool (16);
+  Buf = (UINT8 *)AllocatePool (64);
   if (Buf == NULL) {
     return 0;
   }
-  V = Buf[Idx];                  // heap OOB read
+  // Align up to 8-byte boundary for clean shadow mapping.
+  UINTN AlignedAddr = ((UINTN)Buf + 7) & ~(UINTN)7;
+  SyzBugsPoisonRange (AlignedAddr + 16, 16, SYZBUGS_REDZONE_MAGIC);
+  V = ((volatile UINT8 *)(UINTN)AlignedAddr)[20];  // into the redzone
   gSyzBugsLibSinkU8 = V;
-  FreePool ((VOID *)Buf);
+  SyzBugsUnpoisonRange (AlignedAddr + 16, 16);
+  FreePool (Buf);
   return (UINT64)V;
 }
 
@@ -54,15 +104,17 @@ SyzBugsLibTriggerHeapOobWrite (
   VOID
   )
 {
-  volatile UINT8 *Buf;
-  volatile UINTN  Idx = 24;      // out of bounds
+  UINT8  *Buf;
 
-  Buf = (volatile UINT8 *)AllocatePool (16);
+  Buf = (UINT8 *)AllocatePool (64);
   if (Buf == NULL) {
     return 0;
   }
-  Buf[Idx] = 0xCA;               // heap OOB write
-  FreePool ((VOID *)Buf);
+  UINTN AlignedAddr = ((UINTN)Buf + 7) & ~(UINTN)7;
+  SyzBugsPoisonRange (AlignedAddr + 16, 16, SYZBUGS_REDZONE_MAGIC);
+  ((volatile UINT8 *)(UINTN)AlignedAddr)[24] = 0xCA;  // write into redzone
+  SyzBugsUnpoisonRange (AlignedAddr + 16, 16);
+  FreePool (Buf);
   return 1;
 }
 
@@ -72,17 +124,21 @@ SyzBugsLibTriggerHeapUaf (
   VOID
   )
 {
-  volatile UINT8 *Buf;
-  UINT8           V;
+  UINT8  *Buf;
+  UINT8   V;
 
-  Buf = (volatile UINT8 *)AllocatePool (16);
+  Buf = (UINT8 *)AllocatePool (32);
   if (Buf == NULL) {
     return 0;
   }
-  Buf[0] = 0x5A;
-  FreePool ((VOID *)Buf);
-  V = Buf[0];                    // use-after-free
+  UINTN AlignedAddr = ((UINTN)Buf + 7) & ~(UINTN)7;
+  ((volatile UINT8 *)(UINTN)AlignedAddr)[0] = 0x5A;
+  // Mark the range as freed without actually freeing (freed shadow = 0xfd)
+  SyzBugsPoisonRange (AlignedAddr, 16, SYZBUGS_FREED_MAGIC);
+  V = ((volatile UINT8 *)(UINTN)AlignedAddr)[0];  // UAF read
   gSyzBugsLibSinkU8 = V;
+  SyzBugsUnpoisonRange (AlignedAddr, 16);
+  FreePool (Buf);
   return (UINT64)V;
 }
 
