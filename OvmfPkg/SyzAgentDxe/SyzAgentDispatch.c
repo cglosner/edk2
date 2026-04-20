@@ -284,6 +284,13 @@ HandleSetVariable (
   }
 
   P = (CONST SYZ_EDK2_SET_VARIABLE_PAYLOAD *)Payload;
+#ifdef SYZ_BUGS_DISPATCH_INJECT
+  // Planted canary — trips stack-OOB read when NameSize == 62
+  // (bytesize of name is array[int16, 1:32] -> 2..64 bytes).
+  if ((UINT32)P->NameSize == 62U) {
+    (void)SyzBugsLibTriggerStackOobRead ();
+  }
+#endif
   if ((UINTN)P->NameSize + (UINTN)P->DataSize + sizeof (*P) > PayloadSize) {
     return EFI_INVALID_PARAMETER;
   }
@@ -1688,6 +1695,12 @@ HandleBlockIoReadBlocks (
     return EFI_INVALID_PARAMETER;
   }
   P = (CONST SYZ_EDK2_BLOCK_IO_READ_PAYLOAD *)Payload;
+#ifdef SYZ_BUGS_DISPATCH_INJECT
+  // Planted canary — trips global-OOB when BufferSize == 0xF00D.
+  if ((UINT32)P->BufferSize == 0xF00DU) {
+    (void)SyzBugsLibTriggerGlobalOob ();
+  }
+#endif
 
   Status = gBS->LocateProtocol (&gEfiBlockIoProtocolGuid, NULL, (VOID **)&BlockIo);
   if (EFI_ERROR (Status)) {
@@ -3637,6 +3650,12 @@ HandleFileRead (
     return EFI_INVALID_PARAMETER;
   }
   P = (CONST SYZ_EDK2_FILE_READ_PAYLOAD *)Payload;
+#ifdef SYZ_BUGS_DISPATCH_INJECT
+  // Planted canary — trips heap-UAF when BufferSize == 0xDEED.
+  if ((UINT32)P->BufferSize == 0xDEEDU) {
+    (void)SyzBugsLibTriggerHeapUaf ();
+  }
+#endif
 
   if (P->FileHandleIndex >= SYZ_EDK2_MAX_FILE_HANDLES) {
     return EFI_INVALID_PARAMETER;
@@ -3853,6 +3872,13 @@ HandleDevicePathFromText (
     return EFI_INVALID_PARAMETER;
   }
   P = (CONST SYZ_EDK2_DEVICE_PATH_FROM_TEXT_PAYLOAD *)Payload;
+#ifdef SYZ_BUGS_DISPATCH_INJECT
+  // Planted canary — trips signed-add overflow when TextSize == 127
+  // (text is array[int8, 1:128] -> 1..128 bytes).
+  if ((UINT32)P->TextSize == 127U) {
+    (void)SyzBugsLibTriggerSignedAddOv ();
+  }
+#endif
 
   if (P->TextSize == 0 || sizeof (*P) + P->TextSize > PayloadSize) {
     return EFI_INVALID_PARAMETER;
@@ -4117,6 +4143,12 @@ HandleAcpiInstallTable (
     return EFI_INVALID_PARAMETER;
   }
   P = (CONST SYZ_EDK2_ACPI_INSTALL_TABLE_PAYLOAD *)Payload;
+#ifdef SYZ_BUGS_DISPATCH_INJECT
+  // Planted canary — trips divide-by-zero when DataLength == 0xCAB.
+  if ((UINT32)P->DataLength == 0xCABU) {
+    (void)SyzBugsLibTriggerDivByZero ();
+  }
+#endif
 
   Slot    = GetAllocSlot (P->DataIndex);
   Buffer  = (Slot != NULL) ? Slot->Pointer : NULL;
