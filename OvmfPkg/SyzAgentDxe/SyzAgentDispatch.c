@@ -697,8 +697,9 @@ HandleSmmCommunicate (
   //
   CONST SYZ_SMM_COMM_PAYLOAD *P = (CONST SYZ_SMM_COMM_PAYLOAD *)Payload;
 #ifdef SYZ_BUGS_DISPATCH_INJECT
-  // Planted canary — trips stack-OOB write when MessageLen == 0xC0DE.
-  if (P->MessageLen == 0xC0DEU) {
+  // Planted canary — trips stack-OOB write when MessageLen == 509
+  // (in-grammar unique value; message_len is int32[0:512]).
+  if (P->MessageLen == 509U) {
     (void)SyzBugsLibTriggerStackOobWrite ();
   }
 #endif
@@ -1003,8 +1004,9 @@ HandleHiiNewPackageList (
   }
   P = (CONST SYZ_EDK2_HII_NEW_PACKAGE_LIST_PAYLOAD *)Payload;
 #ifdef SYZ_BUGS_DISPATCH_INJECT
-  // Planted canary — trips heap-OOB read when PackageSize == 0xB00F.
-  if ((UINT32)P->PackageSize == 0xB00FU) {
+  // Planted canary — trips heap-OOB read when PackageSize == 509
+  // (package_size is bytesize of data array bounded [4:512]).
+  if ((UINT32)P->PackageSize == 509U) {
     (void)SyzBugsLibTriggerHeapOobRead ();
   }
 #endif
@@ -1970,8 +1972,9 @@ HandleGopBlt (
   }
   P = (CONST SYZ_EDK2_GOP_BLT_PAYLOAD *)Payload;
 #ifdef SYZ_BUGS_DISPATCH_INJECT
-  // Planted canary — trips signed-mul overflow when Width == 0xABBA.
-  if ((UINT32)P->Width == 0xABBAU) {
+  // Planted canary — trips signed-mul overflow when Width == 251
+  // (prime, in grammar range [1:256]).
+  if ((UINT32)P->Width == 251U) {
     (void)SyzBugsLibTriggerMulOverflow ();
   }
 #endif
@@ -3927,8 +3930,9 @@ HandleTextOutOutputString (
   }
   P = (CONST SYZ_EDK2_TEXT_OUT_OUTPUT_STRING_PAYLOAD *)Payload;
 #ifdef SYZ_BUGS_DISPATCH_INJECT
-  // Planted canary — trips heap-use-after-free when StringSize == 0xFADE.
-  if ((UINT32)P->StringSize == 0xFADEU) {
+  // Planted canary — trips heap-use-after-free when StringSize == 126
+  // (string is array[int16, 1:64], so byte size 2..128, pick 126).
+  if ((UINT32)P->StringSize == 126U) {
     (void)SyzBugsLibTriggerHeapUaf ();
   }
 #endif
