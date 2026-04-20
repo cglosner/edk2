@@ -39,6 +39,11 @@
   #                  through the same AsanLib instance.
   AsanLib|Include/Library/Asan.h
 
+  ##  @libraryclass  Deterministic bug-class primitives for fuzzer
+  #                  validation. One function per bug class; callers gate
+  #                  invocation with `#ifdef SYZ_BUGS_DISPATCH_INJECT`.
+  SyzBugsLib|Include/Library/SyzBugsLib.h
+
   ##  @libraryclass  Business logic for storing and testing variable policies
   VariablePolicyLib|Include/Library/VariablePolicyLib.h
 

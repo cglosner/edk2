@@ -45,6 +45,14 @@
   DEFINE ASAN_ENABLE             = FALSE
   DEFINE ASAN_INSTRUMENT         = FALSE
   DEFINE UBSAN_INSTRUMENT        = FALSE
+  #
+  # SYZ_BUGS_DISPATCH_INJECT: when TRUE, the dispatcher handlers plant
+  # one deterministic canary per category (see docs/edk2/bug-injection-catalog.md).
+  # Each canary is keyed on a magic value in the payload, so the fuzzer
+  # must actually reach that handler with that magic to trip it. Used
+  # to validate the full grammar -> syscall -> sanitizer pipeline.
+  #
+  DEFINE SYZ_BUGS_DISPATCH_INJECT = FALSE
 
 !include OvmfPkg/Include/Dsc/OvmfTpmDefines.dsc.inc
 
@@ -111,6 +119,10 @@
   # via its own BuildOptions to avoid recursion.
   #
   GCC:*_*_*_CC_FLAGS                   = -DSYZ_AGENT_ENABLE=1
+
+!if $(SYZ_BUGS_DISPATCH_INJECT) == TRUE
+  GCC:*_*_*_CC_FLAGS                   = -DSYZ_BUGS_DISPATCH_INJECT=1
+!endif
 
 #
 # Coverage-only by default for every DXE/SMM module — sanitizer-
@@ -495,6 +507,13 @@
   # [LibraryClasses.common.<TYPE>] blocks below.
   #
   SyzCoverLib|OvmfPkg/Library/SyzCoverLib/SyzCoverLib.inf
+
+  #
+  # SyzBugsLib: bug-class primitives for fuzzer validation. Consumers
+  # gate invocation with `#ifdef SYZ_BUGS_DISPATCH_INJECT`; the DSC
+  # DEFINE propagates that macro via the GCC CC_FLAGS block above.
+  #
+  SyzBugsLib|MdeModulePkg/Library/SyzBugsLib/SyzBugsLib.inf
 !endif
 
 !include OvmfPkg/Include/Dsc/OvmfTpmLibs.dsc.inc

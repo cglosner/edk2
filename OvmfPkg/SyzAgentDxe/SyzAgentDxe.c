@@ -202,12 +202,14 @@ SyzAgentOnPciIo (
   }
   SyzAgentLog ("transport ready, dispatch timer armed");
   //
-  // ProtocolLifetimeSan — hooks gBS->UninstallProtocolInterface so
-  // any subsequent use of the interface pointer surfaces as
-  // heap-use-after-free via ASan's shadow.
+  // ProtocolLifetimeSan is disabled for now — poisoning the interface
+  // struct with 0xFD breaks modules that use static/global protocol
+  // interfaces (every subsequent legitimate method call looks like
+  // heap-use-after-free to ASan). A tombstone-log-based variant that
+  // doesn't mutate memory is the right fix; until then, keep PLS off.
   //
-  extern VOID SyzPlsInit (VOID);
-  SyzPlsInit ();
+  // extern VOID SyzPlsInit (VOID);
+  // SyzPlsInit ();
   // Register the fwfuzz trigger shim so qemu-fwfuzz can locate the
   // input buffer and trigger/exit PCs at runtime.
   SyzFwfuzzRegister ();

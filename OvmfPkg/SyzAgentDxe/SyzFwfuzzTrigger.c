@@ -167,6 +167,24 @@ SyzFwfuzzExit (
 }
 
 //
+// Shadow-scrub range: window around the DXE dispatcher stack that we
+// zero before each fwsnap iteration. Snapshot-TCG restores RAM but
+// ASan shadow can be left poisoned by prior recover-mode reports,
+// which surfaces as "ghost" stack-OOB reports on trivial loads/stores
+// (see docs/edk2/crash-triage.md §2). We do the shadow math inline
+// instead of calling AsanLib's unpoison helper: SyzAgentDxe links
+// against AsanLibNull (per-component carveout), so the library call
+// would be a no-op. By writing the shadow bytes directly we get the
+// scrub whether or not SyzAgentDxe itself is instrumented.
+//
+// Shadow layout (matches -fasan-shadow-offset=0x30000000):
+//   shadow(addr) = (addr >> 3) + 0x30000000
+//
+#define SYZ_FWFUZZ_STACK_SCRUB_BELOW  0x40000   // 256 KB below RSP
+#define SYZ_FWFUZZ_STACK_SCRUB_ABOVE  0x20000   // 128 KB above RSP
+#define SYZ_FWFUZZ_ASAN_SHADOW_OFFSET 0x30000000UL
+
+//
 // The actual trigger function. First call: fwsnap snapshots here. On
 // every subsequent RESTORE command, fwsnap rewinds execution to the
 // start of this function, but gSyzFwfuzzInputBuffer has been rewritten
@@ -185,6 +203,33 @@ SyzFwfuzzTrigger (
   UINT32        Magic;
   UINT32        NumCalls;
   UINT8         *Payload;
+  UINTN         Rsp;
+  UINTN         ScrubLo;
+  UINTN         ScrubSize;
+
+  //
+  // Shadow scrub: reset the dispatcher-stack shadow before every
+  // iteration so stale red-zones from prior recover-mode reports
+  // don't surface as ghost OOBs on trivial loads. Window is
+  // ~384 KB centred on current RSP; heap shadow is untouched.
+  //
+  // Done as direct shadow writes: SyzAgentDxe links AsanLibNull
+  // (stubbed), so calling __asan_unpoison_stack_memory would be a
+  // no-op. We write zeros to shadow bytes covering [ScrubLo, ScrubLo
+  // + ScrubSize) ourselves. ScrubSize/8 shadow bytes per call.
+  //
+  __asm__ __volatile__ ("movq %%rsp, %0" : "=r" (Rsp));
+  Rsp      &= ~(UINTN)7;
+  ScrubLo   = Rsp - SYZ_FWFUZZ_STACK_SCRUB_BELOW;
+  ScrubSize = SYZ_FWFUZZ_STACK_SCRUB_BELOW + SYZ_FWFUZZ_STACK_SCRUB_ABOVE;
+  {
+    volatile UINT8  *ShadowBytes = (volatile UINT8 *)(UINTN)((ScrubLo >> 3) + SYZ_FWFUZZ_ASAN_SHADOW_OFFSET);
+    UINTN            ShadowLen   = ScrubSize >> 3;
+    UINTN            I;
+    for (I = 0; I < ShadowLen; I++) {
+      ShadowBytes[I] = 0;
+    }
+  }
 
   Header = (CONST UINT32 *)(UINTN)gSyzFwfuzzInputBuffer;
   Magic  = Header[0];

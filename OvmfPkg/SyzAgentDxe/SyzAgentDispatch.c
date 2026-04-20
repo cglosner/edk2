@@ -65,6 +65,10 @@
 #include <Protocol/NvmExpressPassthru.h>
 #include <Guid/FileInfo.h>
 
+#ifdef SYZ_BUGS_DISPATCH_INJECT
+  #include <Library/SyzBugsLib.h>
+#endif
+
 //
 // AsanSyz integration is optional: if MdeModulePkg/Library/AsanLib/AsanSyz.h
 // is not on the include path (the build hasn't enabled ASAN_ENABLE),
@@ -628,6 +632,12 @@ HandleCpuIo (
       return EFI_INVALID_PARAMETER;
     }
     CONST SYZ_CPU_IO_MEM_HEADER *H = (CONST SYZ_CPU_IO_MEM_HEADER *)Payload;
+#ifdef SYZ_BUGS_DISPATCH_INJECT
+    // Planted canary — trips MMIOCS violation when Address == 0xDEADBEEF.
+    if (H->Address == 0xDEADBEEFULL) {
+      (void)SyzBugsLibTriggerMmiocsViolation ();
+    }
+#endif
     UINT32  Count = (H->Count > 16) ? 16 : H->Count;
     if (H->Width > EfiCpuIoWidthFillUint64) {
       return EFI_INVALID_PARAMETER;
@@ -686,6 +696,12 @@ HandleSmmCommunicate (
   // We pack the fuzzer payload into a local buffer that matches.
   //
   CONST SYZ_SMM_COMM_PAYLOAD *P = (CONST SYZ_SMM_COMM_PAYLOAD *)Payload;
+#ifdef SYZ_BUGS_DISPATCH_INJECT
+  // Planted canary — trips stack-OOB write when MessageLen == 0xC0DE.
+  if (P->MessageLen == 0xC0DEU) {
+    (void)SyzBugsLibTriggerStackOobWrite ();
+  }
+#endif
   UINT32 MsgLen = P->MessageLen;
   if (MsgLen > 512) MsgLen = 512;
   UINTN BufSize = sizeof (EFI_GUID) + sizeof (UINTN) + MsgLen;
@@ -986,6 +1002,12 @@ HandleHiiNewPackageList (
     return EFI_INVALID_PARAMETER;
   }
   P = (CONST SYZ_EDK2_HII_NEW_PACKAGE_LIST_PAYLOAD *)Payload;
+#ifdef SYZ_BUGS_DISPATCH_INJECT
+  // Planted canary — trips heap-OOB read when PackageSize == 0xB00F.
+  if ((UINT32)P->PackageSize == 0xB00FU) {
+    (void)SyzBugsLibTriggerHeapOobRead ();
+  }
+#endif
   if ((UINTN)P->PackageSize + sizeof (*P) > PayloadSize) {
     return EFI_INVALID_PARAMETER;
   }
@@ -1121,6 +1143,12 @@ HandleAsanPoison (
   if (EFI_ERROR (Status)) {
     return EFI_SUCCESS;
   }
+#ifdef SYZ_BUGS_DISPATCH_INJECT
+  // Planted canary — trips heap-use-after-free when Length == 0xBEEF.
+  if ((UINT32)Length == 0xBEEFU) {
+    (void)SyzBugsLibTriggerHeapUaf ();
+  }
+#endif
   if (AsanSyzReady ()) {
     AsanSyzPoison (Addr, Length);
   }
@@ -1254,6 +1282,13 @@ HandleCopyMem (
     return EFI_INVALID_PARAMETER;
   }
   P   = (CONST SYZ_EDK2_COPY_MEM_PAYLOAD *)Payload;
+#ifdef SYZ_BUGS_DISPATCH_INJECT
+  // Planted canary — trips heap-OOB read when fuzzer reaches CopyMem
+  // with SrcOffset == 0xDEAD. Verifies memory-category dispatch path.
+  if ((UINT32)P->SrcOffset == 0xDEADU) {
+    (void)SyzBugsLibTriggerHeapOobRead ();
+  }
+#endif
   Dst = GetAllocSlot (P->DstIndex);
   Src = GetAllocSlot (P->SrcIndex);
   if ((Dst == NULL) || (Src == NULL)) {
@@ -1292,6 +1327,12 @@ HandleSetMem (
     return EFI_INVALID_PARAMETER;
   }
   P    = (CONST SYZ_EDK2_SET_MEM_PAYLOAD *)Payload;
+#ifdef SYZ_BUGS_DISPATCH_INJECT
+  // Planted canary — trips heap-OOB write when Offset == 0xCAFE.
+  if ((UINT32)P->Offset == 0xCAFEU) {
+    (void)SyzBugsLibTriggerHeapOobWrite ();
+  }
+#endif
   Slot = GetAllocSlot (P->AllocIndex);
   if (Slot == NULL) {
     return EFI_SUCCESS;
@@ -1928,6 +1969,12 @@ HandleGopBlt (
     return EFI_INVALID_PARAMETER;
   }
   P = (CONST SYZ_EDK2_GOP_BLT_PAYLOAD *)Payload;
+#ifdef SYZ_BUGS_DISPATCH_INJECT
+  // Planted canary — trips signed-mul overflow when Width == 0xABBA.
+  if ((UINT32)P->Width == 0xABBAU) {
+    (void)SyzBugsLibTriggerMulOverflow ();
+  }
+#endif
 
   Status = gBS->LocateProtocol (&gEfiGraphicsOutputProtocolGuid, NULL, (VOID **)&Gop);
   if (EFI_ERROR (Status)) {
@@ -3879,6 +3926,13 @@ HandleTextOutOutputString (
     return EFI_INVALID_PARAMETER;
   }
   P = (CONST SYZ_EDK2_TEXT_OUT_OUTPUT_STRING_PAYLOAD *)Payload;
+#ifdef SYZ_BUGS_DISPATCH_INJECT
+  // Planted canary — trips heap-use-after-free when StringSize == 0xFADE.
+  if ((UINT32)P->StringSize == 0xFADEU) {
+    (void)SyzBugsLibTriggerHeapUaf ();
+  }
+#endif
+
 
   if ((P->StringSize % 2) != 0 || P->StringSize == 0) {
     return EFI_SUCCESS;
@@ -4332,6 +4386,12 @@ STATIC EFI_STATUS HandleHash2Hash (IN CONST UINT8 *Payload, IN UINTN PayloadSize
 
   if (PayloadSize < sizeof (*P)) return EFI_INVALID_PARAMETER;
   P = (CONST SYZ_EDK2_HASH2_HASH_PAYLOAD *)Payload;
+#ifdef SYZ_BUGS_DISPATCH_INJECT
+  // Planted canary — trips stack-OOB read when DataLength == 0xFADE.
+  if ((UINT32)P->DataLength == 0xFADEU) {
+    (void)SyzBugsLibTriggerStackOobRead ();
+  }
+#endif
   if (EFI_ERROR (gBS->LocateProtocol (&gEfiHash2ProtocolGuid, NULL, (VOID **)&Hash))) return EFI_SUCCESS;
   InSlot  = GetAllocSlot (P->DataIndex);
   OutSlot = GetAllocSlot (P->DstIndex);
@@ -4505,6 +4565,12 @@ STATIC EFI_STATUS HandleLoadImage (IN CONST UINT8 *Payload, IN UINTN PayloadSize
 
   if (PayloadSize < sizeof (*P)) return EFI_INVALID_PARAMETER;
   P = (CONST SYZ_EDK2_LOAD_IMAGE_PAYLOAD *)Payload;
+#ifdef SYZ_BUGS_DISPATCH_INJECT
+  // Planted canary — trips signed-mul overflow when DataLength == 0xBAD0.
+  if ((UINT32)P->DataLength == 0xBAD0U) {
+    (void)SyzBugsLibTriggerMulOverflow ();
+  }
+#endif
   Slot = GetAllocSlot (P->DataIndex);
   if (Slot == NULL || Slot->Pointer == NULL) return EFI_SUCCESS;
   // gBS->LoadImage parses PE/COFF from SourceBuffer — exercises the PE parser.

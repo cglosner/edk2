@@ -51,6 +51,10 @@
   UefiDriverEntryPoint
   UefiLib
   UefiRuntimeServicesTableLib
+  # Bug-class primitives used by handler tripwires gated on
+  # SYZ_BUGS_DISPATCH_INJECT=TRUE. The library stub exports every
+  # primitive unconditionally; call sites are gated with #ifdef.
+  SyzBugsLib
 
 [Protocols]
   # Storage

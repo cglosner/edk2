@@ -1,0 +1,38 @@
+## @file
+#  SyzBugsLib — bug-class primitives for fuzzer validation.
+#
+#  Exposed functions each trigger exactly one sanitizer-detectable bug
+#  class. Dispatcher handlers call these primitives gated by
+#  `#ifdef SYZ_BUGS_DISPATCH_INJECT` (set via the DSC BuildOption
+#  `-DSYZ_BUGS_DISPATCH_INJECT=1`).
+#
+#  Copyright (c) 2026, syzkaller project authors. All rights reserved.<BR>
+#
+#  SPDX-License-Identifier: BSD-2-Clause-Patent
+##
+
+[Defines]
+  INF_VERSION                    = 0x00010005
+  BASE_NAME                      = SyzBugsLib
+  FILE_GUID                      = 8B3E4F1C-7D5A-4C2B-9E1F-6A0B5D8C3E4F
+  MODULE_TYPE                    = BASE
+  VERSION_STRING                 = 1.0
+  LIBRARY_CLASS                  = SyzBugsLib
+
+[Sources]
+  SyzBugsLib.c
+
+[Packages]
+  MdePkg/MdePkg.dec
+  MdeModulePkg/MdeModulePkg.dec
+
+[LibraryClasses]
+  BaseLib
+  BaseMemoryLib
+  MemoryAllocationLib
+
+[BuildOptions]
+  # The library itself must be instrumented so sanitizer reports carry
+  # proper shadow context. But the primitives use volatile locals and
+  # the underlying access is what we WANT to trip — do not disable
+  # sanitization here.
