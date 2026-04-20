@@ -64,6 +64,7 @@
 #include <Protocol/ScsiPassThruExt.h>
 #include <Protocol/NvmExpressPassthru.h>
 #include <Guid/FileInfo.h>
+#include <Library/BmpSupportLib.h>
 
 #ifdef SYZ_BUGS_DISPATCH_INJECT
   #include <Library/SyzBugsLib.h>
@@ -729,7 +730,7 @@ HandleSmmCommunicate (
   }
 #endif
   UINT32 MsgLen = P->MessageLen;
-  if (MsgLen > 512) MsgLen = 512;
+  if (MsgLen > 8192) MsgLen = 8192;
   UINTN BufSize = sizeof (EFI_GUID) + sizeof (UINTN) + MsgLen;
   UINT8 *Buf = AllocateZeroPool (BufSize);
   if (Buf == NULL) {
@@ -4859,6 +4860,35 @@ SyzEdk2Dispatch (
       HandleSmbiosAdd (Payload, PayloadSize);
     } else if (Hdr->Call == SyzEdk2ApiSmbiosGetNext) {
       HandleSmbiosGetNext (Payload, PayloadSize);
+    } else if (Hdr->Call == SyzEdk2ApiBmpDecode) {
+      //
+      // LogoFAIL-class: feed fuzzer-provided raw bytes into the BMP
+      // decoder. TranslateBmpToGopBlt is the library routine used to
+      // render the boot logo; every byte of the file comes from an
+      // untrusted FV asset on shipping firmware.
+      //
+      EFI_GRAPHICS_OUTPUT_BLT_PIXEL *GopBlt = NULL;
+      UINTN GopBltSize = 0;
+      UINTN H = 0, W = 0;
+      //
+      // Copy the fuzzer bytes into an agent-owned scratch page before
+      // handing off — keeps the decoder's lifetime assumptions clean.
+      //
+      if (PayloadSize >= 4) {
+        UINT32 Declared = *(CONST UINT32 *)Payload;
+        if (Declared > PayloadSize - 4) Declared = (UINT32)(PayloadSize - 4);
+        if (Declared > 0 && Declared <= 64 * 1024) {
+          VOID *Scratch = AllocatePool (Declared);
+          if (Scratch != NULL) {
+            CopyMem (Scratch, Payload + 4, Declared);
+            (VOID)TranslateBmpToGopBlt (Scratch, Declared, &GopBlt, &GopBltSize, &H, &W);
+            if (GopBlt != NULL) {
+              FreePool (GopBlt);
+            }
+            FreePool (Scratch);
+          }
+        }
+      }
     } else if (Hdr->Call == SyzEdk2ApiSetVariable ||
                Hdr->Call == SyzEdk2ApiSetVariableAuth ||
                Hdr->Call == SyzEdk2ApiSetVariableDelete ||

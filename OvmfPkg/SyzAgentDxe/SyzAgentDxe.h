@@ -235,6 +235,13 @@ typedef enum {
   //
   SyzEdk2ApiSmbiosAdd              = 820,
   SyzEdk2ApiSmbiosGetNext          = 821,
+  //
+  // Image-decoder paths — LogoFAIL-class attack surface. Wraps EDK2
+  // BmpSupportLib / future PngSupportLib etc.  SyzAgentDxe copies the
+  // fuzzer-provided raw image bytes and calls the decoder; malformed
+  // inputs exercise the decoder's length/overflow paths.
+  //
+  SyzEdk2ApiBmpDecode              = 900,
 } SYZ_EDK2_API_ID;
 
 //

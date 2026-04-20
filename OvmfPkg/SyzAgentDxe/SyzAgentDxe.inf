@@ -56,6 +56,9 @@
   # SYZ_BUGS_DISPATCH_INJECT=TRUE. The library stub exports every
   # primitive unconditionally; call sites are gated with #ifdef.
   SyzBugsLib
+  # LogoFAIL-class attack surface — exposes TranslateBmpToGopBlt to
+  # the fuzzer via the SyzEdk2ApiBmpDecode syscall variant.
+  BmpSupportLib
 
 [Protocols]
   # Storage
