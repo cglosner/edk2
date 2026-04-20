@@ -202,6 +202,13 @@ SyzAgentOnPciIo (
   }
   SyzAgentLog ("transport ready, dispatch timer armed");
   //
+  // Install the fault trampoline (#DE/#UD/#GP/#PF handler) so
+  // fuzzer-provoked CpuIo/MSR faults at bad addresses don't surface
+  // as firmware "crashes". Requires EFI_CPU_ARCH_PROTOCOL, which is
+  // installed before SyzAgent's PciIo callback runs.
+  //
+  SyzFaultGuardInit ();
+  //
   // ProtocolLifetimeSan is disabled for now — poisoning the interface
   // struct with 0xFD breaks modules that use static/global protocol
   // interfaces (every subsequent legitimate method call looks like

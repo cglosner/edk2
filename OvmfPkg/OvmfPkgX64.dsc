@@ -53,6 +53,14 @@
   # to validate the full grammar -> syscall -> sanitizer pipeline.
   #
   DEFINE SYZ_BUGS_DISPATCH_INJECT = FALSE
+  #
+  # MMIOCS_ENFORCE: when TRUE, MMIOCS rejects accesses to undeclared /
+  # non-MMIO addresses at the dispatcher layer — the CPU-level access
+  # is skipped. Turn on to prevent fuzzer-cascade #GP/#PF noise from
+  # invalid MMIO addresses. Production runs should set this TRUE; the
+  # FALSE default preserves legacy log-only behaviour.
+  #
+  DEFINE MMIOCS_ENFORCE           = FALSE
 
 !include OvmfPkg/Include/Dsc/OvmfTpmDefines.dsc.inc
 
@@ -122,6 +130,10 @@
 
 !if $(SYZ_BUGS_DISPATCH_INJECT) == TRUE
   GCC:*_*_*_CC_FLAGS                   = -DSYZ_BUGS_DISPATCH_INJECT=1
+!endif
+
+!if $(MMIOCS_ENFORCE) == TRUE
+  GCC:*_*_*_CC_FLAGS                   = -DMMIOCS_ENFORCE=1
 !endif
 
 #

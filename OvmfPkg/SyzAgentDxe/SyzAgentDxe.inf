@@ -27,6 +27,7 @@
   SyzAgentDispatch.c
   SyzAgentTransport.c
   SyzFwfuzzTrigger.c
+  SyzFaultGuard.c
 
 [Packages]
   MdePkg/MdePkg.dec
@@ -105,6 +106,7 @@
   gEfiPciRootBridgeIoProtocolGuid          ## SOMETIMES_CONSUMES
   # Hardware / SMI
   gEfiCpuIo2ProtocolGuid                   ## SOMETIMES_CONSUMES
+  gEfiCpuArchProtocolGuid                  ## CONSUMES  # SyzFaultGuard
   gEfiSmmCommunicationProtocolGuid         ## SOMETIMES_CONSUMES
   gEfiSmbiosProtocolGuid                   ## SOMETIMES_CONSUMES
   # ACPI

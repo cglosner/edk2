@@ -1384,4 +1384,22 @@ SyzFwfuzzTrigger (
   VOID
   );
 
+//
+// SyzFaultGuard: SetJump-based trampoline that traps expected #DE/#UD/
+// #GP/#PF faults raised by fuzzer-generated MMIO/MSR dispatch. See
+// OvmfPkg/SyzAgentDxe/SyzFaultGuard.c.
+//
+VOID   EFIAPI SyzFaultGuardInit   (VOID);
+VOID   EFIAPI SyzFaultGuardArm    (VOID);
+VOID   EFIAPI SyzFaultGuardDisarm (VOID);
+UINTN  EFIAPI SyzFaultGuardRun    (VOID);
+
+#define SYZ_FAULT_GUARD_WRAP(op_block)              \
+  do {                                              \
+    if (SyzFaultGuardRun () == 0) {                 \
+      op_block                                      \
+      SyzFaultGuardDisarm ();                       \
+    }                                               \
+  } while (0)
+
 #endif // SYZ_AGENT_DXE_H_
