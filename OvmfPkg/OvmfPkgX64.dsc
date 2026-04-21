@@ -193,7 +193,7 @@
 # not. Phase 2 moves the shadow to reserved DRAM and re-enables both.
 #
 [BuildOptions.common.EDKII.DXE_DRIVER]
-  GCC:*_*_*_CC_FLAGS = -fsanitize-coverage=trace-pc,trace-cmp
+  GCC:*_*_*_CC_FLAGS = -fsanitize-coverage=trace-pc
 !if $(UBSAN_INSTRUMENT) == TRUE
   GCC:*_*_*_CC_FLAGS = -fsanitize=undefined -fsanitize=pointer-overflow -fno-sanitize=alignment -fsanitize-recover=undefined -fsanitize-recover=pointer-overflow
 !endif
@@ -202,7 +202,7 @@
 !endif
 
 [BuildOptions.common.EDKII.DXE_RUNTIME_DRIVER]
-  GCC:*_*_*_CC_FLAGS = -fsanitize-coverage=trace-pc,trace-cmp
+  GCC:*_*_*_CC_FLAGS = -fsanitize-coverage=trace-pc
 !if $(UBSAN_INSTRUMENT) == TRUE
   GCC:*_*_*_CC_FLAGS = -fsanitize=undefined -fsanitize=pointer-overflow -fno-sanitize=alignment -fsanitize-recover=undefined -fsanitize-recover=pointer-overflow
 !endif
@@ -211,7 +211,7 @@
 !endif
 
 [BuildOptions.common.EDKII.UEFI_DRIVER]
-  GCC:*_*_*_CC_FLAGS = -fsanitize-coverage=trace-pc,trace-cmp
+  GCC:*_*_*_CC_FLAGS = -fsanitize-coverage=trace-pc
 !if $(UBSAN_INSTRUMENT) == TRUE
   GCC:*_*_*_CC_FLAGS = -fsanitize=undefined -fsanitize=pointer-overflow -fno-sanitize=alignment -fsanitize-recover=undefined -fsanitize-recover=pointer-overflow
 !endif
@@ -220,7 +220,7 @@
 !endif
 
 [BuildOptions.common.EDKII.UEFI_APPLICATION]
-  GCC:*_*_*_CC_FLAGS = -fsanitize-coverage=trace-pc,trace-cmp
+  GCC:*_*_*_CC_FLAGS = -fsanitize-coverage=trace-pc
 !if $(UBSAN_INSTRUMENT) == TRUE
   GCC:*_*_*_CC_FLAGS = -fsanitize=undefined -fsanitize=pointer-overflow -fno-sanitize=alignment -fsanitize-recover=undefined -fsanitize-recover=pointer-overflow
 !endif
@@ -232,7 +232,7 @@
 !endif
 
 [BuildOptions.common.EDKII.DXE_SMM_DRIVER]
-  GCC:*_*_*_CC_FLAGS = -fsanitize-coverage=trace-pc,trace-cmp
+  GCC:*_*_*_CC_FLAGS = -fsanitize-coverage=trace-pc
 !if $(UBSAN_INSTRUMENT) == TRUE
   GCC:*_*_*_CC_FLAGS = -fsanitize=undefined -fsanitize=pointer-overflow -fno-sanitize=alignment -fsanitize-recover=undefined -fsanitize-recover=pointer-overflow
 !endif
@@ -254,7 +254,7 @@
 !endif
 
 [BuildOptions.common.EDKII.SMM_CORE]
-  GCC:*_*_*_CC_FLAGS = -fsanitize-coverage=trace-pc,trace-cmp
+  GCC:*_*_*_CC_FLAGS = -fsanitize-coverage=trace-pc
 !if $(UBSAN_INSTRUMENT) == TRUE
   GCC:*_*_*_CC_FLAGS = -fsanitize=undefined -fsanitize=pointer-overflow -fno-sanitize=alignment -fsanitize-recover=undefined -fsanitize-recover=pointer-overflow
 !endif
