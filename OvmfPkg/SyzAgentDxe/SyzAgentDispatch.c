@@ -669,23 +669,29 @@ HandleCpuIo (
     (void)MmiocsOk;
 #endif
     //
-    // Wrap the actual MMIO access in the fault trampoline. #GP/#PF on
-    // a fuzzer-selected invalid address returns as EFI_DEVICE_ERROR
-    // instead of surfacing as a firmware "crash".
+    // Wrap the actual MMIO access in the fault trampoline (if enabled).
+    // #GP/#PF on a fuzzer-selected invalid address returns as
+    // EFI_DEVICE_ERROR instead of surfacing as a firmware "crash".
+    // When SYZ_FAULT_GUARD is disabled, let the CPU fault propagate
+    // so real firmware bugs and hardware-fault tripwires surface.
     //
-    if (SyzFaultGuardRun () == 0) {
-      if (Call == SyzEdk2ApiCpuIoMemRead) {
-        CpuIo->Mem.Read (CpuIo, (EFI_CPU_IO_PROTOCOL_WIDTH)H->Width,
-                         H->Address, Count, Buf);
-      } else {
-        UINTN ValueBytes = PayloadSize - sizeof (SYZ_CPU_IO_MEM_HEADER);
-        if (ValueBytes > sizeof (Buf)) ValueBytes = sizeof (Buf);
-        CopyMem (Buf, Payload + sizeof (SYZ_CPU_IO_MEM_HEADER), ValueBytes);
-        CpuIo->Mem.Write (CpuIo, (EFI_CPU_IO_PROTOCOL_WIDTH)H->Width,
-                          H->Address, Count, Buf);
-      }
-      SyzFaultGuardDisarm ();
+#ifdef SYZ_FAULT_GUARD
+    if (SyzFaultGuardRun () != 0) goto cpu_io_mem_done;
+#endif
+    if (Call == SyzEdk2ApiCpuIoMemRead) {
+      CpuIo->Mem.Read (CpuIo, (EFI_CPU_IO_PROTOCOL_WIDTH)H->Width,
+                       H->Address, Count, Buf);
+    } else {
+      UINTN ValueBytes = PayloadSize - sizeof (SYZ_CPU_IO_MEM_HEADER);
+      if (ValueBytes > sizeof (Buf)) ValueBytes = sizeof (Buf);
+      CopyMem (Buf, Payload + sizeof (SYZ_CPU_IO_MEM_HEADER), ValueBytes);
+      CpuIo->Mem.Write (CpuIo, (EFI_CPU_IO_PROTOCOL_WIDTH)H->Width,
+                        H->Address, Count, Buf);
     }
+#ifdef SYZ_FAULT_GUARD
+    SyzFaultGuardDisarm ();
+cpu_io_mem_done: ;
+#endif
   }
   return EFI_SUCCESS;
 }
@@ -4836,25 +4842,35 @@ SyzEdk2Dispatch (
     } else if (Hdr->Call == SyzEdk2ApiMsrRead) {
       if (PayloadSize >= 4) {
         UINT32 Msr = *(CONST UINT32 *)Payload;
+#ifdef SYZ_FAULT_GUARD
         if (SyzFaultGuardRun () == 0) {
           UINT64 Val = AsmReadMsr64 (Msr);
           (VOID)Val;
           SyzFaultGuardDisarm ();
         }
+#else
+        UINT64 Val = AsmReadMsr64 (Msr);
+        (VOID)Val;
+#endif
       }
     } else if (Hdr->Call == SyzEdk2ApiMsrWrite) {
       if (PayloadSize >= 12) {
         UINT32 Msr = *(CONST UINT32 *)Payload;
         UINT64 Val = *(CONST UINT64 *)(Payload + 4);
         //
-        // Writing arbitrary MSRs can crash the guest hard. We used to
-        // let the #GP propagate to CpuExceptionHandlerLib; now the
-        // SyzFaultGuard trampoline traps it and returns here.
+        // Writing arbitrary MSRs can crash the guest hard. With
+        // SYZ_FAULT_GUARD the trampoline traps #GP and returns; without
+        // it the fault propagates to CpuExceptionHandlerLib and is
+        // reported as a crash (maximizes bug visibility).
         //
+#ifdef SYZ_FAULT_GUARD
         if (SyzFaultGuardRun () == 0) {
           AsmWriteMsr64 (Msr, Val);
           SyzFaultGuardDisarm ();
         }
+#else
+        AsmWriteMsr64 (Msr, Val);
+#endif
       }
     } else if (Hdr->Call == SyzEdk2ApiSmbiosAdd) {
       HandleSmbiosAdd (Payload, PayloadSize);

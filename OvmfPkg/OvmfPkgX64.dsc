@@ -61,6 +61,15 @@
   # FALSE default preserves legacy log-only behaviour.
   #
   DEFINE MMIOCS_ENFORCE           = FALSE
+  #
+  # SYZ_FAULT_GUARD: when TRUE, SyzAgentDxe wraps CpuIo/MSR dispatch in
+  # a SetJump trampoline that traps #DE/#UD/#GP/#PF from fuzzer-picked
+  # bad addresses and returns an error instead of crashing. Useful for
+  # suppressing fuzzer-induced hardware-fault noise, but ALSO swallows
+  # the hardware-fault-based tripwires (MmiocsViolation / NullDeref /
+  # DivByZero). Set FALSE to maximize vulnerabilities surfaced.
+  #
+  DEFINE SYZ_FAULT_GUARD          = FALSE
 
 !include OvmfPkg/Include/Dsc/OvmfTpmDefines.dsc.inc
 
@@ -134,6 +143,10 @@
 
 !if $(MMIOCS_ENFORCE) == TRUE
   GCC:*_*_*_CC_FLAGS                   = -DMMIOCS_ENFORCE=1
+!endif
+
+!if $(SYZ_FAULT_GUARD) == TRUE
+  GCC:*_*_*_CC_FLAGS                   = -DSYZ_FAULT_GUARD=1
 !endif
 
 #

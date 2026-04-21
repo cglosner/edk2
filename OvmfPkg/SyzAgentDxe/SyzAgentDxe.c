@@ -201,13 +201,19 @@ SyzAgentOnPciIo (
     gBS->SetTimer (mTickEvent, TimerPeriodic, 10000);
   }
   SyzAgentLog ("transport ready, dispatch timer armed");
+#ifdef SYZ_FAULT_GUARD
   //
   // Install the fault trampoline (#DE/#UD/#GP/#PF handler) so
   // fuzzer-provoked CpuIo/MSR faults at bad addresses don't surface
   // as firmware "crashes". Requires EFI_CPU_ARCH_PROTOCOL, which is
   // installed before SyzAgent's PciIo callback runs.
   //
+  // When disabled (default), hardware-fault tripwires and real
+  // firmware #GP/#PF bugs surface to the exception handler instead
+  // of being swallowed — maximizes vulnerability visibility.
+  //
   SyzFaultGuardInit ();
+#endif
   //
   // ProtocolLifetimeSan is disabled for now — poisoning the interface
   // struct with 0xFD breaks modules that use static/global protocol
