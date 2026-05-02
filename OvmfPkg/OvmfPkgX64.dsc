@@ -70,6 +70,15 @@
   # DivByZero). Set FALSE to maximize vulnerabilities surfaced.
   #
   DEFINE SYZ_FAULT_GUARD          = FALSE
+  #
+  # SYZ_BUGS_BOOT_CANARY: when TRUE, SyzBugsDxe is loaded into the
+  # firmware volume. At DXE entry it runs the full ASan/UBSan/MMIOCS/
+  # SMIBVS canary sweep, triggering one bug per sanitizer class. Each
+  # report is logged via DEBUG and ASan's report path. Used to verify
+  # that every sanitizer's plumbing is intact end-to-end. Default
+  # FALSE; flip TRUE for sanitizer plumbing verification.
+  #
+  DEFINE SYZ_BUGS_BOOT_CANARY     = FALSE
 
 !include OvmfPkg/Include/Dsc/OvmfTpmDefines.dsc.inc
 

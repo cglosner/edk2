@@ -381,9 +381,9 @@ INF  OvmfPkg/SyzAsanTestDxe/SyzAsanTestDxe.inf
 !endif
 # SyzBugsDxe: comprehensive ASan+UBSan canary — verified all 6 phases.
 # Disabled for production fuzzing so deliberate bugs don't drown out
-# real fuzz-discovered bugs. Flip to TRUE to re-enable for plumbing
-# verification.
-!if FALSE
+# real fuzz-discovered bugs. Flip SYZ_BUGS_BOOT_CANARY=TRUE in DSC to
+# re-enable for plumbing verification.
+!if $(SYZ_BUGS_BOOT_CANARY) == TRUE
 INF  OvmfPkg/SyzBugsDxe/SyzBugsDxe.inf
 !endif
 !endif
