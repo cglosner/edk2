@@ -108,6 +108,39 @@ SmmInitializeMemoryServices (
 }
 
 /**
+  ASAN. Poison the left and the right redzone of a freshly handed out block.
+
+  The block layout produced by SmmInternalAllocatePool() is
+
+    [ POOL_HEADER (incl. AsanLeftRZ[128]) ][ user OriSize ][ right RZ ][ pad ][ POOL_TAIL ]
+
+  AsanLeftRZ ends immediately before the user buffer, so a left redzone hit is
+  an underflow and a right redzone hit is an overflow.
+
+  @param  PoolHdr   The header of the block being handed out.  OriSize and
+                    AsanRightRZSize must already be filled in.
+**/
+STATIC
+VOID
+AsanPoisonPoolRedZones (
+  IN POOL_HEADER  *PoolHdr
+  )
+{
+  PoisonPool (
+    (UINTN)PoolHdr->AsanLeftRZ,
+    kAsanHeapLeftRedzoneSize,
+    kAsanHeapLeftRedzoneMagic
+    );
+  if (PoolHdr->AsanRightRZSize != 0) {
+    PoisonPool (
+      (UINTN)(PoolHdr + 1) + PoolHdr->OriSize,
+      PoolHdr->AsanRightRZSize,
+      kAsanHeapLeftRedzoneMagic
+      );
+  }
+}
+
+/**
   Internal Function. Allocate a pool by specified PoolIndex.
 
   @param  PoolType              Type of pool to allocate.
@@ -164,11 +197,29 @@ InternalAllocPoolByIndex (
       Tail->Signature       = 0;
       Tail->Size            = 0;
       InsertHeadList (&mSmmPoolLists[SmmPoolType][PoolIndex], &Hdr->Link);
+      //
+      // ASAN. The buddy half stays on the free list: poison everything past
+      // FREE_POOL_HEADER (Signature/Available/Type/Size/redzone fields and the
+      // Link the allocator itself walks stay addressable).
+      //
+      if (Hdr->Header.Size > sizeof (FREE_POOL_HEADER)) {
+        PoisonPool (
+          (UINTN)Hdr + sizeof (FREE_POOL_HEADER),
+          Hdr->Header.Size - sizeof (FREE_POOL_HEADER),
+          kAsanHeapFreeMagic
+          );
+      }
+
       Hdr = (FREE_POOL_HEADER *)((UINT8 *)Hdr + Hdr->Header.Size);
     }
   }
 
   if (!EFI_ERROR (Status)) {
+    //
+    // ASAN. Make the whole block addressable again before the core writes its
+    // header and tail into it; the caller re-poisons the redzones afterwards.
+    //
+    UnpoisonPool ((UINTN)Hdr, (UINTN)MIN_POOL_SIZE << PoolIndex);
     Hdr->Header.Signature = POOL_HEAD_SIGNATURE;
     Hdr->Header.Size      = MIN_POOL_SIZE << PoolIndex;
     Hdr->Header.Available = FALSE;
@@ -214,6 +265,19 @@ InternalFreePoolByIndex (
   PoolTail->Size                = 0;
   ASSERT (PoolIndex < MAX_POOL_INDEX);
   InsertHeadList (&mSmmPoolLists[SmmPoolType][PoolIndex], &FreePoolHdr->Link);
+  //
+  // ASAN. Everything past FREE_POOL_HEADER is dead until this block is handed
+  // out again - poison it so use-after-free is caught.  Done after the header
+  // and the tail have been scrubbed above, so those writes are not flagged.
+  //
+  if (FreePoolHdr->Header.Size > sizeof (FREE_POOL_HEADER)) {
+    PoisonPool (
+      (UINTN)FreePoolHdr + sizeof (FREE_POOL_HEADER),
+      FreePoolHdr->Header.Size - sizeof (FREE_POOL_HEADER),
+      kAsanHeapFreeMagic
+      );
+  }
+
   return EFI_SUCCESS;
 }
 
@@ -247,6 +311,8 @@ SmmInternalAllocatePool (
   BOOLEAN               HasPoolTail;
   BOOLEAN               NeedGuard;
   UINTN                 NoPages;
+  UINTN                 OriSize;
+  UINTN                 RightRedZoneSize;
 
   Address = 0;
 
@@ -259,6 +325,16 @@ SmmInternalAllocatePool (
   NeedGuard   = IsPoolTypeToGuard (PoolType);
   HasPoolTail = !(NeedGuard &&
                   ((PcdGet8 (PcdHeapGuardPropertyMask) & BIT7) == 0));
+
+  //
+  // ASAN. Reserve a right redzone immediately after the caller's buffer.  Note
+  // this eats into the MAX_POOL_SIZE budget: with POOL_OVERHEAD == 184 the
+  // largest bucket served request drops from 1864 to 1736 bytes, anything
+  // larger falls through to the page path (which is instrumented too).
+  //
+  OriSize          = Size;
+  RightRedZoneSize = ComputePoolRightRedzoneSize (Size);
+  Size            += RightRedZoneSize;
 
   //
   // Adjust the size by the pool header & tail overhead
@@ -302,7 +378,11 @@ SmmInternalAllocatePool (
       PoolTail->Size      = PoolHdr->Size;
     }
 
+    PoolHdr->OriSize         = OriSize;
+    PoolHdr->AsanRightRZSize = RightRedZoneSize;
+
     *Buffer = PoolHdr + 1;
+    AsanPoisonPoolRedZones (PoolHdr);
     return Status;
   }
 
@@ -314,7 +394,11 @@ SmmInternalAllocatePool (
 
   Status = InternalAllocPoolByIndex (PoolType, PoolIndex, &FreePoolHdr);
   if (!EFI_ERROR (Status)) {
+    FreePoolHdr->Header.OriSize         = OriSize;
+    FreePoolHdr->Header.AsanRightRZSize = RightRedZoneSize;
+
     *Buffer = &FreePoolHdr->Header + 1;
+    AsanPoisonPoolRedZones (&FreePoolHdr->Header);
   }
 
   return Status;
@@ -408,6 +492,13 @@ SmmInternalFreePool (
   } else {
     PoolTail = NULL;
   }
+
+  //
+  // ASAN. The whole block goes back to the allocator: drop both redzones
+  // before any allocator bookkeeping writes into them.  Header.Size is the
+  // real block size for every path below (bucket, page, guarded page).
+  //
+  UnpoisonPool ((UINTN)FreePoolHdr, (UINTN)FreePoolHdr->Header.Size);
 
   if (MemoryGuarded) {
     Buffer = AdjustPoolHeadF ((EFI_PHYSICAL_ADDRESS)(UINTN)FreePoolHdr);
