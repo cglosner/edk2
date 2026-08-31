@@ -2704,6 +2704,7 @@ NOOPT_CLANG38_X64_DLINK2_FLAGS     = DEF(GCC5_X64_DLINK2_FLAGS) -O0
 *_CLANGSAN_*_*_BUILDRULEFAMILY       = SANITIZER
 
 *_CLANGSAN_*_MAKE_PATH               = make
+*_CLANGSAN_*_DEPS_FLAGS              = DEF(GCC_DEPS_FLAGS)
 *_CLANGSAN_*_*_DLL                   = ENV(CLANGSAN_DLL)
 *_CLANGSAN_*_ASL_PATH                = DEF(UNIX_IASL_BIN)
 
@@ -2788,7 +2789,7 @@ NOOPT_CLANGSAN_X64_CC_FLAGS         = DEF(NOOPT_CLANG38_X64_CC)
 NOOPT_CLANGSAN_X64_DLINK_FLAGS      = DEF(NOOPT_CLANG38_X64_DLINK)
 NOOPT_CLANGSAN_X64_DLINK2_FLAGS     = DEF(NOOPT_CLANG38_X64_DLINK2)
 
-*_CLANGSAN_X64_SAN_FLAGS            = -fsanitize=address -fno-sanitize-address-use-after-scope -mllvm -asan-stack-dynamic-alloca=0 -mllvm -asan-instrumentation-with-call-threshold=0 -mllvm -asan-force-dynamic-shadow=true -fsanitize=undefined -fno-sanitize=alignment -fsanitize-coverage=trace-pc -Wno-frame-address
+*_CLANGSAN_X64_SAN_FLAGS            = -fsanitize=address -fno-sanitize-address-use-after-scope -mllvm -asan-stack-dynamic-alloca=0 -mllvm -asan-instrumentation-with-call-threshold=0 -mllvm -asan-force-dynamic-shadow=true -fsanitize=undefined -fno-sanitize=alignment -fsanitize=local-bounds -Wno-frame-address
 
 ##################
 # CLANG38 ARM definitions
