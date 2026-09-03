@@ -1592,6 +1592,17 @@ CoreInternalFreePages (
     Status = CoreConvertPages (Memory, NumberOfPages, EfiConventionalMemory);
   }
 
+  //
+  // Poison the range now it is free, so a later read or write of it is reported.
+  // Pool.c already does this for pool frees; without it here a use-after-free on a
+  // page allocation is invisible, and pages are what drivers use for larger buffers.
+  // It has to happen after the conversion: CoreConvertPages adds the range back to
+  // the memory map through CoreAddRange, which unpoisons it.
+  //
+  if (!EFI_ERROR (Status)) {
+    PoisonPages (Memory, NumberOfPages, kAsanHeapFreeMagic);
+  }
+
 Done:
   CoreReleaseMemoryLock ();
   return Status;
