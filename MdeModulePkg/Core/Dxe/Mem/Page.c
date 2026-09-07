@@ -2130,6 +2130,14 @@ CoreFreePoolPages (
   )
 {
   CoreConvertPages (Memory, NumberOfPages, EfiConventionalMemory);
+
+  //
+  // Large pool allocations are backed by pages and freed through here rather
+  // than CoreInternalFreePages, so they miss the poisoning done there. Poison
+  // them too, after the conversion, since CoreConvertPages unpoisons the range
+  // when it adds it back to the memory map.
+  //
+  PoisonPages (Memory, NumberOfPages, kAsanHeapFreeMagic);
 }
 
 /**
