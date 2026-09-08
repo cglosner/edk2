@@ -154,6 +154,14 @@
 !include MdePkg/MdeLibs.dsc.inc
 
 [LibraryClasses]
+  # This fork's PiSmmCore.inf requires AsanLib. OVMF publishes no gAsanInfoGuid HOB,
+  # so the real instance would have no shadow region to map addresses into; the Null
+  # instance satisfies the class and instruments nothing.
+  AsanLib|MdeModulePkg/Library/AsanLibNull/AsanLibNull.inf
+  # and linked into every module, not only the ones that name the class: this fork puts
+  # PoisonPool/UnpoisonPool calls into edk2's own core files (Page.c, Pool.c,
+  # ScriptExecute.c), so any module that compiles one of them needs the symbols.
+  NULL|MdeModulePkg/Library/AsanLibNull/AsanLibNull.inf
   PcdLib|MdePkg/Library/BasePcdLibNull/BasePcdLibNull.inf
   TimerLib|OvmfPkg/Library/AcpiTimerLib/BaseAcpiTimerLib.inf
   ResetSystemLib|OvmfPkg/Library/ResetSystemLib/BaseResetSystemLib.inf
