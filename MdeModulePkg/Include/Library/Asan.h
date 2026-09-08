@@ -77,6 +77,15 @@ EFIAPI
 SetupAsanShadowMemory (
   VOID
   );
+//
+// The pool reports a double free itself: asan has no allocator-side hook here, and
+// CoreFreePoolI was rejecting the second free with EFI_INVALID_PARAMETER in silence.
+//
+VOID
+SerialOutput(
+  IN  CONST CHAR8 *String
+  );
+
 extern UINTN __asan_shadow_memory_dynamic_address;
 extern int __asan_option_detect_stack_use_after_return;
 extern UINT64 mAsanShadowMemoryStart;

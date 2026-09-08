@@ -99,6 +99,13 @@ typedef struct {
 // here is on no list, so RemoveEntryList would corrupt one. Give it its own signature,
 // which also makes the walk stop rather than coalesce a page that still holds one.
 //
+//
+// Declared here rather than in Asan.h: AsanRuntimeLib carries its own static
+// AsanSignalSolution, and a non-static declaration in the shared header collides
+// with it ("static declaration follows non-static declaration").
+//
+void AsanSignalSolution (VOID);
+
 #define POOL_QUARANTINE_SIGNATURE  SIGNATURE_32('p','q','r','n')
 #define ASAN_QUARANTINE_SLOTS      64
 
@@ -779,6 +786,23 @@ CoreFreePoolI (
   if ((Head->Signature != POOL_HEAD_SIGNATURE) &&
       (Head->Signature != POOLPAGE_HEAD_SIGNATURE))
   {
+    //
+    // A block already on the quarantine ring carries POOL_QUARANTINE_SIGNATURE, so
+    // reaching here with it is a double free of a pointer this allocator handed out.
+    // That is a real memory-safety bug, and it was being turned into a quiet
+    // EFI_INVALID_PARAMETER. Report it the way asan reports its own findings so the
+    // crash triage sees it, and signal it as a solution while fuzzing.
+    //
+    if (Head->Signature == POOL_QUARANTINE_SIGNATURE) {
+      CHAR8  NumStr[19];
+
+      SerialOutput ("[ASan] ERROR: double free of ");
+      Num2Str64bit ((UINTN)Buffer, NumStr);
+      SerialOutput (NumStr);
+      SerialOutput ("\n");
+      SerialOutput ("bug_descr=double-free in file: "__FILE__" at line: 0x1F\n");
+      AsanSignalSolution ();
+    }
     ASSERT (
       Head->Signature == POOL_HEAD_SIGNATURE ||
       Head->Signature == POOLPAGE_HEAD_SIGNATURE
