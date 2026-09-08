@@ -47,6 +47,7 @@
   PcdLib
   ReportStatusCodeLib
   SafeIntLib
+  UefiRuntimeServicesTableLib
 
 [Protocols]
   gEfiSmmBase2ProtocolGuid                      ## PRODUCES
@@ -80,6 +81,8 @@
   gEfiEventVirtualAddressChangeGuid             ## CONSUMES             ## Event
   gEfiEndOfDxeEventGroupGuid                    ## CONSUMES             ## Event
   gLoadFixedAddressConfigurationTableGuid       ## SOMETIMES_CONSUMES   ## SystemTable
+  gEdkiiPiSmmCommunicationRegionTableGuid       ## SOMETIMES_CONSUMES   ## SystemTable
+  gFirnessSmmFuzzInfoGuid                       ## PRODUCES             ## Variable
 
 [Pcd]
   gEfiMdeModulePkgTokenSpaceGuid.PcdLoadFixAddressSmmCodePageNumber     ## SOMETIMES_CONSUMES

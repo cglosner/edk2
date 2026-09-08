@@ -36,6 +36,9 @@
 #include <Library/ReportStatusCodeLib.h>
 #include "PiSmmCorePrivateData.h"
 #include <Library/SafeIntLib.h>
+#include <Library/UefiRuntimeServicesTableLib.h>
+#include <Guid/FirnessSmmFuzzInfo.h>
+#include <Guid/PiSmmCommunicationRegionTable.h>
 
 #define SMRAM_CAPABILITIES  (EFI_MEMORY_WB | EFI_MEMORY_UC)
 
@@ -1637,6 +1640,78 @@ GetFullSmramRanges (
   @retval Other          Some error occurred when executing this entry point.
 
 **/
+
+STATIC EFI_EVENT  FuzzingInfoEvent = NULL;
+
+STATIC
+VOID
+EFIAPI
+SmmIplPublishFuzzingInfoNotify (
+  IN EFI_EVENT  Event,
+  IN VOID       *Context
+  )
+{
+  EFI_STATUS                                 Status;
+  FIRNESS_SMM_FUZZ_INFO                      Info;
+  EDKII_PI_SMM_COMMUNICATION_REGION_TABLE    *RegionTable;
+  EFI_MEMORY_DESCRIPTOR                      *Entry;
+  UINTN                                      Index;
+
+  ZeroMem (&Info, sizeof (Info));
+  Info.Signature                 = FIRNESS_SMM_FUZZ_INFO_SIGNATURE;
+  Info.Revision                  = FIRNESS_SMM_FUZZ_INFO_REVISION;
+  Info.CommunicationBufferAddress = (UINT64)(UINTN)&gSmmCorePrivate->CommunicationBuffer;
+  Info.BufferSizeAddress          = (UINT64)(UINTN)&gSmmCorePrivate->BufferSize;
+  //
+  // The APM control port. There is no PCD for it in this tree, and the value is not
+  // discoverable from here in any case -- SmmControl2 owns the trigger and does not
+  // publish how it does it. 0xB2 is the architectural port every x86 platform uses; a
+  // board that differs has to override this in the driver that reads the variable.
+  //
+  Info.SmiCommandPort             = 0xB2;
+  Info.SmiCommandValue            = 0;
+
+  //
+  // The region is optional: SmmCommunicationBufferDxe installs it, and a platform that
+  // leaves that driver out still has working SMI handlers. Publish what is known.
+  //
+  RegionTable = NULL;
+  Status      = EfiGetSystemConfigurationTable (
+                  &gEdkiiPiSmmCommunicationRegionTableGuid,
+                  (VOID **)&RegionTable
+                  );
+  if (!EFI_ERROR (Status) && (RegionTable != NULL)) {
+    Entry = (EFI_MEMORY_DESCRIPTOR *)(RegionTable + 1);
+    for (Index = 0; Index < RegionTable->NumberOfEntries; Index++) {
+      if (Entry->Type == EfiConventionalMemory) {
+        Info.CommRegionPhysical = (UINT64)Entry->PhysicalStart;
+        Info.CommRegionSize     = EFI_PAGES_TO_SIZE ((UINTN)Entry->NumberOfPages);
+        break;
+      }
+
+      Entry = (EFI_MEMORY_DESCRIPTOR *)((UINT8 *)Entry + RegionTable->DescriptorSize);
+    }
+  }
+
+  Status = gRT->SetVariable (
+                  FIRNESS_SMM_FUZZ_INFO_VARIABLE,
+                  &gFirnessSmmFuzzInfoGuid,
+                  EFI_VARIABLE_BOOTSERVICE_ACCESS | EFI_VARIABLE_RUNTIME_ACCESS,
+                  sizeof (Info),
+                  &Info
+                  );
+  DEBUG ((
+    DEBUG_INFO,
+    "SmmIpl: fuzzing info %r - comm 0x%lx[0x%lx] bufptr 0x%lx size 0x%lx port 0x%x\n",
+    Status,
+    Info.CommRegionPhysical,
+    Info.CommRegionSize,
+    Info.CommunicationBufferAddress,
+    Info.BufferSizeAddress,
+    Info.SmiCommandPort
+    ));
+}
+
 EFI_STATUS
 EFIAPI
 SmmIplEntry (
@@ -1866,6 +1941,31 @@ SmmIplEntry (
 
     return EFI_UNSUPPORTED;
   }
+
+  //
+  // Publish what an OS needs to reach an SMI handler, for fuzzing from a kernel driver.
+  //
+  // Communicate() here is not just a write to the SMI command port: it stores the buffer
+  // in the SMM Core private data first (see SmmCommunicationCommunicate below), and the
+  // SMM entry point reads it back from there. A driver running after ExitBootServices
+  // therefore needs the addresses of those two fields, and nothing publishes them --
+  // the PI spec's SMM Communication ACPI Table would, and edk2 does not implement it.
+  //
+  // A volatile runtime variable is the channel because Linux surfaces every UEFI
+  // variable under /sys/firmware/efi/efivars, while a configuration table with a private
+  // GUID is invisible to it. Volatile so this never touches flash.
+  //
+  //
+  // Deferred to ReadyToBoot: at entry the variable services are not dispatched yet, and
+  // SetVariable answered EFI_INVALID_PARAMETER against the stub in the runtime table.
+  // Every address published here is fixed by then and does not move.
+  //
+  EfiCreateEventReadyToBootEx (
+    TPL_CALLBACK,
+    SmmIplPublishFuzzingInfoNotify,
+    NULL,
+    &FuzzingInfoEvent
+    );
 
   //
   // Install SMM Base2 Protocol and SMM Communication Protocol
