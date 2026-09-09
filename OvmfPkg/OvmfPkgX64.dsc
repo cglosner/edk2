@@ -1109,6 +1109,13 @@
   # SMM Initial Program Load (a DXE_RUNTIME_DRIVER)
   #
   MdeModulePkg/Core/PiSmmCore/PiSmmIpl.inf
+  #
+  # Reserves the SMM communication region and publishes
+  # gEdkiiPiSmmCommunicationRegionTableGuid. Without it PiSmmIpl has no region to
+  # advertise and FirnessSmmInfo carries comm 0x0[0x0], so an OS driver has the
+  # trigger but nowhere legal to put a message.
+  #
+  MdeModulePkg/Universal/SmmCommunicationBufferDxe/SmmCommunicationBufferDxe.inf
 
   #
   # SMM_CORE
