@@ -75,6 +75,13 @@
 !else
   DEFINE FD_SIZE_IN_KB           = 4096
 !endif
+
+  #
+  # AddressSanitizer. full instruments every DXE phase module, which needs
+  # -D FD_SIZE_IN_KB=8192 to fit; per-module is the flash-friendly default.
+  #
+  DEFINE ASAN_SCOPE              = full
+  DEFINE ASAN_FUZZER             = qemu
 !endif
 !endif
 
@@ -153,15 +160,9 @@
 
 !include MdePkg/MdeLibs.dsc.inc
 
+!include MdeModulePkg/Include/Dsc/Asan.dsc.inc
+
 [LibraryClasses]
-  # This fork's PiSmmCore.inf requires AsanLib. OVMF publishes no gAsanInfoGuid HOB,
-  # so the real instance would have no shadow region to map addresses into; the Null
-  # instance satisfies the class and instruments nothing.
-  # This fork's core files call PoisonPool/UnpoisonPool, so every phase needs the symbols.
-  # The Null instance is a BASE library with no constructor, which is what lets it be
-  # linked into PEI; the real AsanLib is a DXE library and its NULL| constructor takes an
-  # ImageHandle a PEIM does not have.
-  AsanLib|MdeModulePkg/Library/AsanLibNull/AsanLibNull.inf
   PcdLib|MdePkg/Library/BasePcdLibNull/BasePcdLibNull.inf
   TimerLib|OvmfPkg/Library/AcpiTimerLib/BaseAcpiTimerLib.inf
   ResetSystemLib|OvmfPkg/Library/ResetSystemLib/BaseResetSystemLib.inf
@@ -1200,14 +1201,6 @@
 !include MdePkg/MdeLibs.dsc.inc
 
 [LibraryClasses]
-  # This fork's PiSmmCore.inf requires AsanLib. OVMF publishes no gAsanInfoGuid HOB,
-  # so the real instance would have no shadow region to map addresses into; the Null
-  # instance satisfies the class and instruments nothing.
-  # This fork's core files call PoisonPool/UnpoisonPool, so every phase needs the symbols.
-  # The Null instance is a BASE library with no constructor, which is what lets it be
-  # linked into PEI; the real AsanLib is a DXE library and its NULL| constructor takes an
-  # ImageHandle a PEIM does not have.
-  AsanLib|MdeModulePkg/Library/AsanLibNull/AsanLibNull.inf
   PcdLib|MdePkg/Library/BasePcdLibNull/BasePcdLibNull.inf
   TimerLib|OvmfPkg/Library/AcpiTimerLib/BaseAcpiTimerLib.inf
   ResetSystemLib|OvmfPkg/Library/ResetSystemLib/BaseResetSystemLib.inf
@@ -2240,23 +2233,3 @@
   # after CC_FLAGS and cannot be countered.
   #
   *_CLANGSAN_X64_SAN_FLAGS == -Wno-frame-address
-
-[BuildOptions]
-  #
-  # AddressSanitizer is opt in per module here, not global. An instrumented OVMF is about
-  # three times its normal size, and the compressed image has to fit a 4MB flash: at that
-  # point GenFv reports "the required fv image size 0x5255e8 exceeds the set fv image
-  # size 0x348000". Instrumenting only the DXE core and the drivers under test keeps the
-  # image inside the flash and the fuzzer fast, and loses nothing -- ASan only reports on
-  # accesses made by instrumented code, so a driver nobody is fuzzing contributes none.
-  #
-  # To fuzz another driver with ASan, give its entry in [Components] the same
-  # <BuildOptions> and <LibraryClasses> block DxeMain and HiiDatabaseDxe carry below.
-  #
-  *_CLANGSAN_X64_SAN_FLAGS == -Wno-frame-address
-  #
-  # Which fuzzer AsanLib reports a finding to. It has to be here and not on the module
-  # entries: AsanLib is a library, edk2 builds it once with the global flags, and a
-  # <BuildOptions> block on a module only reaches that module's own sources.
-  #
-  GCC:*_*_*_CC_FLAGS = -D ASAN_FUZZER_BACKEND=1

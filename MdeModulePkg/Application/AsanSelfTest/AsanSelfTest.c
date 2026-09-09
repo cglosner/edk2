@@ -139,7 +139,11 @@ AsanSelfTestMain (
   // instruction is #UD and would stop at the first finding.
   //
 #if defined (ASAN_SELFTEST_ALL)
-  for (Choice = 0; Choice < 5; Choice++) {
+  STATIC CONST UINTN  Order[5] = { 4, 0, 1, 2, 3 };
+  UINTN               Step;
+
+  for (Step = 0; Step < 5; Step++) {
+    Choice = Order[Step];
 #endif
   Buffer = AllocatePool (64);
   if (Buffer == NULL) {
@@ -182,8 +186,17 @@ AsanSelfTestMain (
 
     case 3:
       DEBUG ((DEBUG_ERROR, "AsanSelfTest: expect double-free\n"));
-      FreePool (Buffer);
-      FreePool (Buffer);
+      {
+        VOID  *Keep;
+
+        Keep = AllocatePool (64);
+        FreePool (Buffer);
+        FreePool (Buffer);
+        if (Keep != NULL) {
+          FreePool (Keep);
+        }
+      }
+
       break;
 
     default:

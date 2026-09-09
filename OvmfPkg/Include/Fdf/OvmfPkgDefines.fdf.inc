@@ -50,6 +50,34 @@ DEFINE SECFV_OFFSET      = 0x001CC000
 DEFINE SECFV_SIZE        = 0x34000
 !endif
 
+#
+# 8MB, for an AddressSanitizer build. Instrumenting every module roughly triples the
+# image, and at 4MB the compressed volume does not fit: GenFv reports "the required fv
+# image size 0x5255e8 exceeds the set fv image size 0x348000". The variable store keeps
+# the 4MB layout so an OVMF_VARS built for either size still works; everything after it
+# is derived the same way, with FVMAIN taking whatever CODE has left over SECFV.
+#
+!if $(FD_SIZE_IN_KB) == 8192
+DEFINE VARS_SIZE         = 0x84000
+DEFINE VARS_BLOCKS       = 0x84
+DEFINE VARS_LIVE_SIZE    = 0x40000
+DEFINE VARS_SPARE_SIZE   = 0x42000
+
+DEFINE FW_BASE_ADDRESS   = 0xFF800000
+DEFINE FW_SIZE           = 0x00800000
+DEFINE FW_BLOCKS         = 0x800
+DEFINE CODE_BASE_ADDRESS = 0xFF884000
+DEFINE CODE_SIZE         = 0x0077C000
+DEFINE CODE_BLOCKS       = 0x77C
+DEFINE FVMAIN_SIZE       = 0x0071C000
+DEFINE SECFV_OFFSET      = 0x007A0000
+#
+# Larger than the 4MB layout's 0x34000: at full ASan scope SecMain links the runtime and
+# the volume needs 0x4fb90.
+#
+DEFINE SECFV_SIZE        = 0x60000
+!endif
+
 !if $(FD_SIZE_IN_KB) == 4096
 DEFINE VARS_SIZE         = 0x84000
 DEFINE VARS_BLOCKS       = 0x84
