@@ -126,33 +126,34 @@ AsanSelfTestMain (
 {
   UINT8  *Buffer;
   UINT64  Length;
-  UINT8   Choice;
+  UINTN   Choice;
 
   Length = ASAN_SELFTEST_INPUT_SIZE;
   Length = HarnessStart (mInput, Length);
   Choice = (Length > 0) ? mInput[0] : 0;
 
+  //
+  // ASAN_SELFTEST_ALL walks every class in one boot. That only works when a report does
+  // not end the run, so build it with ASAN_FUZZER_BACKEND=1: the TSFFS handshake is a
+  // cpuid, which is a legal no-op with no fuzzer attached, whereas the libafl-qemu
+  // instruction is #UD and would stop at the first finding.
+  //
+#if defined (ASAN_SELFTEST_ALL)
+  for (Choice = 0; Choice < 5; Choice++) {
+#endif
   Buffer = AllocatePool (64);
   if (Buffer == NULL) {
     HarnessStop ();
     return EFI_OUT_OF_RESOURCES;
   }
 
-  //
-  // Say what the shadow actually holds around the allocation. A redzone that reads 0 is
-  // addressable, which means the allocator never poisoned it -- and then no instrumented
-  // access can be reported, however correct the rest of the pipeline is. Printed rather
-  // than asserted because this is the thing under test.
-  //
+  DEBUG ((DEBUG_ERROR, "AsanSelfTest: case %d buffer 0x%lx shadow",
+          (UINTN)(Choice % 5), (UINT64)(UINTN)Buffer));
   {
     volatile UINT8  *Shadow;
     UINTN            Index;
 
-    DEBUG ((DEBUG_ERROR, "AsanSelfTest: buffer 0x%lx\n", (UINT64)(UINTN)Buffer));
     Shadow = (volatile UINT8 *)(UINTN)(((UINTN)Buffer >> 3) + 0x5000000);
-    DEBUG ((DEBUG_ERROR, "AsanSelfTest: shadow at 0x%lx =",
-            (UINT64)(UINTN)Shadow));
-    // the 8 bytes of shadow covering the 64 byte body, then 4 past it
     for (Index = 0; Index < 12; Index++) {
       DEBUG ((DEBUG_ERROR, " %02x", Shadow[Index]));
     }
@@ -162,34 +163,40 @@ AsanSelfTestMain (
 
   switch (Choice % 5) {
     case 0:
-      // one past the end: lands in the right redzone
+      DEBUG ((DEBUG_ERROR, "AsanSelfTest: expect heap-buffer-overflow\n"));
       Scribble (&Buffer[64], 0x41);
       FreePool (Buffer);
       break;
 
     case 1:
-      // one before the start: lands in the left redzone
+      DEBUG ((DEBUG_ERROR, "AsanSelfTest: expect heap-buffer-underflow\n"));
       Scribble (&Buffer[-1], 0x42);
       FreePool (Buffer);
       break;
 
     case 2:
+      DEBUG ((DEBUG_ERROR, "AsanSelfTest: expect use-after-free\n"));
       FreePool (Buffer);
-      // the quarantine holds the block, so the shadow still says freed
       Scribble (&Buffer[0], 0x43);
       break;
 
     case 3:
+      DEBUG ((DEBUG_ERROR, "AsanSelfTest: expect double-free\n"));
       FreePool (Buffer);
       FreePool (Buffer);
       break;
 
     default:
-      // the control. Anything reported here is a false positive.
+      DEBUG ((DEBUG_ERROR, "AsanSelfTest: control, expect NO report\n"));
       SetMem (Buffer, 64, 0x44);
       FreePool (Buffer);
       break;
   }
+
+  DEBUG ((DEBUG_ERROR, "AsanSelfTest: case %d done\n", (UINTN)(Choice % 5)));
+#if defined (ASAN_SELFTEST_ALL)
+  }
+#endif
 
   HarnessStop ();
   return EFI_SUCCESS;

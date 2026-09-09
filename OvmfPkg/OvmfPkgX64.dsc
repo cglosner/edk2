@@ -827,7 +827,7 @@
     <BuildOptions>
       # the pool and page poisoning this fork adds lives here, and a poisoned redzone is
       # only noticed by instrumented code, so the core has to carry it too
-      *_CLANGSAN_X64_SAN_FLAGS == -fsanitize=address -fno-sanitize-address-use-after-scope -mllvm -asan-stack-dynamic-alloca=0 -mllvm -asan-instrumentation-with-call-threshold=0 -mllvm -asan-force-dynamic-shadow=true -fsanitize=undefined -fno-sanitize=alignment -Wno-frame-address -D ASAN_FUZZER_BACKEND=2
+      *_CLANGSAN_X64_SAN_FLAGS == -fsanitize=address -fno-sanitize-address-use-after-scope -mllvm -asan-stack-dynamic-alloca=0 -mllvm -asan-instrumentation-with-call-threshold=0 -mllvm -asan-force-dynamic-shadow=true -fsanitize=undefined -fno-sanitize=alignment -Wno-frame-address
     <LibraryClasses>
       AsanLib|MdeModulePkg/Library/AsanLib/AsanLib.inf
       NULL|MdeModulePkg/Library/AsanLib/AsanLib.inf
@@ -968,7 +968,7 @@
   MdeModulePkg/Bus/Pci/NvmExpressDxe/NvmExpressDxe.inf
   MdeModulePkg/Application/AsanSelfTest/AsanSelfTest.inf {
     <BuildOptions>
-      *_CLANGSAN_X64_SAN_FLAGS == -fsanitize=address -fno-sanitize-address-use-after-scope -mllvm -asan-stack-dynamic-alloca=0 -mllvm -asan-instrumentation-with-call-threshold=0 -mllvm -asan-force-dynamic-shadow=true -fsanitize=undefined -fno-sanitize=alignment -Wno-frame-address -D ASAN_FUZZER_BACKEND=2
+      *_CLANGSAN_X64_SAN_FLAGS == -fsanitize=address -fno-sanitize-address-use-after-scope -mllvm -asan-stack-dynamic-alloca=0 -mllvm -asan-instrumentation-with-call-threshold=0 -mllvm -asan-force-dynamic-shadow=true -fsanitize=undefined -fno-sanitize=alignment -Wno-frame-address -D ASAN_SELFTEST_ALL
     <LibraryClasses>
       AsanLib|MdeModulePkg/Library/AsanLib/AsanLib.inf
       NULL|MdeModulePkg/Library/AsanLib/AsanLib.inf
@@ -978,7 +978,7 @@
     <BuildOptions>
       # restate the toolchain's own SAN_FLAGS: "==" replaces, and appending would be
       # countered by the global "off" above
-      *_CLANGSAN_X64_SAN_FLAGS == -fsanitize=address -fno-sanitize-address-use-after-scope -mllvm -asan-stack-dynamic-alloca=0 -mllvm -asan-instrumentation-with-call-threshold=0 -mllvm -asan-force-dynamic-shadow=true -fsanitize=undefined -fno-sanitize=alignment -Wno-frame-address -D ASAN_FUZZER_BACKEND=2
+      *_CLANGSAN_X64_SAN_FLAGS == -fsanitize=address -fno-sanitize-address-use-after-scope -mllvm -asan-stack-dynamic-alloca=0 -mllvm -asan-instrumentation-with-call-threshold=0 -mllvm -asan-force-dynamic-shadow=true -fsanitize=undefined -fno-sanitize=alignment -Wno-frame-address
     <LibraryClasses>
       AsanLib|MdeModulePkg/Library/AsanLib/AsanLib.inf
       NULL|MdeModulePkg/Library/AsanLib/AsanLib.inf
@@ -1873,7 +1873,7 @@
     <BuildOptions>
       # the pool and page poisoning this fork adds lives here, and a poisoned redzone is
       # only noticed by instrumented code, so the core has to carry it too
-      *_CLANGSAN_X64_SAN_FLAGS == -fsanitize=address -fno-sanitize-address-use-after-scope -mllvm -asan-stack-dynamic-alloca=0 -mllvm -asan-instrumentation-with-call-threshold=0 -mllvm -asan-force-dynamic-shadow=true -fsanitize=undefined -fno-sanitize=alignment -Wno-frame-address -D ASAN_FUZZER_BACKEND=2
+      *_CLANGSAN_X64_SAN_FLAGS == -fsanitize=address -fno-sanitize-address-use-after-scope -mllvm -asan-stack-dynamic-alloca=0 -mllvm -asan-instrumentation-with-call-threshold=0 -mllvm -asan-force-dynamic-shadow=true -fsanitize=undefined -fno-sanitize=alignment -Wno-frame-address
     <LibraryClasses>
       AsanLib|MdeModulePkg/Library/AsanLib/AsanLib.inf
       NULL|MdeModulePkg/Library/AsanLib/AsanLib.inf
@@ -2016,7 +2016,7 @@
     <BuildOptions>
       # restate the toolchain's own SAN_FLAGS: "==" replaces, and appending would be
       # countered by the global "off" above
-      *_CLANGSAN_X64_SAN_FLAGS == -fsanitize=address -fno-sanitize-address-use-after-scope -mllvm -asan-stack-dynamic-alloca=0 -mllvm -asan-instrumentation-with-call-threshold=0 -mllvm -asan-force-dynamic-shadow=true -fsanitize=undefined -fno-sanitize=alignment -Wno-frame-address -D ASAN_FUZZER_BACKEND=2
+      *_CLANGSAN_X64_SAN_FLAGS == -fsanitize=address -fno-sanitize-address-use-after-scope -mllvm -asan-stack-dynamic-alloca=0 -mllvm -asan-instrumentation-with-call-threshold=0 -mllvm -asan-force-dynamic-shadow=true -fsanitize=undefined -fno-sanitize=alignment -Wno-frame-address
     <LibraryClasses>
       AsanLib|MdeModulePkg/Library/AsanLib/AsanLib.inf
       NULL|MdeModulePkg/Library/AsanLib/AsanLib.inf
@@ -2259,4 +2259,4 @@
   # entries: AsanLib is a library, edk2 builds it once with the global flags, and a
   # <BuildOptions> block on a module only reaches that module's own sources.
   #
-  GCC:*_*_*_CC_FLAGS = -D ASAN_FUZZER_BACKEND=2
+  GCC:*_*_*_CC_FLAGS = -D ASAN_FUZZER_BACKEND=1

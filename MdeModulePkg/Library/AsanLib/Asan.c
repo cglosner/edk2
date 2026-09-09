@@ -144,6 +144,7 @@ AsanSetFuzzingActive (
 // the harness is a boot option, so everything before ReadyToBoot is the firmware's own
 // noise and everything after it belongs to an iteration.
 //
+#if ASAN_FUZZER_BACKEND == ASAN_FUZZER_LIBAFL_QEMU
 STATIC BOOLEAN  mAsanReportArmed = FALSE;
 
 STATIC
@@ -156,6 +157,7 @@ AsanArmReporting (
 {
   mAsanReportArmed = TRUE;
 }
+#endif
 
 void AsanSignalSolution (VOID)
 {
