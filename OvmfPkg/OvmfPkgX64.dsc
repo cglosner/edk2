@@ -1017,7 +1017,16 @@
   MdeModulePkg/Universal/Acpi/AcpiTableDxe/AcpiTableDxe.inf
   OvmfPkg/AcpiPlatformDxe/AcpiPlatformDxe.inf
   MdeModulePkg/Universal/Acpi/S3SaveStateDxe/S3SaveStateDxe.inf
-  MdeModulePkg/Universal/Acpi/BootScriptExecutorDxe/BootScriptExecutorDxe.inf
+  MdeModulePkg/Universal/Acpi/BootScriptExecutorDxe/BootScriptExecutorDxe.inf {
+    <BuildOptions>
+      #
+      # Never instrumented. At ASAN_SCOPE=full the boot faults inside this driver
+      # with no ASan report before it, so it is a crash rather than a finding: it
+      # runs the S3 boot script, off the normal DXE paths. It is not a fuzz target,
+      # so exclude it rather than chase it.
+      #
+      *_CLANGSAN_X64_SAN_FLAGS == -Wno-frame-address
+  }
   MdeModulePkg/Universal/Acpi/BootGraphicsResourceTableDxe/BootGraphicsResourceTableDxe.inf
 
   #
@@ -2054,7 +2063,16 @@
   MdeModulePkg/Universal/Acpi/AcpiTableDxe/AcpiTableDxe.inf
   OvmfPkg/AcpiPlatformDxe/AcpiPlatformDxe.inf
   MdeModulePkg/Universal/Acpi/S3SaveStateDxe/S3SaveStateDxe.inf
-  MdeModulePkg/Universal/Acpi/BootScriptExecutorDxe/BootScriptExecutorDxe.inf
+  MdeModulePkg/Universal/Acpi/BootScriptExecutorDxe/BootScriptExecutorDxe.inf {
+    <BuildOptions>
+      #
+      # Never instrumented. At ASAN_SCOPE=full the boot faults inside this driver
+      # with no ASan report before it, so it is a crash rather than a finding: it
+      # runs the S3 boot script, off the normal DXE paths. It is not a fuzz target,
+      # so exclude it rather than chase it.
+      #
+      *_CLANGSAN_X64_SAN_FLAGS == -Wno-frame-address
+  }
   MdeModulePkg/Universal/Acpi/BootGraphicsResourceTableDxe/BootGraphicsResourceTableDxe.inf
 
   #
