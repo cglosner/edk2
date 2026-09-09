@@ -44,6 +44,10 @@
   MdeModulePkg/MdeModulePkg.dec
 
 [LibraryClasses]
+  # ScriptExecute.c calls UnpoisonPool, which this fork added. Declaring the class
+  # is what makes the dependency resolvable on any platform rather than only on one
+  # that happens to link an ASan instance into every module.
+  AsanLib
   PcdLib
   BaseMemoryLib
   UefiDriverEntryPoint

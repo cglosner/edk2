@@ -290,7 +290,6 @@
   TdxMailboxLib|OvmfPkg/Library/TdxMailboxLib/TdxMailboxLib.inf
 
 [LibraryClasses.common.SEC]
-  NULL|MdeModulePkg/Library/AsanLibNull/AsanLibNull.inf
   TimerLib|OvmfPkg/Library/AcpiTimerLib/BaseRomAcpiTimerLib.inf
   QemuFwCfgLib|OvmfPkg/Library/QemuFwCfgLib/QemuFwCfgSecLib.inf
 !ifdef $(DEBUG_ON_SERIAL_PORT)
@@ -317,7 +316,6 @@
   CcProbeLib|OvmfPkg/Library/CcProbeLib/SecPeiCcProbeLib.inf
 
 [LibraryClasses.common.PEI_CORE]
-  NULL|MdeModulePkg/Library/AsanLibNull/AsanLibNull.inf
   HobLib|MdePkg/Library/PeiHobLib/PeiHobLib.inf
   PeiServicesTablePointerLib|MdePkg/Library/PeiServicesTablePointerLibIdt/PeiServicesTablePointerLibIdt.inf
   PeiServicesLib|MdePkg/Library/PeiServicesLib/PeiServicesLib.inf
@@ -335,7 +333,6 @@
   CcProbeLib|OvmfPkg/Library/CcProbeLib/SecPeiCcProbeLib.inf
 
 [LibraryClasses.common.PEIM]
-  NULL|MdeModulePkg/Library/AsanLibNull/AsanLibNull.inf
   HobLib|MdePkg/Library/PeiHobLib/PeiHobLib.inf
   PeiServicesTablePointerLib|MdePkg/Library/PeiServicesTablePointerLibIdt/PeiServicesTablePointerLibIdt.inf
   PeiServicesLib|MdePkg/Library/PeiServicesLib/PeiServicesLib.inf
@@ -366,9 +363,6 @@
   CcProbeLib|OvmfPkg/Library/CcProbeLib/SecPeiCcProbeLib.inf
 
 [LibraryClasses.common.DXE_CORE]
-  AsanLib|MdeModulePkg/Library/AsanLib/AsanLib.inf
-  NULL|MdeModulePkg/Library/AsanLib/AsanLib.inf
-  BaseMemoryLib|MdePkg/Library/AsanMemoryLibRepStr/AsanMemoryLibRepStr.inf
   #
   # AddressSanitizer, for the phase that is actually fuzzed. The real instance rather
   # than the Null one, NULL| so it reaches every module -- this fork's poison hooks are
@@ -393,9 +387,6 @@
   PcdLib|MdePkg/Library/DxePcdLib/DxePcdLib.inf
 
 [LibraryClasses.common.DXE_RUNTIME_DRIVER]
-  AsanLib|MdeModulePkg/Library/AsanLib/AsanLib.inf
-  NULL|MdeModulePkg/Library/AsanLib/AsanLib.inf
-  BaseMemoryLib|MdePkg/Library/AsanMemoryLibRepStr/AsanMemoryLibRepStr.inf
   #
   # AddressSanitizer, for the phase that is actually fuzzed. The real instance rather
   # than the Null one, NULL| so it reaches every module -- this fork's poison hooks are
@@ -425,9 +416,6 @@
 !endif
 
 [LibraryClasses.common.UEFI_DRIVER]
-  AsanLib|MdeModulePkg/Library/AsanLib/AsanLib.inf
-  NULL|MdeModulePkg/Library/AsanLib/AsanLib.inf
-  BaseMemoryLib|MdePkg/Library/AsanMemoryLibRepStr/AsanMemoryLibRepStr.inf
   PcdLib|MdePkg/Library/DxePcdLib/DxePcdLib.inf
   TimerLib|OvmfPkg/Library/AcpiTimerLib/DxeAcpiTimerLib.inf
   ResetSystemLib|OvmfPkg/Library/ResetSystemLib/DxeResetSystemLib.inf
@@ -444,9 +432,6 @@
   PciLib|OvmfPkg/Library/DxePciLibI440FxQ35/DxePciLibI440FxQ35.inf
 
 [LibraryClasses.common.DXE_DRIVER]
-  AsanLib|MdeModulePkg/Library/AsanLib/AsanLib.inf
-  NULL|MdeModulePkg/Library/AsanLib/AsanLib.inf
-  BaseMemoryLib|MdePkg/Library/AsanMemoryLibRepStr/AsanMemoryLibRepStr.inf
   #
   # AddressSanitizer, for the phase that is actually fuzzed. The real instance rather
   # than the Null one, NULL| so it reaches every module -- this fork's poison hooks are
@@ -485,9 +470,6 @@
   QemuLoadImageLib|OvmfPkg/Library/X86QemuLoadImageLib/X86QemuLoadImageLib.inf
 
 [LibraryClasses.common.UEFI_APPLICATION]
-  AsanLib|MdeModulePkg/Library/AsanLib/AsanLib.inf
-  NULL|MdeModulePkg/Library/AsanLib/AsanLib.inf
-  BaseMemoryLib|MdePkg/Library/AsanMemoryLibRepStr/AsanMemoryLibRepStr.inf
   PcdLib|MdePkg/Library/DxePcdLib/DxePcdLib.inf
   TimerLib|OvmfPkg/Library/AcpiTimerLib/DxeAcpiTimerLib.inf
   ResetSystemLib|OvmfPkg/Library/ResetSystemLib/DxeResetSystemLib.inf
@@ -1346,7 +1328,6 @@
   TdxMailboxLib|OvmfPkg/Library/TdxMailboxLib/TdxMailboxLib.inf
 
 [LibraryClasses.common.SEC]
-  NULL|MdeModulePkg/Library/AsanLibNull/AsanLibNull.inf
   TimerLib|OvmfPkg/Library/AcpiTimerLib/BaseRomAcpiTimerLib.inf
   QemuFwCfgLib|OvmfPkg/Library/QemuFwCfgLib/QemuFwCfgSecLib.inf
 !ifdef $(DEBUG_ON_SERIAL_PORT)
@@ -1373,7 +1354,6 @@
   CcProbeLib|OvmfPkg/Library/CcProbeLib/SecPeiCcProbeLib.inf
 
 [LibraryClasses.common.PEI_CORE]
-  NULL|MdeModulePkg/Library/AsanLibNull/AsanLibNull.inf
   HobLib|MdePkg/Library/PeiHobLib/PeiHobLib.inf
   PeiServicesTablePointerLib|MdePkg/Library/PeiServicesTablePointerLibIdt/PeiServicesTablePointerLibIdt.inf
   PeiServicesLib|MdePkg/Library/PeiServicesLib/PeiServicesLib.inf
@@ -1391,7 +1371,6 @@
   CcProbeLib|OvmfPkg/Library/CcProbeLib/SecPeiCcProbeLib.inf
 
 [LibraryClasses.common.PEIM]
-  NULL|MdeModulePkg/Library/AsanLibNull/AsanLibNull.inf
   HobLib|MdePkg/Library/PeiHobLib/PeiHobLib.inf
   PeiServicesTablePointerLib|MdePkg/Library/PeiServicesTablePointerLibIdt/PeiServicesTablePointerLibIdt.inf
   PeiServicesLib|MdePkg/Library/PeiServicesLib/PeiServicesLib.inf
@@ -1422,9 +1401,6 @@
   CcProbeLib|OvmfPkg/Library/CcProbeLib/SecPeiCcProbeLib.inf
 
 [LibraryClasses.common.DXE_CORE]
-  AsanLib|MdeModulePkg/Library/AsanLib/AsanLib.inf
-  NULL|MdeModulePkg/Library/AsanLib/AsanLib.inf
-  BaseMemoryLib|MdePkg/Library/AsanMemoryLibRepStr/AsanMemoryLibRepStr.inf
   #
   # AddressSanitizer, for the phase that is actually fuzzed. The real instance rather
   # than the Null one, NULL| so it reaches every module -- this fork's poison hooks are
@@ -1449,9 +1425,6 @@
   PcdLib|MdePkg/Library/DxePcdLib/DxePcdLib.inf
 
 [LibraryClasses.common.DXE_RUNTIME_DRIVER]
-  AsanLib|MdeModulePkg/Library/AsanLib/AsanLib.inf
-  NULL|MdeModulePkg/Library/AsanLib/AsanLib.inf
-  BaseMemoryLib|MdePkg/Library/AsanMemoryLibRepStr/AsanMemoryLibRepStr.inf
   #
   # AddressSanitizer, for the phase that is actually fuzzed. The real instance rather
   # than the Null one, NULL| so it reaches every module -- this fork's poison hooks are
@@ -1481,9 +1454,6 @@
 !endif
 
 [LibraryClasses.common.UEFI_DRIVER]
-  AsanLib|MdeModulePkg/Library/AsanLib/AsanLib.inf
-  NULL|MdeModulePkg/Library/AsanLib/AsanLib.inf
-  BaseMemoryLib|MdePkg/Library/AsanMemoryLibRepStr/AsanMemoryLibRepStr.inf
   PcdLib|MdePkg/Library/DxePcdLib/DxePcdLib.inf
   TimerLib|OvmfPkg/Library/AcpiTimerLib/DxeAcpiTimerLib.inf
   ResetSystemLib|OvmfPkg/Library/ResetSystemLib/DxeResetSystemLib.inf
@@ -1500,9 +1470,6 @@
   PciLib|OvmfPkg/Library/DxePciLibI440FxQ35/DxePciLibI440FxQ35.inf
 
 [LibraryClasses.common.DXE_DRIVER]
-  AsanLib|MdeModulePkg/Library/AsanLib/AsanLib.inf
-  NULL|MdeModulePkg/Library/AsanLib/AsanLib.inf
-  BaseMemoryLib|MdePkg/Library/AsanMemoryLibRepStr/AsanMemoryLibRepStr.inf
   #
   # AddressSanitizer, for the phase that is actually fuzzed. The real instance rather
   # than the Null one, NULL| so it reaches every module -- this fork's poison hooks are
@@ -1541,9 +1508,6 @@
   QemuLoadImageLib|OvmfPkg/Library/X86QemuLoadImageLib/X86QemuLoadImageLib.inf
 
 [LibraryClasses.common.UEFI_APPLICATION]
-  AsanLib|MdeModulePkg/Library/AsanLib/AsanLib.inf
-  NULL|MdeModulePkg/Library/AsanLib/AsanLib.inf
-  BaseMemoryLib|MdePkg/Library/AsanMemoryLibRepStr/AsanMemoryLibRepStr.inf
   PcdLib|MdePkg/Library/DxePcdLib/DxePcdLib.inf
   TimerLib|OvmfPkg/Library/AcpiTimerLib/DxeAcpiTimerLib.inf
   ResetSystemLib|OvmfPkg/Library/ResetSystemLib/DxeResetSystemLib.inf
