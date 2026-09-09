@@ -18,6 +18,19 @@
 #include <Library/HobLib.h>
 #include <Guid/EventGroup.h>
 
+//
+// The sanitizer runtime must never be instrumented. A DSC global
+// "SAN_FLAGS ==" overrides an INF [BuildOptions], so this cannot be expressed
+// in the build files -- at ASAN_SCOPE=full the platform flags reach this file
+// whatever the INF says. Instrumenting it makes poisoning the shadow perform
+// shadow-of-shadow checks and lets a report recurse into itself. Checking here
+// is explicit (AsanInternal*/__asan_* call the shadow directly), so switching
+// compiler instrumentation off costs no detection.
+//
+#if defined (__clang__)
+#pragma clang attribute push (__attribute__((no_sanitize("address", "undefined"))), apply_to = function)
+#endif
+
 static const UINT64 kDefaultShadowScale = 3;
 #define SHADOW_SCALE kDefaultShadowScale
 
@@ -1758,3 +1771,7 @@ AsanLibConstructor (
   SerialOutput ("AsanLibConstructor done\n");
   return RETURN_SUCCESS;
 }
+
+#if defined (__clang__)
+#pragma clang attribute pop
+#endif

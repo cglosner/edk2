@@ -75,14 +75,21 @@
 !else
   DEFINE FD_SIZE_IN_KB           = 4096
 !endif
+!endif
+!endif
 
   #
-  # AddressSanitizer. full instruments every DXE phase module, which needs
-  # -D FD_SIZE_IN_KB=8192 to fit; per-module is the flash-friendly default.
+  # AddressSanitizer. Outside the FD_SIZE chain above on purpose: nested there,
+  # -D FD_SIZE_4MB silently dropped both defines and the build fell back to the
+  # include's own defaults with no diagnostic. !ifndef so -D overrides on the
+  # build command line, e.g. -D ASAN_FUZZER=none for a boot with no fuzzer.
+  # full instruments every DXE phase module and needs -D FD_SIZE_IN_KB=8192.
   #
+!ifndef ASAN_SCOPE
   DEFINE ASAN_SCOPE              = full
-  DEFINE ASAN_FUZZER             = qemu
 !endif
+!ifndef ASAN_FUZZER
+  DEFINE ASAN_FUZZER             = qemu
 !endif
 
   #

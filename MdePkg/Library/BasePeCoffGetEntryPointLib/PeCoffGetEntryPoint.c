@@ -15,6 +15,19 @@
 
 #include <IndustryStandard/PeImage.h>
 
+//
+// Not instrumented. PeCoffSearchImageBase scans memory backwards from an
+// arbitrary address looking for the PE signature, so reading memory it does not
+// own is what it is for -- every probe is a true out-of-bounds read that ASan is
+// right to flag. It also runs on the crash-dump path
+// (CpuExceptionHandlerLib attributes a faulting IP through it), so instrumenting
+// it turns one fault into a report storm: a single #UD produced 1180 reports and
+// buried the eight real findings that preceded it.
+//
+#if defined (__clang__)
+#pragma clang attribute push (__attribute__((no_sanitize("address", "undefined"))), apply_to = function)
+#endif
+
 #define PE_COFF_IMAGE_ALIGN_SIZE  4
 
 /**
@@ -380,3 +393,7 @@ PeCoffSearchImageBase (
 
   return Pe32Data;
 }
+
+#if defined (__clang__)
+#pragma clang attribute pop
+#endif

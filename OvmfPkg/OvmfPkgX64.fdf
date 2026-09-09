@@ -324,7 +324,18 @@ INF  OvmfPkg/SmbiosPlatformDxe/SmbiosPlatformDxe.inf
 INF  MdeModulePkg/Universal/Acpi/AcpiTableDxe/AcpiTableDxe.inf
 INF  OvmfPkg/AcpiPlatformDxe/AcpiPlatformDxe.inf
 INF  MdeModulePkg/Universal/Acpi/S3SaveStateDxe/S3SaveStateDxe.inf
+!if "$(ASAN_SCOPE)" != "full"
 INF  MdeModulePkg/Universal/Acpi/BootScriptExecutorDxe/BootScriptExecutorDxe.inf
+!else
+#
+# Dropped at ASAN_SCOPE=full. This driver re-loads a second copy of its own PE
+# image into reserved memory and calls that copy's entry point, which runs the
+# library constructors -- AsanLib's included -- a second time at new addresses.
+# Excluding it from instrumentation is not enough, because the libraries linked
+# into it are still instrumented. It only replays the S3 boot script, so a fuzzing
+# image does not need it.
+#
+!endif
 INF  MdeModulePkg/Universal/Acpi/BootGraphicsResourceTableDxe/BootGraphicsResourceTableDxe.inf
 
 INF  FatPkg/EnhancedFatDxe/Fat.inf

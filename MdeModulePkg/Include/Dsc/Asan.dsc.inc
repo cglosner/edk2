@@ -125,7 +125,24 @@
   GCC:*_*_*_CC_FLAGS = -D ASAN_FUZZER_BACKEND=1
 !endif
 
-!if "$(ASAN_SCOPE)" != "full"
+!if "$(ASAN_SCOPE)" == "full"
+  #
+  # Heap only, platform wide -- and that is not a compromise. A cross-module error
+  # is a heap error by construction: one driver allocates, another overruns. A stack
+  # frame never outlives the function that owns it, so it has no cross-module case.
+  #
+  # Stack instrumentation must not be global. The compiler writes frame redzones
+  # inline and unconditionally, which bypasses AsanLib's range guard -- that guard
+  # only covers the checks. A module whose stack sits outside the mapped shadow then
+  # corrupts whatever MEM_TO_SHADOW lands on. The symptom is a clobbered return
+  # address, a non-canonical RIP, and zero ASan reports, so it looks nothing like a
+  # sanitizer problem. Per-module opt-in sites restate the full set and keep it.
+  #
+  # Restating the flags here also pins them. Falling through to the tools_def default
+  # silently picks up a different set, including -fsanitize=local-bounds.
+  #
+  *_CLANGSAN_X64_SAN_FLAGS == $(ASAN_SAN_FLAGS) -mllvm -asan-stack=0
+!else
   #
   # Off by default; the opt-in blocks in [Components] turn it back on.
   #
