@@ -138,6 +138,28 @@ AsanSelfTestMain (
     return EFI_OUT_OF_RESOURCES;
   }
 
+  //
+  // Say what the shadow actually holds around the allocation. A redzone that reads 0 is
+  // addressable, which means the allocator never poisoned it -- and then no instrumented
+  // access can be reported, however correct the rest of the pipeline is. Printed rather
+  // than asserted because this is the thing under test.
+  //
+  {
+    volatile UINT8  *Shadow;
+    UINTN            Index;
+
+    DEBUG ((DEBUG_ERROR, "AsanSelfTest: buffer 0x%lx\n", (UINT64)(UINTN)Buffer));
+    Shadow = (volatile UINT8 *)(UINTN)(((UINTN)Buffer >> 3) + 0x5000000);
+    DEBUG ((DEBUG_ERROR, "AsanSelfTest: shadow at 0x%lx =",
+            (UINT64)(UINTN)Shadow));
+    // the 8 bytes of shadow covering the 64 byte body, then 4 past it
+    for (Index = 0; Index < 12; Index++) {
+      DEBUG ((DEBUG_ERROR, " %02x", Shadow[Index]));
+    }
+
+    DEBUG ((DEBUG_ERROR, "\n"));
+  }
+
   switch (Choice % 5) {
     case 0:
       // one past the end: lands in the right redzone
