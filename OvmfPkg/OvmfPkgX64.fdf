@@ -60,12 +60,19 @@ FV = SECFV
 
 ################################################################################
 
+#
+# Enlarged for an AddressSanitizer build: instrumentation roughly triples code
+# size, and at the stock 14MB the PEI volume overflowed -- "the required fv image
+# size 0x22c368 exceeds the set fv image size 0xe0000". MEMFD is based at 8MB, so
+# an instrumented DXE volume measured 0x1e54508, so 36MB there and 39MB total: based
+# at 8MB that ends at 47MB and stays clear of the ASan shadow at 0x5000000 (80MB).
+#
 [FD.MEMFD]
 BaseAddress   = $(MEMFD_BASE_ADDRESS)
-Size          = 0xE00000
+Size          = 0x2700000
 ErasePolarity = 1
 BlockSize     = 0x10000
-NumBlocks     = 0xE0
+NumBlocks     = 0x270
 
 0x000000|0x006000
 gUefiOvmfPkgTokenSpaceGuid.PcdOvmfSecPageTablesBase|gUefiOvmfPkgTokenSpaceGuid.PcdOvmfSecPageTablesSize
@@ -97,11 +104,11 @@ gUefiOvmfPkgTokenSpaceGuid.PcdOvmfCpuidBase|gUefiOvmfPkgTokenSpaceGuid.PcdOvmfCp
 0x010000|0x010000
 gUefiOvmfPkgTokenSpaceGuid.PcdOvmfSecPeiTempRamBase|gUefiOvmfPkgTokenSpaceGuid.PcdOvmfSecPeiTempRamSize
 
-0x020000|0x0E0000
+0x020000|0x2E0000
 gUefiOvmfPkgTokenSpaceGuid.PcdOvmfPeiMemFvBase|gUefiOvmfPkgTokenSpaceGuid.PcdOvmfPeiMemFvSize
 FV = PEIFV
 
-0x100000|0xD00000
+0x300000|0x2400000
 gUefiOvmfPkgTokenSpaceGuid.PcdOvmfDxeMemFvBase|gUefiOvmfPkgTokenSpaceGuid.PcdOvmfDxeMemFvSize
 FV = DXEFV
 

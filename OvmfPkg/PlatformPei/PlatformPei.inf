@@ -42,6 +42,7 @@
   OvmfPkg/OvmfPkg.dec
 
 [Guids]
+  gAsanInfoGuid                            ## PRODUCES  ## HOB
   gEfiMemoryTypeInformationGuid
   gFdtHobGuid
   gUefiOvmfPkgPlatformInfoGuid

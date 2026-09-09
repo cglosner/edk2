@@ -38,6 +38,7 @@ Module Name:
 #include <Library/QemuFwCfgLib.h>
 #include <Library/QemuFwCfgSimpleParserLib.h>
 #include "Platform.h"
+#include <Guid/AsanInfo.h>
 
 VOID
 Q35TsegMbytesInitialization (
@@ -350,6 +351,66 @@ PublishPeiMemory (
   return Status;
 }
 
+//
+// Where the shadow lives. Same base as the Simics platform build so a report reads the
+// same on either target.
+//
+#define ASAN_SHADOW_MEMORY_START  0x5000000ULL
+
+/**
+  Reserve the shadow region AddressSanitizer needs, and tell the runtime where it is.
+
+  AsanLib maps an address to its shadow byte as (addr >> 3) + start, where start comes
+  from the gAsanInfoGuid HOB; with no HOB it deactivates itself and every instrumented
+  access becomes a no-op. That is why an ASan build of OVMF detects nothing without this:
+  the instrumentation is present and simply never consults a shadow.
+
+  The layout mirrors the Simics platform (SimicsPei/MemDetect.c): one eighth of the memory
+  below 4GB, based at 0x5000000. That address is conventional memory OVMF has not claimed
+  by this point -- PEI's own memory and the decompressed DXE volume sit near the top of
+  low memory -- and it must stay clear of them, so the size is bounded rather than
+  following memory upwards without limit.
+**/
+STATIC
+VOID
+AsanInitializeShadowMemory (
+  IN EFI_HOB_PLATFORM_INFO  *PlatformInfoHob
+  )
+{
+  UINT64     ShadowStart;
+  UINT64     ShadowSize;
+  ASAN_INFO  AsanInfo;
+
+  ShadowStart = ASAN_SHADOW_MEMORY_START;
+
+  ShadowSize = (UINT64)PlatformInfoHob->LowMemory >> 3;
+  if (ShadowSize == 0) {
+    return;
+  }
+
+  //
+  // Refuse rather than corrupt: if the shadow would run into the memory PEI is using,
+  // a silently overlapping shadow turns every instrumented read into garbage.
+  //
+  if ((ShadowStart + ShadowSize) > (UINT64)PlatformInfoHob->LowMemory) {
+    DEBUG ((DEBUG_ERROR, "Asan: shadow 0x%lx[0x%lx] does not fit below 0x%lx\n",
+            ShadowStart, ShadowSize, (UINT64)PlatformInfoHob->LowMemory));
+    return;
+  }
+
+  ZeroMem ((VOID *)(UINTN)ShadowStart, (UINTN)ShadowSize);
+  BuildMemoryAllocationHob (ShadowStart, ShadowSize, EfiRuntimeServicesData);
+
+  AsanInfo.AsanShadowMemoryStart = ShadowStart;
+  AsanInfo.AsanShadowMemorySize  = ShadowSize;
+  AsanInfo.AsanInited            = 1;
+  AsanInfo.AsanActivated         = 1;
+  BuildGuidDataHob (&gAsanInfoGuid, &AsanInfo, sizeof (ASAN_INFO));
+
+  DEBUG ((DEBUG_INFO, "Asan: shadow 0x%lx size 0x%lx for low memory 0x%lx\n",
+          ShadowStart, ShadowSize, (UINT64)PlatformInfoHob->LowMemory));
+}
+
 /**
   Publish system RAM and reserve memory regions
 
@@ -369,4 +430,6 @@ InitializeRamRegions (
   SevInitializeRam ();
 
   PlatformQemuInitializeRamForS3 (PlatformInfoHob);
+
+  AsanInitializeShadowMemory (PlatformInfoHob);
 }
