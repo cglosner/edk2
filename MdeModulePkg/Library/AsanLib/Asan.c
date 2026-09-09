@@ -16,6 +16,7 @@
 #include <Uefi.h>
 #include <Library/Asan.h>
 #include <Library/HobLib.h>
+#include <Guid/EventGroup.h>
 
 static const UINT64 kDefaultShadowScale = 3;
 #define SHADOW_SCALE kDefaultShadowScale
@@ -115,8 +116,61 @@ AsanSetFuzzingActive (
 // carry a fuzzer header: cpuid with eax = (N_STOP_ASSERT << 16) | MAGIC.
 // Without it a detected error is printed and then executed, and TSFFS -- which only
 // scores exceptions 12/13/14 -- never sees it.
+//
+// How a sanitizer report reaches the fuzzer. Two fuzzers, two instructions, and they are
+// not interchangeable: TSFFS watches for a cpuid with a magic eax, while LibAFL-QEMU
+// pattern matches four bytes during translation. Emitting the cpuid under LibAFL-QEMU is
+// not an error -- cpuid is a legal instruction -- it simply does nothing, which is why an
+// instrumented OVMF reported memory errors on the serial log and the fuzzer recorded
+// zero objectives.
+//
+// Selected by ASAN_FUZZER_BACKEND, set per module in the platform dsc. 1 is TSFFS and the
+// default, so a platform that says nothing keeps the behaviour it had.
+//
+#define ASAN_FUZZER_TSFFS       1
+#define ASAN_FUZZER_LIBAFL_QEMU 2
+
+#ifndef ASAN_FUZZER_BACKEND
+#define ASAN_FUZZER_BACKEND  ASAN_FUZZER_TSFFS
+#endif
+
+//
+// Reporting is armed at ReadyToBoot, not by the harness.
+//
+// The harness is a separate image that does not link this library, so it cannot set
+// mAsanFuzzingActive here the way it does under TSFFS. Reporting unconditionally does not
+// work either: LIBAFL_QEMU_COMMAND_END before the first START aborts the whole run with
+// EndBeforeStart, and this firmware raises hundreds of UBSan reports while it boots. But
+// the harness is a boot option, so everything before ReadyToBoot is the firmware's own
+// noise and everything after it belongs to an iteration.
+//
+STATIC BOOLEAN  mAsanReportArmed = FALSE;
+
+STATIC
+VOID
+EFIAPI
+AsanArmReporting (
+  IN EFI_EVENT  Event,
+  IN VOID       *Context
+  )
+{
+  mAsanReportArmed = TRUE;
+}
+
 void AsanSignalSolution (VOID)
 {
+#if ASAN_FUZZER_BACKEND == ASAN_FUZZER_LIBAFL_QEMU
+  UINT64  Ret = 4;  // LIBAFL_QEMU_COMMAND_END
+
+  if (!mAsanReportArmed) {
+    return;
+  }
+
+  __asm__ __volatile__ (".byte 0x0f, 0x3a, 0xf2, 0x66\n\t"
+                        : "+a" (Ret)
+                        : "D" ((UINT64)2)
+                        : "memory", "cc");
+#else
   unsigned int _a = 0, _b = 0, _c = 0, _d = 0;
   unsigned int value = (0x0005U << 0x10U) | 0x4711U;
 
@@ -127,6 +181,7 @@ void AsanSignalSolution (VOID)
   __asm__ __volatile__ ("cpuid\n\t"
                         : "=a"(_a), "=b"(_b), "=c"(_c), "=d"(_d)
                         : "a"(value), "D"(0));
+#endif
 }
 
 void ReportGenericError(UINTN addr, BOOLEAN is_write, UINTN access_size) {
@@ -1793,6 +1848,24 @@ AsanLibConstructor (
   int                           size;
   SerialOutput ("AsanLibConstructor begin\n");
   SerialOutput ("Get hob of gAsanInfoGuid\n");
+
+#if ASAN_FUZZER_BACKEND == ASAN_FUZZER_LIBAFL_QEMU
+  //
+  // DxeCore gets a NULL SystemTable here, so it never arms. That is the right outcome:
+  // an out of bounds access is reported by whoever makes it, and the drivers under test
+  // are the ones that do.
+  //
+  if ((SystemTable != NULL) && (SystemTable->BootServices != NULL)) {
+    EFI_EVENT  ReadyToBoot;
+
+    if (!EFI_ERROR (SystemTable->BootServices->CreateEventEx (
+                      EVT_NOTIFY_SIGNAL, TPL_CALLBACK, AsanArmReporting,
+                      NULL, &gEfiEventReadyToBootGuid, &ReadyToBoot)))
+    {
+      SerialOutput ("AsanLib: reporting arms at ReadyToBoot\n");
+    }
+  }
+#endif
 
   if (AsanCtorFlag) {
     return RETURN_SUCCESS;//Status;
