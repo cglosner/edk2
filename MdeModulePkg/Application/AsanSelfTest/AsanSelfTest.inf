@@ -1,0 +1,29 @@
+## @file
+#  A deliberate memory error, so "ASan is enabled" can be told from "ASan detects".
+#
+#  Copyright (c) 2026, Firness contributors. All rights reserved.<BR>
+#  SPDX-License-Identifier: BSD-2-Clause-Patent
+##
+
+[Defines]
+  INF_VERSION                    = 0x00010005
+  BASE_NAME                      = AsanSelfTest
+  FILE_GUID                      = 7C4E9A21-53B8-4A7D-9F16-8E2D40C1B573
+  MODULE_TYPE                    = UEFI_APPLICATION
+  VERSION_STRING                 = 1.0
+  ENTRY_POINT                    = AsanSelfTestMain
+
+[Sources]
+  AsanSelfTest.c
+
+[Packages]
+  MdePkg/MdePkg.dec
+  MdeModulePkg/MdeModulePkg.dec
+
+[LibraryClasses]
+  UefiApplicationEntryPoint
+  UefiBootServicesTableLib
+  MemoryAllocationLib
+  BaseMemoryLib
+  DebugLib
+  AsanLib

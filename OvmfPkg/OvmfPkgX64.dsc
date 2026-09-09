@@ -966,6 +966,14 @@
   MdeModulePkg/Bus/Ata/AtaAtapiPassThru/AtaAtapiPassThru.inf
   MdeModulePkg/Bus/Ata/AtaBusDxe/AtaBusDxe.inf
   MdeModulePkg/Bus/Pci/NvmExpressDxe/NvmExpressDxe.inf
+  MdeModulePkg/Application/AsanSelfTest/AsanSelfTest.inf {
+    <BuildOptions>
+      *_CLANGSAN_X64_SAN_FLAGS == -fsanitize=address -fno-sanitize-address-use-after-scope -mllvm -asan-stack-dynamic-alloca=0 -mllvm -asan-instrumentation-with-call-threshold=0 -mllvm -asan-force-dynamic-shadow=true -fsanitize=undefined -fno-sanitize=alignment -Wno-frame-address -D ASAN_FUZZER_BACKEND=2
+    <LibraryClasses>
+      AsanLib|MdeModulePkg/Library/AsanLib/AsanLib.inf
+      NULL|MdeModulePkg/Library/AsanLib/AsanLib.inf
+      BaseMemoryLib|MdePkg/Library/AsanMemoryLibRepStr/AsanMemoryLibRepStr.inf
+  }
   MdeModulePkg/Universal/HiiDatabaseDxe/HiiDatabaseDxe.inf {
     <BuildOptions>
       # restate the toolchain's own SAN_FLAGS: "==" replaces, and appending would be
