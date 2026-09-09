@@ -728,6 +728,14 @@ SmmEntryPoint (
         // or there is over or underflow,
         // return EFI_INVALID_PARAMETER
         //
+        DEBUG ((
+          DEBUG_INFO,
+          "SmmCore: rejected CommBuffer %p size %lu overlap=%d overunder=%d\n",
+          CommunicationBuffer,
+          (UINT64)gSmmCorePrivate->BufferSize,
+          IsOverlapped,
+          IsOverUnderflow
+          ));
         gSmmCorePrivate->CommunicationBuffer = NULL;
         gSmmCorePrivate->ReturnStatus        = EFI_ACCESS_DENIED;
       } else {
@@ -743,6 +751,18 @@ SmmEntryPoint (
         // Update CommunicationBuffer, BufferSize and ReturnStatus
         // Communicate service finished, reset the pointer to CommBuffer to NULL
         //
+        //
+        // Handler level evidence for SMI fuzzing: SmiManage answers EFI_SUCCESS
+        // only when a handler registered for this GUID actually ran, so this
+        // distinguishes "the SMI was raised" from "a handler parsed the buffer".
+        //
+        DEBUG ((
+          DEBUG_INFO,
+          "SmmCore: dispatch %g len %lu -> %r\n",
+          &CommunicateHeader->HeaderGuid,
+          (UINT64)BufferSize,
+          Status
+          ));
         gSmmCorePrivate->BufferSize          = BufferSize + OFFSET_OF (EFI_SMM_COMMUNICATE_HEADER, Data);
         gSmmCorePrivate->CommunicationBuffer = NULL;
         gSmmCorePrivate->ReturnStatus        = (Status == EFI_SUCCESS) ? EFI_SUCCESS : EFI_NOT_FOUND;
