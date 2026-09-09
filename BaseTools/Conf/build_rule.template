@@ -532,6 +532,19 @@
         # copy the output file with .com postfix that be same to the output file of .asm16
         $(CP) ${dst} $(OUTPUT_DIR)(+)${s_base}.com
 
+    # CLANGSAN declares BUILDRULEFAMILY = SANITIZER, which only ever had a C
+    # compile command. Without a SANITIZER command here the nasmb step is skipped
+    # silently: OvmfPkg/ResetVector produced no .bin, the linker emitted a 528 byte
+    # object, and GenFw failed with "Did not find any '.text' section". Assembly
+    # cannot be instrumented anyway, so this is the same command.
+    <Command.SANITIZER>
+        Trim --asm-file -o ${d_path}(+)${s_base}.i -i $(INC_LIST) ${src}
+        "$(PP)" $(DEPS_FLAGS) $(PP_FLAGS) $(INC) ${src} > ${d_path}(+)${s_base}.ii
+        Trim --source-code --convert-hex -o ${d_path}(+)${s_base}.iii ${d_path}(+)${s_base}.ii
+        "$(NASM)" -I${s_path}(+) -l ${d_path}(+)${s_base}.lst $(NASMB_FLAGS) $(NASM_INC) -o $dst ${d_path}(+)${s_base}.iii
+        # copy the output file with .com postfix that be same to the output file of .asm16
+        $(CP) ${dst} $(OUTPUT_DIR)(+)${s_base}.com
+
 [Microcode-File.USER_DEFINED, Microcode-File.Microcode]
     <InputFile>
         ?.txt, ?.TXT, ?.Txt, ?.mut, ?.inc
