@@ -25,6 +25,7 @@
 #include <Library/MemoryAllocationLib.h>
 #include <Library/BaseMemoryLib.h>
 #include <Library/DebugLib.h>
+#include <Library/Asan.h>
 
 //
 // The fuzzer handshake, written out rather than included: this application deliberately
@@ -165,6 +166,13 @@ AsanSelfTestMain (
     DEBUG ((DEBUG_ERROR, "\n"));
   }
 
+  //
+  // Open the window the runtime escalates in. Without this the finding is logged and
+  // never reaches the fuzzer, and the boot's own reports -- HiiDatabase raises eight
+  // before any boot option runs -- would be the only thing it ever recorded.
+  //
+  AsanSetFuzzingActive (TRUE);
+
   switch (Choice % 5) {
     case 0:
       DEBUG ((DEBUG_ERROR, "AsanSelfTest: expect heap-buffer-overflow\n"));
@@ -205,6 +213,8 @@ AsanSelfTestMain (
       FreePool (Buffer);
       break;
   }
+
+  AsanSetFuzzingActive (FALSE);
 
   DEBUG ((DEBUG_ERROR, "AsanSelfTest: case %d done\n", (UINTN)(Choice % 5)));
 #if defined (ASAN_SELFTEST_ALL)

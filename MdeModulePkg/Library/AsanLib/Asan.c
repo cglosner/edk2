@@ -116,12 +116,24 @@ static BOOLEAN AdjacentShadowValuesAreFullyPoisoned(u8 *s) {
 // boot. While it is TRUE a report also tells the fuzzer the iteration is a solution.
 BOOLEAN mAsanFuzzingActive = FALSE;
 
+//
+// Armed at ReadyToBoot, or by a target that opens the window itself. Both are needed:
+// AsanLib is linked into every instrumented image and this flag is per image, so a
+// boot option -- which is loaded after ReadyToBoot has already been signalled -- never
+// sees that event and could otherwise never report. Measured: AsanSelfTest detected its
+// own overflow (9 reports against the control's 8) and the fuzzer recorded nothing.
+//
+STATIC BOOLEAN  mAsanReportArmed = FALSE;
+
 VOID
 AsanSetFuzzingActive (
   IN BOOLEAN Active
   )
 {
   mAsanFuzzingActive = Active;
+  if (Active) {
+    mAsanReportArmed = TRUE;
+  }
 }
 
 // Report the current iteration to TSFFS as a solution. This is the tsffs.h
@@ -148,17 +160,20 @@ AsanSetFuzzingActive (
 #endif
 
 //
-// Reporting is armed at ReadyToBoot, not by the harness.
+// Reporting under libafl-qemu is gated twice, and both gates are load-bearing.
 //
-// The harness is a separate image that does not link this library, so it cannot set
-// mAsanFuzzingActive here the way it does under TSFFS. Reporting unconditionally does not
-// work either: LIBAFL_QEMU_COMMAND_END before the first START aborts the whole run with
-// EndBeforeStart, and this firmware raises hundreds of UBSan reports while it boots. But
-// the harness is a boot option, so everything before ReadyToBoot is the firmware's own
-// noise and everything after it belongs to an iteration.
+// ReadyToBoot arms it, because LIBAFL_QEMU_COMMAND_END before the first START aborts
+// the whole run with EndBeforeStart, and this firmware raises hundreds of reports while
+// it boots.
+//
+// Arming was once the only gate, on the reasoning that the harness is a boot option so
+// anything after ReadyToBoot belongs to an iteration. That is false: HiiDatabase exports
+// its package lists between the two, and those findings ended every iteration before the
+// harness ran. So the window opened by AsanSetFuzzingActive is required as well, exactly
+// as it is under TSFFS. A target that is not the generated harness -- AsanSelfTest, say --
+// has to open it for itself.
 //
 #if ASAN_FUZZER_BACKEND == ASAN_FUZZER_LIBAFL_QEMU
-STATIC BOOLEAN  mAsanReportArmed = FALSE;
 
 STATIC
 VOID
@@ -177,7 +192,15 @@ void AsanSignalSolution (VOID)
 #if ASAN_FUZZER_BACKEND == ASAN_FUZZER_LIBAFL_QEMU
   UINT64  Ret = 4;  // LIBAFL_QEMU_COMMAND_END
 
-  if (!mAsanReportArmed) {
+  //
+  // Both gates. Arming at ReadyToBoot alone is not enough: HiiDatabase exports its
+  // package lists after that event and before the boot option runs, so its UBSan
+  // findings ended five iterations out of five with the harness never reached
+  // (measured 2026-09-09, objectives 5, executions 5, corpus 0). The armed flag
+  // still matters on its own: an END before the first START aborts the run with
+  // EndBeforeStart.
+  //
+  if (!mAsanReportArmed || !mAsanFuzzingActive) {
     return;
   }
 

@@ -976,7 +976,22 @@
   MdeModulePkg/Bus/Pci/NvmExpressDxe/NvmExpressDxe.inf
   MdeModulePkg/Application/AsanSelfTest/AsanSelfTest.inf {
     <BuildOptions>
+      #
+      # Two modes, because the self test answers two different questions.
+      #
+      # ASAN_SELFTEST_ALL runs every error class in one boot, control first. That
+      # is the check that the shadow is mapped and the runtime reports at all.
+      #
+      # With a fuzzer attached the class comes from the first input byte instead,
+      # and the backend define makes the application do the LibAFL start/stop
+      # handshake. That makes it a positive and a negative control for the whole
+      # reporting path: cases 0-3 must be recorded as objectives, case 4 must not.
+      #
+!if "$(ASAN_FUZZER)" == "qemu"
+      *_CLANGSAN_X64_SAN_FLAGS == -fsanitize=address -fno-sanitize-address-use-after-scope -mllvm -asan-stack-dynamic-alloca=0 -mllvm -asan-instrumentation-with-call-threshold=0 -mllvm -asan-force-dynamic-shadow=true -fsanitize=undefined -fno-sanitize=alignment -Wno-frame-address -D ASAN_SELFTEST_BACKEND_QEMU
+!else
       *_CLANGSAN_X64_SAN_FLAGS == -fsanitize=address -fno-sanitize-address-use-after-scope -mllvm -asan-stack-dynamic-alloca=0 -mllvm -asan-instrumentation-with-call-threshold=0 -mllvm -asan-force-dynamic-shadow=true -fsanitize=undefined -fno-sanitize=alignment -Wno-frame-address -D ASAN_SELFTEST_ALL
+!endif
     <LibraryClasses>
       AsanLib|MdeModulePkg/Library/AsanLib/AsanLib.inf
       NULL|MdeModulePkg/Library/AsanLib/AsanLib.inf

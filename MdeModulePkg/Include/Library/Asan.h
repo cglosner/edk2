@@ -86,6 +86,17 @@ SerialOutput(
   IN  CONST CHAR8 *String
   );
 
+//
+// Opens and closes the window in which a finding is escalated to the fuzzer. Outside
+// it a report is still logged, which is what a plain boot wants: this firmware raises
+// hundreds of reports while it boots, and every one of them would otherwise end an
+// iteration before the harness had run.
+//
+VOID
+AsanSetFuzzingActive (
+  IN BOOLEAN  Active
+  );
+
 extern UINTN __asan_shadow_memory_dynamic_address;
 extern int __asan_option_detect_stack_use_after_return;
 extern UINT64 mAsanShadowMemoryStart;
