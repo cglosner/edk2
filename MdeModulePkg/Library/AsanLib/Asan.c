@@ -124,6 +124,7 @@ BOOLEAN mAsanFuzzingActive = FALSE;
 // own overflow (9 reports against the control's 8) and the fuzzer recorded nothing.
 //
 STATIC BOOLEAN  mAsanReportArmed = FALSE;
+STATIC BOOLEAN  mAsanFuzzingAnnounced = FALSE;
 
 VOID
 AsanSetFuzzingActive (
@@ -133,6 +134,20 @@ AsanSetFuzzingActive (
   mAsanFuzzingActive = Active;
   if (Active) {
     mAsanReportArmed = TRUE;
+    if (!mAsanFuzzingAnnounced) {
+      mAsanFuzzingAnnounced = TRUE;
+      //
+      // The boundary between the firmware's own reports and the ones an input
+      // provoked, marked on the serial stream itself.
+      //
+      // The report parser used to split on the line where DXE dispatches the
+      // harness image. That line only reaches the same capture under Simics --
+      // OVMF writes DEBUG to the ISA debug port, not to serial -- so under QEMU
+      // the marker never appeared and every report was filed as boot noise. 88
+      // of them in one campaign, none of them counted.
+      //
+      SerialOutput ("FIRNESS: fuzzing starts\n");
+    }
   }
 }
 
