@@ -17,8 +17,7 @@
 #        <LibraryClasses>
 #          AsanLib|MdeModulePkg/Library/AsanLib/AsanLib.inf
 #          NULL|MdeModulePkg/Library/AsanLib/AsanLib.inf
-#          BaseMemoryLib|MdePkg/Library/AsanMemoryLibRepStr/AsanMemoryLibRepStr.inf
-#      }
+#        #      }
 #
 #    ASAN_SCOPE = full instruments every DXE phase module. That is what finds an error
 #    whose allocation and access are in different drivers, and it costs roughly three
@@ -57,6 +56,24 @@
   #
   DEFINE ASAN_SAN_FLAGS = -fsanitize=address -fno-sanitize-address-use-after-scope -mllvm -asan-stack-dynamic-alloca=0 -mllvm -asan-instrumentation-with-call-threshold=0 -mllvm -asan-force-dynamic-shadow=true -fsanitize=undefined -fno-sanitize=alignment -Wno-frame-address
 
+!if "$(ASAN_SCOPE)" != "off"
+#
+# Check every CopyMem, SetMem and ZeroMem in the image, at any scope.
+#
+# This is the difference between finding a firmware bug and not. AsanMemoryLibRepStr
+# range checks explicitly -- it needs no compiler instrumentation and no AsanLib, only
+# DebugLib and BaseLib -- so a driver that is not itself instrumented still has its
+# memory operations checked. Every out of bounds copy found so far came through here:
+# DevicePathDxe, SnpDxe and DxeCore are none of them in an opt-in list.
+#
+# Resolving it only inside the per-module opt-in blocks, as this did, left OVMF
+# checking 3 modules of 312 while the Simics board checked every one of them, which
+# is most of why the two backends did not find the same bugs.
+#
+[LibraryClasses.common.DXE_CORE, LibraryClasses.common.DXE_DRIVER, LibraryClasses.common.DXE_RUNTIME_DRIVER, LibraryClasses.common.UEFI_DRIVER, LibraryClasses.common.UEFI_APPLICATION]
+  BaseMemoryLib|MdePkg/Library/AsanMemoryLibRepStr/AsanMemoryLibRepStr.inf
+!endif
+
 [LibraryClasses]
   #
   # Resolvable in every phase, including PEI. Modules that are actually instrumented
@@ -88,27 +105,22 @@
 [LibraryClasses.common.DXE_CORE]
   AsanLib|MdeModulePkg/Library/AsanLib/AsanLib.inf
   NULL|MdeModulePkg/Library/AsanLib/AsanLib.inf
-  BaseMemoryLib|MdePkg/Library/AsanMemoryLibRepStr/AsanMemoryLibRepStr.inf
 
 [LibraryClasses.common.DXE_DRIVER]
   AsanLib|MdeModulePkg/Library/AsanLib/AsanLib.inf
   NULL|MdeModulePkg/Library/AsanLib/AsanLib.inf
-  BaseMemoryLib|MdePkg/Library/AsanMemoryLibRepStr/AsanMemoryLibRepStr.inf
 
 [LibraryClasses.common.DXE_RUNTIME_DRIVER]
   AsanLib|MdeModulePkg/Library/AsanLib/AsanLib.inf
   NULL|MdeModulePkg/Library/AsanLib/AsanLib.inf
-  BaseMemoryLib|MdePkg/Library/AsanMemoryLibRepStr/AsanMemoryLibRepStr.inf
 
 [LibraryClasses.common.UEFI_DRIVER]
   AsanLib|MdeModulePkg/Library/AsanLib/AsanLib.inf
   NULL|MdeModulePkg/Library/AsanLib/AsanLib.inf
-  BaseMemoryLib|MdePkg/Library/AsanMemoryLibRepStr/AsanMemoryLibRepStr.inf
 
 [LibraryClasses.common.UEFI_APPLICATION]
   AsanLib|MdeModulePkg/Library/AsanLib/AsanLib.inf
   NULL|MdeModulePkg/Library/AsanLib/AsanLib.inf
-  BaseMemoryLib|MdePkg/Library/AsanMemoryLibRepStr/AsanMemoryLibRepStr.inf
 !endif
 
 [BuildOptions]
