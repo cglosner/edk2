@@ -14,6 +14,11 @@
     2  use after free
     3  double free
     4  control -- a correct allocation and free, which must NOT be reported
+    5  length driven overflow: a fixed allocation and a copy whose size came from the
+       input. This is the shape a real firmware bug takes -- DevicePathDxe and the FVB
+       path both produced exactly this -- and unlike the others it is caught by the
+       instrumented CopyMem rather than by a load/store check, so it also exercises
+       detection in a module that is not itself instrumented.
 
   Copyright (c) 2026, Firness contributors. All rights reserved.<BR>
   SPDX-License-Identifier: BSD-2-Clause-Patent
@@ -140,10 +145,15 @@ AsanSelfTestMain (
   // instruction is #UD and would stop at the first finding.
   //
 #if defined (ASAN_SELFTEST_ALL)
-  STATIC CONST UINTN  Order[5] = { 4, 0, 1, 2, 3 };
+  //
+// Control first, so a runtime that reports everything is caught; the double free
+// last, because DxeCore ASSERTs on the bad pool signature and deadloops, which ends
+// the boot and would hide anything ordered after it.
+//
+STATIC CONST UINTN  Order[6] = { 4, 0, 1, 5, 2, 3 };
   UINTN               Step;
 
-  for (Step = 0; Step < 5; Step++) {
+  for (Step = 0; Step < 6; Step++) {
     Choice = Order[Step];
 #endif
   Buffer = AllocatePool (64);
@@ -153,7 +163,7 @@ AsanSelfTestMain (
   }
 
   DEBUG ((DEBUG_ERROR, "AsanSelfTest: case %d buffer 0x%lx shadow",
-          (UINTN)(Choice % 5), (UINT64)(UINTN)Buffer));
+          (UINTN)(Choice % 6), (UINT64)(UINTN)Buffer));
   {
     volatile UINT8  *Shadow;
     UINTN            Index;
@@ -173,7 +183,7 @@ AsanSelfTestMain (
   //
   AsanSetFuzzingActive (TRUE);
 
-  switch (Choice % 5) {
+  switch (Choice % 6) {
     case 0:
       DEBUG ((DEBUG_ERROR, "AsanSelfTest: expect heap-buffer-overflow\n"));
       Scribble (&Buffer[64], 0x41);
@@ -207,6 +217,38 @@ AsanSelfTestMain (
 
       break;
 
+    case 5:
+      DEBUG ((DEBUG_ERROR, "AsanSelfTest: expect length-driven-overflow\n"));
+      {
+        UINTN  CopyLength;
+
+        //
+        // The size comes from the input and the destination does not. Nothing
+        // here is out of bounds until the two disagree, which is why this class
+        // survives review in real firmware.
+        //
+        //
+        // Fall back to a fixed length when there is no input. With no fuzzer
+        // attached mInput is all zeroes, so a purely input derived length is zero
+        // and the copy never happens -- the case silently passes and the control
+        // value of the whole self test is lost.
+        //
+        CopyLength = (Length > 1 && mInput[1] != 0) ? (mInput[1] % 512) : 200;
+        //
+        // Overread rather than overwrite. The 64 byte allocation is the *source*:
+        // a write of 200 bytes into it corrupts the pool header and the boot dies
+        // at the next FreePool, before the remaining cases run. A read past the
+        // end is reported just as clearly and leaves the heap intact -- and it is
+        // the shape the DevicePathDxe finding actually took.
+        //
+        if (CopyLength > 64) {
+          CopyMem (mInput, Buffer, CopyLength);
+        }
+      }
+
+      FreePool (Buffer);
+      break;
+
     default:
       DEBUG ((DEBUG_ERROR, "AsanSelfTest: control, expect NO report\n"));
       SetMem (Buffer, 64, 0x44);
@@ -216,7 +258,7 @@ AsanSelfTestMain (
 
   AsanSetFuzzingActive (FALSE);
 
-  DEBUG ((DEBUG_ERROR, "AsanSelfTest: case %d done\n", (UINTN)(Choice % 5)));
+  DEBUG ((DEBUG_ERROR, "AsanSelfTest: case %d done\n", (UINTN)(Choice % 6)));
 #if defined (ASAN_SELFTEST_ALL)
   }
 #endif
