@@ -1615,6 +1615,23 @@ void __ubsan_handle_pointer_overflow(struct OverflowDescData *Data, UINTN Base, 
   SerialOutput (", column:");
   Num2Str16bit (Data->Loc.column, NumStr);
   SerialOutput (NumStr);
+  SerialOutput (" ErrorType = ");
+  if (Base == 0 || Result == 0) {
+    //
+    // The common case by far, and much the least alarming: an offset applied to a
+    // null pointer, which UEFI code does routinely on a size-query pass where the
+    // result is never dereferenced. Worth telling apart from a real wrap.
+    //
+    SerialOutput ("NullPointerArithmetic: offset applied to a null pointer base ");
+  } else {
+    SerialOutput ("PointerOverflow: pointer index expression overflowed base ");
+  }
+
+  Num2Str64bit (Base, NumStr);
+  SerialOutput (NumStr);
+  SerialOutput (" result ");
+  Num2Str64bit (Result, NumStr);
+  SerialOutput (NumStr);
   SerialOutput ("\n");
   SANITIZER_CALLSTACK_DUMP("__ubsan_handle_pointer_overflow");
 }
@@ -1627,6 +1644,23 @@ void __ubsan_handle_pointer_overflow_abort(struct OverflowDescData *Data, UINTN 
   SerialOutput (NumStr);
   SerialOutput (", column:");
   Num2Str16bit (Data->Loc.column, NumStr);
+  SerialOutput (NumStr);
+  SerialOutput (" ErrorType = ");
+  if (Base == 0 || Result == 0) {
+    //
+    // The common case by far, and much the least alarming: an offset applied to a
+    // null pointer, which UEFI code does routinely on a size-query pass where the
+    // result is never dereferenced. Worth telling apart from a real wrap.
+    //
+    SerialOutput ("NullPointerArithmetic: offset applied to a null pointer base ");
+  } else {
+    SerialOutput ("PointerOverflow: pointer index expression overflowed base ");
+  }
+
+  Num2Str64bit (Base, NumStr);
+  SerialOutput (NumStr);
+  SerialOutput (" result ");
+  Num2Str64bit (Result, NumStr);
   SerialOutput (NumStr);
   SerialOutput ("\n");
   SANITIZER_CALLSTACK_DUMP("__ubsan_handle_pointer_overflow_abort");
