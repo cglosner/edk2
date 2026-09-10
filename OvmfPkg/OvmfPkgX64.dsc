@@ -93,6 +93,18 @@
 !endif
 
   #
+  # Whether a CPU exception ends the fuzzing iteration. Separate from ASAN_FUZZER on
+  # purpose: the two want opposite settings. AsanLib's escalation is per image and
+  # nothing gates a firmware module's copy, so ASAN_FUZZER=qemu makes boot time
+  # reports end the run before the harness starts -- while the exception hook is only
+  # reached by an actual fault and is exactly what stops every crash being recorded as
+  # a timeout.
+  #
+!ifndef FIRNESS_QEMU_CRASH
+  DEFINE FIRNESS_QEMU_CRASH        = FALSE
+!endif
+
+  #
   # Define the FILE_GUID of CpuMpPei/CpuDxe for unique-processor version.
   #
   DEFINE UP_CPU_PEI_GUID  = 280251c4-1d09-4035-9062-839acb5f18c1

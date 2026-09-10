@@ -154,6 +154,29 @@ CommonExceptionHandlerWorker (
     // Release Spinlock of output message
     //
     ReleaseSpinLock (&ExceptionHandlerData->DisplayMessageSpinLock);
+#if defined (FIRNESS_LIBAFL_CRASH_ON_EXCEPTION) && defined (MDE_CPU_X64)
+    //
+    // Tell the fuzzer the guest faulted, before the dead loop swallows it.
+    //
+    // Under Simics the fuzzer watches the machine and sees an exception itself.
+    // Nothing watches under libafl-qemu: the emulator runs on, the handler dead
+    // loops, and the iteration is only noticed when its timeout expires. Every
+    // crash is then recorded as a timeout, which is both far slower and useless
+    // for telling one input from another.
+    //
+    // LIBAFL_QEMU_COMMAND_END with END_CRASH, written out so this file needs no
+    // fuzzer header. Off unless the platform defines the macro.
+    //
+    {
+      UINT64  Command;
+
+      Command = 4;
+      __asm__ __volatile__ (".byte 0x0f, 0x3a, 0xf2, 0x66\n\t"
+                            : "+a" (Command)
+                            : "D" ((UINT64)2)
+                            : "memory", "cc");
+    }
+#endif
     //
     // Enter a dead loop if needn't to execute old IDT handler further
     //

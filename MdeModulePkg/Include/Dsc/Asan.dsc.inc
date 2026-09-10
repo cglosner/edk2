@@ -117,6 +117,15 @@
   # the TSFFS handshake is a cpuid, legal and ignored where nothing is watching, so the
   # firmware logs memory errors and the fuzzer records nothing.
   #
+!ifdef FIRNESS_QEMU_CRASH
+!if "$(FIRNESS_QEMU_CRASH)" == "TRUE"
+  #
+  # A guest fault ends the iteration instead of dead looping until the timeout.
+  # See UefiCpuPkg/Library/CpuExceptionHandlerLib/PeiDxeSmmCpuException.c.
+  #
+  GCC:*_*_*_CC_FLAGS = -D FIRNESS_LIBAFL_CRASH_ON_EXCEPTION
+!endif
+!endif
 !if "$(ASAN_FUZZER)" == "qemu"
   GCC:*_*_*_CC_FLAGS = -D ASAN_FUZZER_BACKEND=2
 !elseif "$(ASAN_FUZZER)" == "none"
