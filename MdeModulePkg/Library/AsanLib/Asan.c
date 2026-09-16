@@ -117,6 +117,33 @@ static BOOLEAN AdjacentShadowValuesAreFullyPoisoned(u8 *s) {
 BOOLEAN mAsanFuzzingActive = FALSE;
 
 //
+// The HOB, kept so the fuzzing window can be read from where every module can see it.
+// AsanLib is a static library: mAsanFuzzingActive above is this module's own copy, and
+// the harness that opens the window is a different module. Without the shared field a
+// finding in the driver under test is printed and never escalated -- 714 findings and 4
+// solutions in one run against EFI_DEVICE_PATH_UTILITIES_PROTOCOL, none of the four a
+// sanitizer report.
+//
+STATIC ASAN_INFO  *mAsanInfo = NULL;
+
+//
+// Open in this module, or open for everyone. Either is enough: AsanSelfTest brackets its
+// own cases before any HOB pointer is taken, and the generated harness opens the shared
+// one for the driver it is calling.
+//
+STATIC
+BOOLEAN
+AsanFuzzingWindowOpen (
+  VOID
+  )
+{
+  if (mAsanFuzzingActive) {
+    return TRUE;
+  }
+  return (BOOLEAN)((mAsanInfo != NULL) && (mAsanInfo->AsanFuzzingActive != 0));
+}
+
+//
 // Armed at ReadyToBoot, or by a target that opens the window itself. Both are needed:
 // AsanLib is linked into every instrumented image and this flag is per image, so a
 // boot option -- which is loaded after ReadyToBoot has already been signalled -- never
@@ -144,6 +171,12 @@ AsanSetFuzzingActive (
   )
 {
   mAsanFuzzingActive = Active;
+  //
+  // and tell every other module, which has its own copy of the flag above
+  //
+  if (mAsanInfo != NULL) {
+    mAsanInfo->AsanFuzzingActive = Active ? 1 : 0;
+  }
   if (Active) {
     mAsanReportArmed = TRUE;
     if (!mAsanFuzzingAnnounced) {
@@ -229,7 +262,7 @@ void AsanSignalSolution (VOID)
   // still matters on its own: an END before the first START aborts the run with
   // EndBeforeStart.
   //
-  if (!mAsanReportArmed || !mAsanFuzzingActive) {
+  if (!mAsanReportArmed || !AsanFuzzingWindowOpen ()) {
     return;
   }
 
@@ -241,7 +274,7 @@ void AsanSignalSolution (VOID)
   unsigned int _a = 0, _b = 0, _c = 0, _d = 0;
   unsigned int value = (0x0005U << 0x10U) | 0x4711U;
 
-  if (!mAsanFuzzingActive) {
+  if (!AsanFuzzingWindowOpen ()) {
     return ;
   }
 
@@ -1753,6 +1786,7 @@ SetupAsanShadowMemory (
   } 
 
   AsanInfoPtr = GET_GUID_HOB_DATA (GuidHob);
+  mAsanInfo   = AsanInfoPtr;
   asan_inited = (AsanInfoPtr->AsanInited == 0)? FALSE: TRUE;;
   asan_is_deactivated = (AsanInfoPtr->AsanActivated == 0)? TRUE: FALSE;
   mAsanShadowMemoryStart = AsanInfoPtr->AsanShadowMemoryStart;
