@@ -238,6 +238,13 @@ APRIORI DXE {
 #
 # DXE Phase modules
 #
+!ifdef ASAN_FAULT_PROTOCOL
+# A driver that is wrong on purpose, for proving the sanitizer reports on driver
+# memory reached through a protocol call. Placed here rather than beside the self
+# test because that neighbourhood sits inside !if "$(ASAN_SCOPE)" != "full", so a
+# full-scope build -- the only kind worth the control -- silently dropped it.
+INF  MdeModulePkg/Universal/AsanFaultDxe/AsanFaultDxe.inf
+!endif
 INF  MdeModulePkg/Core/Dxe/DxeMain.inf
 
 INF  MdeModulePkg/Universal/ReportStatusCodeRouter/RuntimeDxe/ReportStatusCodeRouterRuntimeDxe.inf

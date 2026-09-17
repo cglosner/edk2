@@ -1,0 +1,36 @@
+## @file
+#  A DXE driver that is wrong on purpose, for proving the sanitizer reports on driver
+#  memory reached through a protocol call. Built only under ASAN_FAULT_PROTOCOL.
+#
+#  Copyright (c) 2026, Intel Corporation. All rights reserved.<BR>
+#  SPDX-License-Identifier: BSD-2-Clause-Patent
+##
+
+[Defines]
+  INF_VERSION    = 0x00010005
+  BASE_NAME      = AsanFaultDxe
+  FILE_GUID      = 2f6b1c84-9d05-47a3-8e11-c4b7a0d6e239
+  MODULE_TYPE    = DXE_DRIVER
+  VERSION_STRING = 1.0
+  ENTRY_POINT    = AsanFaultDxeEntry
+
+[Sources]
+  AsanFaultDxe.c
+  AsanFaultConsumer.c
+
+[Packages]
+  MdePkg/MdePkg.dec
+  MdeModulePkg/MdeModulePkg.dec
+
+[LibraryClasses]
+  UefiDriverEntryPoint
+  UefiBootServicesTableLib
+  MemoryAllocationLib
+  BaseMemoryLib
+  DebugLib
+
+[Protocols]
+  gAsanFaultProtocolGuid          ## PRODUCES
+
+[Depex]
+  TRUE

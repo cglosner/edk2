@@ -986,6 +986,22 @@
   MdeModulePkg/Bus/Ata/AtaAtapiPassThru/AtaAtapiPassThru.inf
   MdeModulePkg/Bus/Ata/AtaBusDxe/AtaBusDxe.inf
   MdeModulePkg/Bus/Pci/NvmExpressDxe/NvmExpressDxe.inf
+!ifdef ASAN_FAULT_PROTOCOL
+  #
+  # A driver that is wrong on purpose. It is the positive control for the path a campaign
+  # actually exercises -- a fault on driver-allocated memory, in a separately built and
+  # separately instrumented image, reached through a protocol call while the harness runs.
+  # The self test application cannot cover that. Gated so it can never reach a real image.
+  #
+  MdeModulePkg/Universal/AsanFaultDxe/AsanFaultDxe.inf {
+    <BuildOptions>
+      *_CLANGSAN_X64_SAN_FLAGS == $(ASAN_SAN_FLAGS) -mllvm -asan-stack=0
+    <LibraryClasses>
+      AsanLib|MdeModulePkg/Library/AsanLib/AsanLib.inf
+      NULL|MdeModulePkg/Library/AsanLib/AsanLib.inf
+      BaseMemoryLib|MdePkg/Library/AsanMemoryLibRepStr/AsanMemoryLibRepStr.inf
+  }
+!endif
   MdeModulePkg/Application/AsanSelfTest/AsanSelfTest.inf {
     <BuildOptions>
       #
