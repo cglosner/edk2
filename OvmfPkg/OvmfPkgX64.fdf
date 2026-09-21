@@ -238,6 +238,9 @@ APRIORI DXE {
 #
 # DXE Phase modules
 #
+!ifdef FW_SAN
+INF  MdeModulePkg/Universal/FwSanDxe/FwSanDxe.inf
+!endif
 !ifdef SAN_BENCH
 INF  MdeModulePkg/Universal/SanBenchDxe/SanBenchDxe.inf
 !endif

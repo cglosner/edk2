@@ -986,6 +986,13 @@
   MdeModulePkg/Bus/Ata/AtaAtapiPassThru/AtaAtapiPassThru.inf
   MdeModulePkg/Bus/Ata/AtaBusDxe/AtaBusDxe.inf
   MdeModulePkg/Bus/Pci/NvmExpressDxe/NvmExpressDxe.inf
+!ifdef FW_SAN
+  MdeModulePkg/Universal/FwSanDxe/FwSanDxe.inf {
+    <LibraryClasses>
+      AsanLib|MdeModulePkg/Library/AsanLib/AsanLib.inf
+      NULL|MdeModulePkg/Library/AsanLib/AsanLib.inf
+  }
+!endif
 !ifdef SAN_BENCH
   #
   # Ground truth. Each member hides a fault behind a condition an input has to

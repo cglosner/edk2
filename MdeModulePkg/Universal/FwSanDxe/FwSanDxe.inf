@@ -1,0 +1,39 @@
+## @file
+#  A sanitizer for the faults that are about firmware rather than about allocations.
+#  Hooks the boot and runtime service tables once so every module is covered without
+#  linking anything. Gated behind FW_SAN.
+#
+#  Copyright (c) 2026, Intel Corporation. All rights reserved.<BR>
+#  SPDX-License-Identifier: BSD-2-Clause-Patent
+##
+
+[Defines]
+  INF_VERSION    = 0x00010005
+  BASE_NAME      = FwSanDxe
+  FILE_GUID      = b39e5a07-4c12-4de8-9a66-2f8b41d07c53
+  MODULE_TYPE    = DXE_DRIVER
+  VERSION_STRING = 1.0
+  ENTRY_POINT    = FwSanDxeEntry
+
+[Sources]
+  FwSanDxe.c
+
+[Packages]
+  MdePkg/MdePkg.dec
+  MdeModulePkg/MdeModulePkg.dec
+
+[LibraryClasses]
+  UefiDriverEntryPoint
+  UefiBootServicesTableLib
+  UefiRuntimeServicesTableLib
+  MemoryAllocationLib
+  BaseMemoryLib
+  BaseLib
+  PrintLib
+  DebugLib
+
+[Guids]
+  gEfiEventExitBootServicesGuid    ## CONSUMES ## Event
+
+[Depex]
+  gEfiVariableArchProtocolGuid AND gEfiVariableWriteArchProtocolGuid
