@@ -238,6 +238,9 @@ APRIORI DXE {
 #
 # DXE Phase modules
 #
+!ifdef SAN_BENCH
+INF  MdeModulePkg/Universal/SanBenchDxe/SanBenchDxe.inf
+!endif
 !ifdef ASAN_FAULT_PROTOCOL
 # A driver that is wrong on purpose, for proving the sanitizer reports on driver
 # memory reached through a protocol call. Placed here rather than beside the self

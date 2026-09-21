@@ -1,0 +1,42 @@
+## @file
+#  Protocols that are wrong on purpose, as ground truth for the fuzzer and the sanitizers.
+#  Built only under SAN_BENCH. Never ship this.
+#
+#  Copyright (c) 2026, Intel Corporation. All rights reserved.<BR>
+#  SPDX-License-Identifier: BSD-2-Clause-Patent
+##
+
+[Defines]
+  INF_VERSION    = 0x00010005
+  BASE_NAME      = SanBenchDxe
+  FILE_GUID      = 8c41d7e6-02b9-4a58-9f3d-71e05c8ab264
+  MODULE_TYPE    = DXE_DRIVER
+  VERSION_STRING = 1.0
+  ENTRY_POINT    = SanBenchDxeEntry
+
+[Sources]
+  SanBenchDxe.c
+  SanBenchMemory.c
+  SanBenchFirmware.c
+
+[Packages]
+  MdePkg/MdePkg.dec
+  MdeModulePkg/MdeModulePkg.dec
+
+[LibraryClasses]
+  UefiDriverEntryPoint
+  UefiBootServicesTableLib
+  UefiRuntimeServicesTableLib
+  MemoryAllocationLib
+  BaseMemoryLib
+  DebugLib
+
+[Protocols]
+  gSanBenchMemoryProtocolGuid      ## PRODUCES
+  gSanBenchFirmwareProtocolGuid    ## PRODUCES
+
+[Guids]
+  gEfiEventExitBootServicesGuid    ## CONSUMES ## Event
+
+[Depex]
+  TRUE

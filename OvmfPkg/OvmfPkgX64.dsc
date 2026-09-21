@@ -986,6 +986,22 @@
   MdeModulePkg/Bus/Ata/AtaAtapiPassThru/AtaAtapiPassThru.inf
   MdeModulePkg/Bus/Ata/AtaBusDxe/AtaBusDxe.inf
   MdeModulePkg/Bus/Pci/NvmExpressDxe/NvmExpressDxe.inf
+!ifdef SAN_BENCH
+  #
+  # Ground truth. Each member hides a fault behind a condition an input has to
+  # satisfy, so a campaign that reports one has demonstrated search rather than
+  # reach. Instrumented exactly like the firmware around it, because a benchmark
+  # built differently from the thing it measures is measuring itself.
+  #
+  MdeModulePkg/Universal/SanBenchDxe/SanBenchDxe.inf {
+    <BuildOptions>
+      *_CLANGSAN_X64_SAN_FLAGS == $(ASAN_SAN_FLAGS) -mllvm -asan-stack=0
+    <LibraryClasses>
+      AsanLib|MdeModulePkg/Library/AsanLib/AsanLib.inf
+      NULL|MdeModulePkg/Library/AsanLib/AsanLib.inf
+      BaseMemoryLib|MdePkg/Library/AsanMemoryLibRepStr/AsanMemoryLibRepStr.inf
+  }
+!endif
 !ifdef ASAN_FAULT_PROTOCOL
   #
   # A driver that is wrong on purpose. It is the positive control for the path a campaign
