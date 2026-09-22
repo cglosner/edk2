@@ -22,6 +22,9 @@
 STATIC UINT8              mAbsorbed[64];
 STATIC EFI_BOOT_SERVICES  *mCapturedBs   = NULL;
 STATIC VOID               *mStaleHandle  = NULL;
+STATIC EFI_HANDLE         mStaleOwner    = NULL;
+STATIC EFI_GUID           mStaleGuid     = { 0x9e14b7c2, 0x38a5, 0x4d6f,
+                                             { 0xbb, 0x71, 0x05, 0x2a, 0xc8, 0x3f, 0x96, 0x1d } };
 STATIC BOOLEAN            mAfterExitBoot = FALSE;
 
 /**
@@ -141,15 +144,29 @@ SanBenchStaleInterface (
   IN SAN_BENCH_FIRMWARE_PROTOCOL  *This
   )
 {
+  EFI_STATUS  Status;
+
   if (mStaleHandle == NULL) {
     return EFI_NOT_READY;
   }
 
   //
-  // Read through the cached interface without re-opening it. Correct code re-locates the
+  // Uninstall the protocol and keep the interface pointer, which is the whole mistake.
+  // The storage is still allocated and still readable, so this keeps working right up
+  // until the allocator hands the memory to somebody else.
+  //
+  if (mStaleOwner != NULL) {
+    Status = gBS->UninstallProtocolInterface (mStaleOwner, &mStaleGuid, mStaleHandle);
+    if (!EFI_ERROR (Status)) {
+      mStaleOwner = NULL;
+    }
+  }
+
+  //
+  // Read through the cached interface without re-locating it. Correct code re-opens the
   // protocol, or registers for its uninstall notification and drops the pointer.
   //
-  return (*(UINT32 *)mStaleHandle == 0) ? EFI_NOT_FOUND : EFI_SUCCESS;
+  return (*(volatile UINT32 *)mStaleHandle == 0) ? EFI_NOT_FOUND : EFI_SUCCESS;
 }
 
 /**
@@ -203,7 +220,23 @@ SanBenchFirmwareInit (
   )
 {
   mCapturedBs  = gBS;
+
+  //
+  // On the heap, and actually installed. A protocol whose interface is a global has no
+  // redzone for the sanitizer to measure against, so poison-on-uninstall can say nothing
+  // about it -- and a benchmark modelling the case the check cannot see measures the
+  // wrong thing.
+  //
   mStaleHandle = AllocateZeroPool (32);
+  if (mStaleHandle != NULL) {
+    *(UINT32 *)mStaleHandle = 0x5A5A5A5A;
+    gBS->InstallProtocolInterface (
+           &mStaleOwner,
+           &mStaleGuid,
+           EFI_NATIVE_INTERFACE,
+           mStaleHandle
+           );
+  }
 }
 
 VOID

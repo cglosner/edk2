@@ -38,6 +38,7 @@
 VOID SerialOutput (IN CONST CHAR8 *String);
 VOID AsanSignalSolution (VOID);
 VOID AsanRegisterProtectedRegion (IN UINT64 Base, IN UINT64 Size, IN CONST CHAR8 *Name);
+UINTN AsanPoisonStaleInterface (IN VOID *Interface);
 
 #define FWSAN_VARIABLE_SLOTS  8
 
@@ -51,6 +52,7 @@ typedef struct {
 STATIC EFI_ALLOCATE_POOL      mRealAllocatePool = NULL;
 STATIC EFI_FREE_POOL          mRealFreePool     = NULL;
 STATIC EFI_GET_VARIABLE       mRealGetVariable  = NULL;
+STATIC EFI_UNINSTALL_PROTOCOL_INTERFACE  mRealUninstall = NULL;
 STATIC BOOLEAN                mAfterExitBoot    = FALSE;
 STATIC EFI_EVENT              mExitBootEvent    = NULL;
 STATIC FWSAN_VARIABLE_CALL    mVariableCalls[FWSAN_VARIABLE_SLOTS];
@@ -202,6 +204,49 @@ FwSanGetVariable (
   return Status;
 }
 
+/**
+  An interface whose protocol has just been uninstalled.
+
+  The handle database no longer lists it and the storage is still allocated, still
+  mapped and still full of plausible function pointers, so a caller that cached the
+  interface keeps working until the memory is reused and then does something else
+  entirely. ASan has nothing to say: no allocation ended.
+
+  Poisoning the allocation makes the next read through the stale pointer a report
+  instead of a mystery. The extent comes from the shadow, so this does not need to know
+  how large the interface was, and a protocol whose interface is a global is left alone
+  because a global has no redzone to measure against.
+
+  Reuse is safe without any bookkeeping here: CoreAllocatePoolI unpoisons what it hands
+  out, so a later allocation over this memory clears the poison on its way to the caller.
+  A free is safe too -- the pool poisons with its own free magic, and a use-after-free is
+  the report the caller then deserves.
+**/
+STATIC
+EFI_STATUS
+EFIAPI
+FwSanUninstallProtocolInterface (
+  IN EFI_HANDLE  Handle,
+  IN EFI_GUID    *Protocol,
+  IN VOID        *Interface
+  )
+{
+  EFI_STATUS  Status;
+  UINTN       Poisoned;
+
+  Status = mRealUninstall (Handle, Protocol, Interface);
+  if (EFI_ERROR (Status)) {
+    return Status;
+  }
+
+  Poisoned = AsanPoisonStaleInterface (Interface);
+  if (Poisoned != 0) {
+    SerialOutput ("FWSAN: interface uninstalled, storage poisoned\n");
+  }
+
+  return Status;
+}
+
 STATIC
 VOID
 EFIAPI
@@ -236,6 +281,9 @@ FwSanHookTables (
   gBS->FreePool     = FwSanFreePool;
   gBS->Hdr.CRC32    = 0;
   gBS->CalculateCrc32 (gBS, gBS->Hdr.HeaderSize, &gBS->Hdr.CRC32);
+
+  mRealUninstall                     = gBS->UninstallProtocolInterface;
+  gBS->UninstallProtocolInterface    = FwSanUninstallProtocolInterface;
 
   mRealGetVariable  = gRT->GetVariable;
   gRT->GetVariable  = FwSanGetVariable;
