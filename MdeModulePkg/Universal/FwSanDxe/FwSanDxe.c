@@ -37,6 +37,7 @@
 //
 VOID SerialOutput (IN CONST CHAR8 *String);
 VOID AsanSignalSolution (VOID);
+VOID AsanRegisterProtectedRegion (IN UINT64 Base, IN UINT64 Size, IN CONST CHAR8 *Name);
 
 #define FWSAN_VARIABLE_SLOTS  8
 
@@ -252,6 +253,19 @@ FwSanDxeEntry (
   )
 {
   EFI_STATUS  Status;
+
+  //
+  // Which memory a driver has no business reading. AsanLib holds the list and answers
+  // the question from inside the memory interceptors; deciding what belongs on it is
+  // policy, and policy belongs here.
+  //
+  // The flash the firmware itself came out of is the clearest case: a protocol member
+  // handed a pointer into it by its caller, and dereferencing that pointer, is the shape
+  // of an SMM callout. A 4 MB window below 4 GB covers the SPI mapping on this platform.
+  // The legacy BIOS window at 0xC0000 is the other one an input can plausibly aim at.
+  //
+  AsanRegisterProtectedRegion (0xFFC00000ULL, SIZE_4MB, "flash");
+  AsanRegisterProtectedRegion (0x000C0000ULL, SIZE_256KB, "legacy BIOS window");
 
   ZeroMem (mVariableCalls, sizeof (mVariableCalls));
   FwSanHookTables ();

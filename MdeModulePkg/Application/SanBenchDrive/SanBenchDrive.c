@@ -27,6 +27,7 @@
 // case a report belongs to, and with them apart the scoring is guesswork.
 //
 VOID SerialOutput (IN CONST CHAR8 *String);
+VOID AsanSetRegionChecks (IN BOOLEAN Active);
 
 #define SAY(Case)  SerialOutput ("SanBenchDrive: expect " Case "\n")
 
@@ -57,6 +58,15 @@ SanBenchDriveEntry (
   }
 
   SerialOutput ("SanBenchDrive: start\n");
+  //
+  // Turn the region check on without opening the escalation window. The window is what
+  // makes a finding end the iteration, and ending it is a LibAFL command -- an invalid
+  // opcode under a plain QEMU, so opening it here kills the guest on the first report
+  // and the remaining cases never run. This switch enables the check and leaves
+  // escalation alone.
+  //
+  AsanSetRegionChecks (TRUE);
+
 
   //
   // The control goes first. If nothing is reported for the rest, a silent runtime and a
@@ -143,6 +153,7 @@ SanBenchDriveEntry (
   SAY ("size-overflow");
   Mem->FillTable (Mem, (MAX_UINTN / 8) + 4);            // the product wraps
 
+  AsanSetRegionChecks (FALSE);
   SerialOutput ("SanBenchDrive: done\n");
   return EFI_SUCCESS;
 }

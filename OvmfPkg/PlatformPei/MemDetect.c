@@ -406,6 +406,8 @@ AsanInitializeShadowMemory (
   AsanInfo.AsanInited            = 1;
   AsanInfo.AsanActivated         = 1;
   AsanInfo.AsanFuzzingActive     = 0;
+  AsanInfo.AsanRegionChecksActive   = 0;
+  AsanInfo.AsanProtectedRegionCount = 0;
   BuildGuidDataHob (&gAsanInfoGuid, &AsanInfo, sizeof (ASAN_INFO));
 
   DEBUG ((DEBUG_INFO, "Asan: shadow 0x%lx size 0x%lx for low memory 0x%lx\n",
