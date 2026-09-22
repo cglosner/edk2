@@ -28,6 +28,7 @@
 //
 VOID SerialOutput (IN CONST CHAR8 *String);
 VOID AsanSetRegionChecks (IN BOOLEAN Active);
+VOID AsanRegisterUntrusted (IN UINT64 Base, IN UINT64 Size);
 
 #define SAY(Case)  SerialOutput ("SanBenchDrive: expect " Case "\n")
 
@@ -102,11 +103,19 @@ SanBenchDriveEntry (
   SAY ("foreign-pointer");
   Fw->Absorb (Fw, (VOID *)(UINTN)0xFFC00000, 32);       // the flash region, not ours
 
+  //
+  // Declare the buffer untrusted for the duration of the call, which is what a harness
+  // does for every buffer it fills from fuzzer input and hands to a protocol. Without
+  // that the check has nothing to watch: a double fetch reads ordinary valid memory and
+  // is invisible unless someone says which memory is not to be trusted.
+  //
   SAY ("double-fetch");
   Shared = AllocateZeroPool (256);
   if (Shared != NULL) {
     *(UINT32 *)Shared = 8;
+    AsanRegisterUntrusted ((UINT64)(UINTN)Shared, 256);
     Fw->DoubleFetch (Fw, Shared, 256);
+    AsanRegisterUntrusted (0, 0);
   }
 
 
