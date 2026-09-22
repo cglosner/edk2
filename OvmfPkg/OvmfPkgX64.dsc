@@ -994,6 +994,18 @@
   }
 !endif
 !ifdef SAN_BENCH
+  # The exerciser: calls each fault directly, so "the sanitizer cannot see it" and
+  # "the fuzzer did not find it" stay separable.
+  MdeModulePkg/Application/SanBenchDrive/SanBenchDrive.inf {
+    <BuildOptions>
+      *_CLANGSAN_X64_SAN_FLAGS == $(ASAN_SAN_FLAGS) -mllvm -asan-stack=0
+    <LibraryClasses>
+      AsanLib|MdeModulePkg/Library/AsanLib/AsanLib.inf
+      NULL|MdeModulePkg/Library/AsanLib/AsanLib.inf
+      BaseMemoryLib|MdePkg/Library/AsanMemoryLibRepStr/AsanMemoryLibRepStr.inf
+  }
+!endif
+!ifdef SAN_BENCH
   #
   # Ground truth. Each member hides a fault behind a condition an input has to
   # satisfy, so a campaign that reports one has demonstrated search rather than
