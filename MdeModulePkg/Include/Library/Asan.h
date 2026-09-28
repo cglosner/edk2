@@ -26,6 +26,14 @@
 #define kAsanInitializationOrderMagic  0xf6
 #define kAsanUserPoisonedMemoryMagic  0xf7
 #define kAsanContiguousContainerOOBMagic  0xfc
+//
+// A protocol interface whose protocol has been uninstalled. The storage is still
+// allocated and still readable, so nothing else describes it: the lifetime that ended
+// is the protocol's, not the allocation's. Distinct from the free magic because a
+// caller holding a stale interface and a caller holding freed memory are different
+// mistakes with different fixes.
+//
+#define kAsanStaleInterfaceMagic  0xfb
 #define kAsanStackUseAfterScopeMagic  0xf8
 #define kAsanGlobalRedzoneMagic  0xf9
 #define kAsanInternalHeapMagic  0xfe
@@ -95,6 +103,65 @@ SerialOutput(
 VOID
 AsanSetFuzzingActive (
   IN BOOLEAN  Active
+  );
+
+//
+// Memory a driver has no business reading, named rather than sized. ASan describes
+// allocations, so it has nothing to say about a pointer into flash, MMIO or SMRAM:
+// the access is in bounds of something real, it is simply in bounds of the wrong
+// thing. That is the shape of an SMM callout, and it is the one firmware fault class
+// a shadow of allocations cannot express.
+//
+// Policy lives in whoever calls Register -- this only holds the list and answers the
+// question, because AsanLib is what the memory interceptors already link against.
+//
+VOID
+AsanRegisterProtectedRegion (
+  IN UINT64       Base,
+  IN UINT64       Size,
+  IN CONST CHAR8  *Name
+  );
+
+//
+// Poison a pool allocation because the protocol it carried has been uninstalled. The
+// extent comes from the shadow -- the allocator poisons a right redzone at the end of
+// every allocation, so walking forward from the pointer finds it -- which means no
+// caller has to know how large the interface was. Returns the number of bytes poisoned,
+// or 0 when the pointer is not a bounded heap object: a protocol whose interface is a
+// global has no redzone to find and must be left alone.
+//
+//
+// Memory something outside the firmware can still change while a call is running.
+// Register it around the call; a second read of a word already read during that call
+// is a double fetch, and what the first read validated is not what the second used.
+// Registering a size of 0 closes the window.
+//
+VOID
+AsanRegisterUntrusted (
+  IN UINT64  Base,
+  IN UINT64  Size
+  );
+
+VOID
+AsanNoteUntrustedRead (
+  IN UINTN  Addr,
+  IN UINTN  Size
+  );
+
+UINTN
+AsanPoisonStaleInterface (
+  IN VOID  *Interface
+  );
+
+VOID
+AsanSetRegionChecks (
+  IN BOOLEAN  Active
+  );
+
+CONST CHAR8 *
+AsanProtectedRegionName (
+  IN UINT64  Address,
+  IN UINT64  Size
   );
 
 extern UINTN __asan_shadow_memory_dynamic_address;

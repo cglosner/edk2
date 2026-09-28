@@ -34,6 +34,38 @@ typedef struct {
   // module reads through the same pointer.
   //
   UINT32       AsanFuzzingActive;
+  //
+  // Regions a driver has no business touching, shared for exactly the reason above.
+  // FwSanDxe decides what belongs on the list and every instrumented module has to be
+  // able to consult it -- registering into a per-module copy means the module that did
+  // the registering is the only one that ever checks anything, which is a check that
+  // passes everywhere it is not needed.
+  //
+  // Bases and ends rather than a descriptor with a name: a pointer to a string in one
+  // image is not something another image should be dereferencing out of a HOB.
+  //
+  UINT32       AsanRegionChecksActive;
+  UINT32       AsanProtectedRegionCount;
+  UINT64       AsanProtectedRegionBase[8];
+  UINT64       AsanProtectedRegionEnd[8];
+  //
+  // One buffer whose contents something outside the firmware can still change while a
+  // call is running -- a communication buffer, a queue, or the buffer a fuzzer just
+  // filled and handed to a protocol. Reading a length out of it, checking the length,
+  // and then reading it again to use it means the value that passed the check is not
+  // necessarily the value that acts.
+  //
+  // Shared, because the module that registers the buffer and the module that reads it
+  // are never the same one. Seen[] is the addresses already read during this call; a
+  // second read of one of them is the fault. Eight is enough -- a member that fetches
+  // more than eight distinct words out of untrusted memory has a bigger problem than
+  // this check.
+  //
+  UINT64       AsanUntrustedBase;
+  UINT64       AsanUntrustedEnd;
+  UINT32       AsanUntrustedSeenCount;
+  UINT32       AsanUntrustedReserved;
+  UINT64       AsanUntrustedSeen[8];
 } ASAN_INFO;
 
 extern EFI_GUID gAsanInfoGuid;

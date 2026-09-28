@@ -249,6 +249,251 @@ AsanArmReporting (
 }
 #endif
 
+//
+// Both defined further down. The untrusted-read check sits above them because the
+// load macro that calls it is compiled before either.
+//
+void AsanSignalSolution (VOID);
+
+//
+// Memory something outside the firmware can still change while a call is running.
+// Register it around a call, and a second read of a word already read during that call
+// is a double fetch: whatever the first read validated is not necessarily what the
+// second one used.
+//
+VOID
+AsanRegisterUntrusted (
+  IN UINT64  Base,
+  IN UINT64  Size
+  )
+{
+  if (mAsanInfo == NULL) {
+    return;
+  }
+
+  mAsanInfo->AsanUntrustedBase      = Base;
+  mAsanInfo->AsanUntrustedEnd       = (Size == 0) ? 0 : (Base + Size - 1);
+  mAsanInfo->AsanUntrustedSeenCount = 0;
+}
+
+//
+// Called from the load path, so the cheap answer has to come first: with no buffer
+// registered this is one load and a branch, which is what every instrumented read in
+// the firmware pays.
+//
+VOID
+AsanNoteUntrustedRead (
+  IN UINTN  Addr,
+  IN UINTN  Size
+  )
+{
+  UINT32  Index;
+  UINT64  Word;
+
+  if ((mAsanInfo == NULL) || (mAsanInfo->AsanUntrustedEnd == 0)) {
+    return;
+  }
+
+  if ((Addr < mAsanInfo->AsanUntrustedBase) ||
+      ((Addr + Size - 1) > mAsanInfo->AsanUntrustedEnd))
+  {
+    return;
+  }
+
+  //
+  // By granule, not by exact address. A length read as four bytes and then again as
+  // eight, or at a one-byte offset, is the same fetch of the same word and should not
+  // escape by changing its shape.
+  //
+  Word = (UINT64)Addr & ~((UINT64)SHADOW_GRANULARITY - 1);
+
+  for (Index = 0; Index < mAsanInfo->AsanUntrustedSeenCount; Index++) {
+    if (mAsanInfo->AsanUntrustedSeen[Index] == Word) {
+      SerialOutput ("FWSAN: double-fetch -- untrusted word read twice in one call\n");
+      AsanSignalSolution ();
+      return;
+    }
+  }
+
+  if (mAsanInfo->AsanUntrustedSeenCount < 8) {
+    mAsanInfo->AsanUntrustedSeen[mAsanInfo->AsanUntrustedSeenCount] = Word;
+    mAsanInfo->AsanUntrustedSeenCount++;
+  }
+}
+
+//
+// Defined further down; declared here because the stale-interface poison is above
+// it and C does not take kindly to the alternative.
+//
+void FastPoisonShadow (UINTN aligned_beg, UINTN aligned_size, UINT8 value);
+
+//
+// How far a pool allocation reaches, read out of the shadow rather than out of the
+// allocator. CoreAllocatePoolI poisons a right redzone at Data + OriSize, so walking
+// the shadow forward from the pointer finds the end without this needing to know what
+// a POOL_HEAD looks like -- DxeCore internals are not something a sanitizer should be
+// reaching into.
+//
+// 0 for anything that is not a bounded heap object: a global, a stack address, or a
+// pointer whose shadow is not mapped. Those have no redzone to stop at, and walking
+// until something happened to look like one is how a poison lands on memory that was
+// never ours.
+//
+STATIC
+UINTN
+AsanHeapExtent (
+  IN UINTN  Addr
+  )
+{
+  UINTN  Shadow;
+  UINTN  Bytes;
+  UINT8  Value;
+
+  if ((Addr == 0) || ((Addr & (SHADOW_GRANULARITY - 1)) != 0)) {
+    return 0;
+  }
+
+  Shadow = MEM_TO_SHADOW (Addr);
+  if ((Shadow < mAsanShadowMemoryStart) ||
+      (Shadow >= (mAsanShadowMemoryStart + mAsanShadowMemorySize)))
+  {
+    return 0;
+  }
+
+  //
+  // 0 means the whole granule is addressable, 1..7 means that many bytes are and the
+  // rest is redzone, anything else is a redzone or a poison of some kind. The cap is a
+  // guard against a shadow that is addressable as far as the eye can see, which is what
+  // a stack or a global looks like from here.
+  //
+  Bytes = 0;
+  while (Bytes < SIZE_1MB) {
+    Value = *(volatile UINT8 *)(UINTN)(Shadow + (Bytes / SHADOW_GRANULARITY));
+    if (Value == 0) {
+      Bytes += SHADOW_GRANULARITY;
+      continue;
+    }
+
+    if (Value < SHADOW_GRANULARITY) {
+      return Bytes + Value;
+    }
+
+    return Bytes;
+  }
+
+  return 0;
+}
+
+UINTN
+AsanPoisonStaleInterface (
+  IN VOID  *Interface
+  )
+{
+  UINTN  Extent;
+  UINTN  Aligned;
+
+  if (Interface == NULL) {
+    return 0;
+  }
+
+  Extent = AsanHeapExtent ((UINTN)Interface);
+  if (Extent == 0) {
+    return 0;
+  }
+
+  //
+  // Down, not up. Rounding the extent up would poison the redzone past the end, and the
+  // allocator owns that: it is what tells an overflow from a stale read, and writing
+  // over it loses the distinction for every later report.
+  //
+  Aligned = Extent & ~((UINTN)SHADOW_GRANULARITY - 1);
+  if (Aligned == 0) {
+    return 0;
+  }
+
+  FastPoisonShadow ((UINTN)Interface, Aligned, kAsanStaleInterfaceMagic);
+  return Aligned;
+}
+
+VOID
+AsanSetRegionChecks (
+  IN BOOLEAN  Active
+  )
+{
+  mRegionChecksActive = Active;
+  if (mAsanInfo != NULL) {
+    mAsanInfo->AsanRegionChecksActive = Active ? 1 : 0;
+  }
+}
+
+VOID
+AsanRegisterProtectedRegion (
+  IN UINT64       Base,
+  IN UINT64       Size,
+  IN CONST CHAR8  *Name
+  )
+{
+  UINT32  Slot;
+
+  //
+  // Into the HOB, not into a static. AsanLib is a static library and every instrumented
+  // module has its own copy of its variables, so a list built here would be consulted
+  // only by the module that built it -- and that module is the sanitizer, which is the
+  // one place the check is never needed.
+  //
+  (VOID)Name;
+  if ((Size == 0) || (mAsanInfo == NULL)) {
+    return;
+  }
+
+  Slot = mAsanInfo->AsanProtectedRegionCount;
+  if (Slot >= ASAN_PROTECTED_REGIONS) {
+    return;
+  }
+
+  mAsanInfo->AsanProtectedRegionBase[Slot] = Base;
+  mAsanInfo->AsanProtectedRegionEnd[Slot]  = Base + Size - 1;
+  mAsanInfo->AsanProtectedRegionCount      = Slot + 1;
+}
+
+CONST CHAR8 *
+AsanProtectedRegionName (
+  IN UINT64  Address,
+  IN UINT64  Size
+  )
+{
+  UINT32  Index;
+  UINT64  Last;
+
+  //
+  // Two switches, deliberately. AsanRegionChecksActive says whether to look at all;
+  // the fuzzing window says whether a finding should end the iteration. Tying them
+  // together means the only way to enable the check outside a campaign is to arm an
+  // escalation that is a LibAFL command -- an invalid opcode anywhere else -- so a
+  // plain boot dies on the first report instead of scoring the rest.
+  //
+  if ((mAsanInfo == NULL) || (Size == 0) ||
+      (mAsanInfo->AsanProtectedRegionCount == 0))
+  {
+    return NULL;
+  }
+
+  if ((mAsanInfo->AsanRegionChecksActive == 0) && !AsanFuzzingWindowOpen ()) {
+    return NULL;
+  }
+
+  Last = Address + Size - 1;
+  for (Index = 0; Index < mAsanInfo->AsanProtectedRegionCount; Index++) {
+    if ((Last >= mAsanInfo->AsanProtectedRegionBase[Index]) &&
+        (Address <= mAsanInfo->AsanProtectedRegionEnd[Index]))
+    {
+      return "a region this driver does not own";
+    }
+  }
+
+  return NULL;
+}
+
 void AsanSignalSolution (VOID)
 {
 #if ASAN_FUZZER_BACKEND == ASAN_FUZZER_LIBAFL_QEMU
@@ -311,6 +556,13 @@ void ReportGenericError(UINTN addr, BOOLEAN is_write, UINTN access_size) {
         bug_descr = "heap-buffer-overflow";
 //        bug_type_score = 10;
         far_from_bounds = AdjacentShadowValuesAreFullyPoisoned(shadow_addr);
+        break;
+      case kAsanStaleInterfaceMagic:
+        // The storage is alive; the protocol that lived in it is not. Saying
+        // "use-after-free" here sends someone looking for a FreePool that never
+        // happened.
+        bug_descr = "stale-protocol-interface";
+        if (!is_write) read_after_free_bonus = 18;
         break;
       case kAsanHeapFreeMagic:
         bug_descr = "heap-use-after-free";
@@ -515,6 +767,10 @@ void __asan_load##size(UINTN addr)          \
 {                                                   \
   CHAR8 NumStr[19];                                 \
   if (asan_inited && !asan_is_deactivated){         \
+    /* a double fetch reads memory that is perfectly valid, so this cannot   */ \
+    /* hang off the poisoned-shadow test below; with nothing registered it   */ \
+    /* is one load and a branch                                              */ \
+    AsanNoteUntrustedRead (addr, size);                                         \
     UINTN sp = MEM_TO_SHADOW(addr);                                                 \
     if(mAsanShadowMemoryStart <= sp && sp <= mAsanShadowMemoryEnd) {                \
       UINTN s = size <= SHADOW_GRANULARITY ? *(UINT8 *)(sp)                         \
