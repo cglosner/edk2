@@ -250,6 +250,27 @@ AsanArmReporting (
 #endif
 
 //
+// Regions a driver has no business touching. ASan describes allocations, so it has
+// nothing to say about a pointer into flash, MMIO or SMRAM: the access is in bounds of
+// something real, it is simply in bounds of the wrong thing. That is the shape of an
+// SMM callout, and it is the firmware fault class a shadow of allocations cannot
+// express at all.
+//
+// Eight slots, in a fixed array: this is consulted from the memory interceptors, and an
+// allocation there would recurse into the allocator being instrumented.
+//
+#define ASAN_PROTECTED_REGIONS  8
+
+STATIC BOOLEAN                mRegionChecksActive   = FALSE;
+
+//
+// Whether the region check looks at all, which is not the same question as whether
+// a finding should end the iteration. Tying the two together means the only way to
+// enable the check outside a campaign is to open the escalation window, and
+// escalation is a LibAFL command -- an invalid opcode anywhere else, so a plain boot
+// dies on the first report instead of scoring the rest.
+//
+//
 // Both defined further down. The untrusted-read check sits above them because the
 // load macro that calls it is compiled before either.
 //
