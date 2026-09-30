@@ -408,8 +408,7 @@ AsanInitializeShadowMemory (
   AsanInfo.AsanFuzzingActive     = 0;
   AsanInfo.AsanRegionChecksActive   = 0;
   AsanInfo.AsanProtectedRegionCount = 0;
-  AsanInfo.AsanUntrustedBase        = 0;
-  AsanInfo.AsanUntrustedEnd         = 0;
+  AsanInfo.AsanUntrustedCount       = 0;
   AsanInfo.AsanUntrustedSeenCount   = 0;
   BuildGuidDataHob (&gAsanInfoGuid, &AsanInfo, sizeof (ASAN_INFO));
 

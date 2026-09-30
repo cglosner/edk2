@@ -238,13 +238,13 @@ APRIORI DXE {
 #
 # DXE Phase modules
 #
-!ifdef FW_SAN
+!ifdef $(FW_SAN)
 INF  MdeModulePkg/Universal/FwSanDxe/FwSanDxe.inf
 !endif
-!ifdef SAN_BENCH
+!ifdef $(SAN_BENCH)
 INF  MdeModulePkg/Universal/SanBenchDxe/SanBenchDxe.inf
 !endif
-!ifdef ASAN_FAULT_PROTOCOL
+!ifdef $(ASAN_FAULT_PROTOCOL)
 # A driver that is wrong on purpose, for proving the sanitizer reports on driver
 # memory reached through a protocol call. Placed here rather than beside the self
 # test because that neighbourhood sits inside !if "$(ASAN_SCOPE)" != "full", so a
