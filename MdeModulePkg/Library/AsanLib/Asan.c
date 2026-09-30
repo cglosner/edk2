@@ -808,6 +808,102 @@ void AsanSignalSolution (VOID);
 // stop intentionally when memory check fails, because I more hope to trace the call 
 // stack details info.
 // 
+
+//
+// ---- reporting for the outline handlers -------------------------------------------
+// Build forces every access outline (-asan-instrumentation-with-call-threshold=0), so
+// no object references __asan_report_*, and the outline handlers only printed a trace.
+// Emit AsanHelper's asan_bug_report format, deduped by return IP, and signal AFTER the
+// report is fully on the wire.
+//
+#define ASAN_OUTLINE_IP_SEEN  256
+STATIC UINTN  mOutlineSeenIp[ASAN_OUTLINE_IP_SEEN];
+STATIC UINTN  mOutlineSeenCount = 0;
+
+VOID
+AsanReportOutline (
+  UINTN  addr,
+  UINTN  size,
+  UINTN  sp,
+  UINTN  s,
+  UINTN  is_write,
+  UINTN  ip
+  )
+{
+  CHAR8       NumStr[19];
+  CONST CHAR8 *bug_descr = "unknown-crash";
+  UINTN       Index;
+
+  for (Index = 0; Index < mOutlineSeenCount; Index++) {
+    if (mOutlineSeenIp[Index] == ip) {
+      return;
+    }
+  }
+
+  //
+  // Correction to the first draft: when the table is full a new IP was not recorded and
+  // therefore reported on every occurrence, so the storm came back. Bail out instead,
+  // which caps total reports per module at ASAN_OUTLINE_IP_SEEN.
+  //
+  if (mOutlineSeenCount >= ASAN_OUTLINE_IP_SEEN) {
+    return;
+  }
+  mOutlineSeenIp[mOutlineSeenCount++] = ip;
+
+  switch (s & 0xFF) {
+    case kAsanHeapLeftRedzoneMagic:      bug_descr = "heap-buffer-overflow";           break;
+    case kAsanHeapFreeMagic:             bug_descr = "heap-use-after-free";            break;
+    case kAsanStaleInterfaceMagic:       bug_descr = "stale-protocol-interface";       break;
+    case kAsanStackLeftRedzoneMagic:     bug_descr = "stack-buffer-underflow";         break;
+    case kAsanStackMidRedzoneMagic:
+    case kAsanStackRightRedzoneMagic:    bug_descr = "stack-buffer-overflow";          break;
+    case kAsanStackAfterReturnMagic:     bug_descr = "stack-use-after-return";         break;
+    case kAsanStackUseAfterScopeMagic:   bug_descr = "stack-use-after-scope";          break;
+    case kAsanInitializationOrderMagic:  bug_descr = "initialization-order-fiasco";    break;
+    case kAsanUserPoisonedMemoryMagic:   bug_descr = "use-after-poison";               break;
+    case kAsanContiguousContainerOOBMagic: bug_descr = "container-overflow";           break;
+    case kAsanGlobalRedzoneMagic:        bug_descr = "global-buffer-overflow";          break;
+    case kAsanIntraObjectRedzone:        bug_descr = "intra-object-overflow";          break;
+    case kAsanArrayCookieMagic:          bug_descr = "heap-buffer-overflow";           break;
+    case kAsanInternalHeapMagic:         bug_descr = "internal-heap-access";           break;
+    case kAsanAllocaLeftMagic:
+    case kAsanAllocaRightMagic:          bug_descr = "dynamic-stack-buffer-overflow";  break;
+    default:
+      if (((s & 0xFF) > 0) && ((s & 0xFF) < SHADOW_GRANULARITY)) {
+        bug_descr = "heap-buffer-overflow";
+      }
+      break;
+  }
+
+  SerialOutput ("[ASan] ===================================================\n");
+  SerialOutput ("[ASan] ERROR: Invalid memory access: address ");
+  Num2Str64bit (addr, NumStr);
+  SerialOutput (NumStr);
+  SerialOutput (", size ");
+  Num2Str64bit (size, NumStr);
+  SerialOutput (NumStr);
+  SerialOutput (", is_write ");
+  Num2Str64bit (is_write, NumStr);
+  SerialOutput (NumStr);
+  SerialOutput (", ip ");
+  Num2Str64bit (ip, NumStr);
+  SerialOutput (NumStr);
+  SerialOutput ("\n");
+  SerialOutput ("bug_descr=");
+  SerialOutput (bug_descr);
+  SerialOutput (" in file: asan-outline-instrumentation at line: ");
+  Num2Str64bit (ip, NumStr);
+  SerialOutput (NumStr);
+  SerialOutput ("\n");
+  SerialOutput ("[ASan] shadow ");
+  Num2Str64bit (sp, NumStr);
+  SerialOutput (NumStr);
+  SerialOutput (" = ");
+  Num2Str64bit (s, NumStr);
+  SerialOutput (NumStr);
+  SerialOutput ("\n");
+}
+
 //
 // Is the granule holding Addr poisoned at Addr's offset? Upstream's definition: a shadow
 // byte s means the first s bytes of that granule are addressable and the rest are not, and
@@ -869,7 +965,7 @@ void __asan_load##size(UINTN addr)          \
               Num2Str64bit ((UINTN)__builtin_return_address(0),NumStr);       \
               SerialOutput (NumStr);                                                  \
               SerialOutput ("\n");                                                    \
-              AsanSignalSolution ();                                      \
+              AsanReportOutline (addr, size, sp, s, 0, (UINTN)__builtin_return_address(0)); \
               Num2Str64bit (addr, NumStr);                                            \
               SerialOutput (NumStr);                                                  \
               SerialOutput (", Shadow Memory Address= ");                             \
@@ -882,6 +978,7 @@ void __asan_load##size(UINTN addr)          \
               Num2Str64bit (((addr & (SHADOW_GRANULARITY - 1)) + size - 1), NumStr);  \
               SerialOutput (NumStr);                                                  \
               SerialOutput ("\n\n");                                                  \
+              AsanSignalSolution ();                                                  \
         }                                                                             \
       }                                                                               \
     }                                                                                 \
@@ -916,7 +1013,7 @@ void __asan_store##size(UINTN addr)         \
               Num2Str64bit ((UINTN)__builtin_return_address(0),NumStr);       \
               SerialOutput (NumStr);                                                  \
               SerialOutput ("\n");                                                    \
-              AsanSignalSolution ();                                      \
+              AsanReportOutline (addr, size, sp, s, 1, (UINTN)__builtin_return_address(0)); \
               Num2Str64bit (addr, NumStr);                                            \
               SerialOutput (NumStr);                                                  \
               SerialOutput (", Shadow Memory Address= ");                             \
@@ -929,6 +1026,7 @@ void __asan_store##size(UINTN addr)         \
               Num2Str64bit (((addr & (SHADOW_GRANULARITY - 1)) + size - 1), NumStr);  \
               SerialOutput (NumStr);                                                  \
               SerialOutput ("\n\n");                                                  \
+              AsanSignalSolution ();                                                  \
         }                                                                             \
       }                                                                               \
     }                                                                                 \
@@ -961,7 +1059,7 @@ void __asan_load##size##_noabort(UINTN addr)  \
               Num2Str64bit ((UINTN)__builtin_return_address(0),NumStr);       \
               SerialOutput (NumStr);                                                  \
               SerialOutput ("\n");                                                    \
-              AsanSignalSolution ();                                      \
+              AsanReportOutline (addr, size, sp, s, 0, (UINTN)__builtin_return_address(0)); \
               SerialOutput ("Access Address= ");                                   \
               Num2Str64bit (addr, NumStr);                                            \
               SerialOutput (NumStr);                                                  \
@@ -975,6 +1073,7 @@ void __asan_load##size##_noabort(UINTN addr)  \
               Num2Str64bit (((addr & (SHADOW_GRANULARITY - 1)) + size - 1), NumStr);  \
               SerialOutput (NumStr);                                                  \
               SerialOutput ("\n\n");                                                  \
+              AsanSignalSolution ();                                                  \
         }                                                                             \
       }                                                                               \
     }                                                                                 \
@@ -1008,7 +1107,7 @@ void __asan_store##size##_noabort(UINTN addr)   \
               Num2Str64bit ((UINTN)__builtin_return_address(0),NumStr);       \
               SerialOutput (NumStr);                                                  \
               SerialOutput ("\n");                                                    \
-              AsanSignalSolution ();                                      \
+              AsanReportOutline (addr, size, sp, s, 1, (UINTN)__builtin_return_address(0)); \
               SerialOutput ("Access Address= ");                                      \
               Num2Str64bit (addr, NumStr);                                            \
               SerialOutput (NumStr);                                                  \
@@ -1022,6 +1121,7 @@ void __asan_store##size##_noabort(UINTN addr)   \
               Num2Str64bit (((addr & (SHADOW_GRANULARITY - 1)) + size - 1), NumStr);  \
               SerialOutput (NumStr);                                                  \
               SerialOutput ("\n\n");                                                  \
+              AsanSignalSolution ();                                                  \
         }                                                                             \
       }                                                                               \
     }                                                                                 \
@@ -1131,15 +1231,17 @@ void __asan_loadN_noabort(UINTN addr, UINTN size)
     return;
   }
 
-  if (__asan_region_is_poisoned(addr, size)) {
+  UINTN bad = __asan_region_is_poisoned(addr, size);
+  if (bad) {
     SerialOutput2 ("__asan_loadN_noabort ASAN MEMORY ACCESS check fail! ");
-    AsanSignalSolution ();
     gSerialOutputSwitch = 1;
-    UINTN sp = MEM_TO_SHADOW(addr);
+    UINTN sp = MEM_TO_SHADOW(bad);
     if(sp < mAsanShadowMemoryStart || mAsanShadowMemoryEnd < sp) {
+      AsanSignalSolution ();
       return;
     }
-    UINTN s = size <= SHADOW_GRANULARITY ? *(UINT8 *)(sp): *(UINT16 *)(sp);
+    UINTN s = *(UINT8 *)(sp);
+    AsanReportOutline (addr, size, sp, s, 0, (UINTN)__builtin_return_address(0));
     Num2Str8bit ( size , NumStr);
     SerialOutput ("__asan_loadN_noabort");
     SerialOutput (NumStr);
@@ -1160,6 +1262,7 @@ void __asan_loadN_noabort(UINTN addr, UINTN size)
     Num2Str64bit (((addr & (SHADOW_GRANULARITY - 1)) + size - 1), NumStr);
     SerialOutput (NumStr);
     SerialOutput ("\n\n");
+    AsanSignalSolution ();
   }
 }
 
@@ -1170,15 +1273,17 @@ void __asan_storeN_noabort(UINTN addr, UINTN size)
     return ;
   }
   //SerialOutput ("__asan_storeN_noabort is called\n");
-  if (__asan_region_is_poisoned(addr, size)) {
+  UINTN bad = __asan_region_is_poisoned(addr, size);
+  if (bad) {
     SerialOutput2 ("__asan_storeN_noabort ASAN MEMORY ACCESS check fail! ");
-    AsanSignalSolution ();
     gSerialOutputSwitch = 1;
-    UINTN sp = MEM_TO_SHADOW(addr);
+    UINTN sp = MEM_TO_SHADOW(bad);
     if(sp < mAsanShadowMemoryStart || mAsanShadowMemoryEnd < sp) {
+      AsanSignalSolution ();
       return;
     }
-    UINTN s = size <= SHADOW_GRANULARITY ? *(UINT8 *)(sp): *(UINT16 *)(sp);
+    UINTN s = *(UINT8 *)(sp);
+    AsanReportOutline (addr, size, sp, s, 1, (UINTN)__builtin_return_address(0));
     Num2Str8bit ( size , NumStr);
     SerialOutput ("__asan_storeN_noabort");
     SerialOutput (NumStr);
@@ -1199,6 +1304,7 @@ void __asan_storeN_noabort(UINTN addr, UINTN size)
     Num2Str64bit (((addr & (SHADOW_GRANULARITY - 1)) + size - 1), NumStr);
     SerialOutput (NumStr);
     SerialOutput ("\n\n");
+    AsanSignalSolution ();
   }
 }
 
@@ -1209,15 +1315,17 @@ void __asan_loadN(UINTN addr, UINTN size)
     return ;
   }
   //SerialOutput ("__asan_loadN is called\n");
-  if (__asan_region_is_poisoned(addr, size)) {
+  UINTN bad = __asan_region_is_poisoned(addr, size);
+  if (bad) {
     SerialOutput2 ("__asan_loadN ASAN MEMORY ACCESS check fail! ");
-    AsanSignalSolution ();
     gSerialOutputSwitch = 1;
-    UINTN sp = MEM_TO_SHADOW(addr);
+    UINTN sp = MEM_TO_SHADOW(bad);
     if(sp < mAsanShadowMemoryStart || mAsanShadowMemoryEnd < sp) {
+      AsanSignalSolution ();
       return;
     }
-    UINTN s = size <= SHADOW_GRANULARITY ? *(UINT8 *)(sp): *(UINT16 *)(sp);
+    UINTN s = *(UINT8 *)(sp);
+    AsanReportOutline (addr, size, sp, s, 0, (UINTN)__builtin_return_address(0));
     Num2Str8bit ( size , NumStr);
     SerialOutput ("__asan_loadN");
     SerialOutput (NumStr);
@@ -1238,6 +1346,7 @@ void __asan_loadN(UINTN addr, UINTN size)
     Num2Str64bit (((addr & (SHADOW_GRANULARITY - 1)) + size - 1), NumStr);
     SerialOutput (NumStr);
     SerialOutput ("\n\n");
+    AsanSignalSolution ();
   }
 }
 
@@ -1248,15 +1357,17 @@ void __asan_storeN(UINTN addr, UINTN size)
     return ;
   }
 
-  if (__asan_region_is_poisoned(addr, size)) {
+  UINTN bad = __asan_region_is_poisoned(addr, size);
+  if (bad) {
     SerialOutput2 ("__asan_storeN ASAN MEMORY ACCESS check fail! ");
-    AsanSignalSolution ();
     gSerialOutputSwitch = 1;
-    UINTN sp = MEM_TO_SHADOW(addr);
+    UINTN sp = MEM_TO_SHADOW(bad);
     if(sp < mAsanShadowMemoryStart || mAsanShadowMemoryEnd < sp) {
+      AsanSignalSolution ();
       return;
     }
-    UINTN s = size <= SHADOW_GRANULARITY ? *(UINT8 *)(sp): *(UINT16 *)(sp);
+    UINTN s = *(UINT8 *)(sp);
+    AsanReportOutline (addr, size, sp, s, 1, (UINTN)__builtin_return_address(0));
     Num2Str8bit ( size , NumStr);
     SerialOutput ("__asan_storeN");
     SerialOutput (NumStr);
@@ -1277,6 +1388,7 @@ void __asan_storeN(UINTN addr, UINTN size)
     Num2Str64bit (((addr & (SHADOW_GRANULARITY - 1)) + size - 1), NumStr);
     SerialOutput (NumStr);
     SerialOutput ("\n\n");
+    AsanSignalSolution ();
   }
 }
 
