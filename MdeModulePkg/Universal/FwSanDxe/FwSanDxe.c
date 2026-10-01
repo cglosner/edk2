@@ -58,6 +58,15 @@ STATIC EFI_EVENT              mExitBootEvent    = NULL;
 STATIC FWSAN_VARIABLE_CALL    mVariableCalls[FWSAN_VARIABLE_SLOTS];
 STATIC UINTN                  mVariableNext     = 0;
 
+VOID
+AsanReportFirmwareClass (
+  IN CONST CHAR8  *BugDescr,
+  IN UINTN        Addr,
+  IN UINTN        Size,
+  IN UINTN        IsWrite,
+  IN UINTN        Ip
+  );
+
 /**
   Say what happened and, inside the fuzzing window, make it a finding.
 
@@ -84,6 +93,14 @@ FwSanReport (
     Address
     );
   SerialOutput (Line);
+  //
+  // The same text again in the shape scripts/firness.py turns into a crashes.csv row: an
+  // "[ASan] ERROR: ... ip 0x..." line and a "bug_descr=..." line. Without it a FWSAN class
+  // is narration only -- 3283 double-fetch detections in one campaign produced zero report
+  // rows, and bugs.md read as though the firmware sanitizer had found nothing.
+  //
+  AsanReportFirmwareClass (Class, (UINTN)Address, 0, 0,
+                           (UINTN)__builtin_return_address (0));
   AsanSignalSolution ();
 }
 
