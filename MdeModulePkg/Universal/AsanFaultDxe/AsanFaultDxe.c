@@ -10,6 +10,12 @@
 
   Built only when ASAN_FAULT_PROTOCOL is defined. Never ship it.
 
+  Superseded by SanBenchDxe, which covers the same path -- faults in a separately
+  built and separately instrumented driver, reached through protocol calls from
+  SanBenchDrive -- across eleven classes instead of this one, and is scored by the
+  pipeline's detects stage. Kept because it is the smaller test and useful when the
+  benchmark itself is what is suspect.
+
   Copyright (c) 2026, Intel Corporation. All rights reserved.<BR>
   SPDX-License-Identifier: BSD-2-Clause-Patent
 **/
