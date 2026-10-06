@@ -504,6 +504,19 @@
   PciLib|OvmfPkg/Library/DxePciLibI440FxQ35/DxePciLibI440FxQ35.inf
 
 [LibraryClasses.common.DXE_SMM_DRIVER]
+  # SMM and MM run in SMRAM behind their own page tables, so the shadow at
+  # PcdAsanShadowStart is unreachable from them and the real AsanLib cannot report. SAN_FLAGS
+  # instruments them regardless -- it is a toolchain flag, not a per-module choice -- so
+  # without an instance resolved here the link fails on undefined __asan_init/__asan_load*.
+  # The Null instance answers those as no-ops, which is what makes SMM_REQUIRE=TRUE build.
+  # NULL| is required: no SMM module INF asks for AsanLib, so resolving the class alone
+  # would not pull it in. Added to the EXISTING sections rather than a new combined one --
+  # this file holds its whole body twice and dedup_sections() in apply_asan.py locates the
+  # duplicate by matching the longest repeated run of section HEADERS, so a new header
+  # re-aligns that search and it drops the wrong copy (observed: the [Defines] body
+  # vanished and the build stopped at "Redundant '!endif'").
+  AsanLib|MdeModulePkg/Library/AsanLibNull/AsanLibNull.inf
+  NULL|MdeModulePkg/Library/AsanLibNull/AsanLibNull.inf
   PcdLib|MdePkg/Library/DxePcdLib/DxePcdLib.inf
   TimerLib|OvmfPkg/Library/AcpiTimerLib/DxeAcpiTimerLib.inf
   ResetSystemLib|OvmfPkg/Library/ResetSystemLib/DxeResetSystemLib.inf
@@ -527,6 +540,19 @@
   SmmCpuRendezvousLib|UefiCpuPkg/Library/SmmCpuRendezvousLib/SmmCpuRendezvousLib.inf
 
 [LibraryClasses.common.SMM_CORE]
+  # SMM and MM run in SMRAM behind their own page tables, so the shadow at
+  # PcdAsanShadowStart is unreachable from them and the real AsanLib cannot report. SAN_FLAGS
+  # instruments them regardless -- it is a toolchain flag, not a per-module choice -- so
+  # without an instance resolved here the link fails on undefined __asan_init/__asan_load*.
+  # The Null instance answers those as no-ops, which is what makes SMM_REQUIRE=TRUE build.
+  # NULL| is required: no SMM module INF asks for AsanLib, so resolving the class alone
+  # would not pull it in. Added to the EXISTING sections rather than a new combined one --
+  # this file holds its whole body twice and dedup_sections() in apply_asan.py locates the
+  # duplicate by matching the longest repeated run of section HEADERS, so a new header
+  # re-aligns that search and it drops the wrong copy (observed: the [Defines] body
+  # vanished and the build stopped at "Redundant '!endif'").
+  AsanLib|MdeModulePkg/Library/AsanLibNull/AsanLibNull.inf
+  NULL|MdeModulePkg/Library/AsanLibNull/AsanLibNull.inf
   PcdLib|MdePkg/Library/DxePcdLib/DxePcdLib.inf
   TimerLib|OvmfPkg/Library/AcpiTimerLib/DxeAcpiTimerLib.inf
   ResetSystemLib|OvmfPkg/Library/ResetSystemLib/DxeResetSystemLib.inf
@@ -1624,6 +1650,19 @@
   PciLib|OvmfPkg/Library/DxePciLibI440FxQ35/DxePciLibI440FxQ35.inf
 
 [LibraryClasses.common.DXE_SMM_DRIVER]
+  # SMM and MM run in SMRAM behind their own page tables, so the shadow at
+  # PcdAsanShadowStart is unreachable from them and the real AsanLib cannot report. SAN_FLAGS
+  # instruments them regardless -- it is a toolchain flag, not a per-module choice -- so
+  # without an instance resolved here the link fails on undefined __asan_init/__asan_load*.
+  # The Null instance answers those as no-ops, which is what makes SMM_REQUIRE=TRUE build.
+  # NULL| is required: no SMM module INF asks for AsanLib, so resolving the class alone
+  # would not pull it in. Added to the EXISTING sections rather than a new combined one --
+  # this file holds its whole body twice and dedup_sections() in apply_asan.py locates the
+  # duplicate by matching the longest repeated run of section HEADERS, so a new header
+  # re-aligns that search and it drops the wrong copy (observed: the [Defines] body
+  # vanished and the build stopped at "Redundant '!endif'").
+  AsanLib|MdeModulePkg/Library/AsanLibNull/AsanLibNull.inf
+  NULL|MdeModulePkg/Library/AsanLibNull/AsanLibNull.inf
   PcdLib|MdePkg/Library/DxePcdLib/DxePcdLib.inf
   TimerLib|OvmfPkg/Library/AcpiTimerLib/DxeAcpiTimerLib.inf
   ResetSystemLib|OvmfPkg/Library/ResetSystemLib/DxeResetSystemLib.inf
@@ -1647,6 +1686,19 @@
   SmmCpuRendezvousLib|UefiCpuPkg/Library/SmmCpuRendezvousLib/SmmCpuRendezvousLib.inf
 
 [LibraryClasses.common.SMM_CORE]
+  # SMM and MM run in SMRAM behind their own page tables, so the shadow at
+  # PcdAsanShadowStart is unreachable from them and the real AsanLib cannot report. SAN_FLAGS
+  # instruments them regardless -- it is a toolchain flag, not a per-module choice -- so
+  # without an instance resolved here the link fails on undefined __asan_init/__asan_load*.
+  # The Null instance answers those as no-ops, which is what makes SMM_REQUIRE=TRUE build.
+  # NULL| is required: no SMM module INF asks for AsanLib, so resolving the class alone
+  # would not pull it in. Added to the EXISTING sections rather than a new combined one --
+  # this file holds its whole body twice and dedup_sections() in apply_asan.py locates the
+  # duplicate by matching the longest repeated run of section HEADERS, so a new header
+  # re-aligns that search and it drops the wrong copy (observed: the [Defines] body
+  # vanished and the build stopped at "Redundant '!endif'").
+  AsanLib|MdeModulePkg/Library/AsanLibNull/AsanLibNull.inf
+  NULL|MdeModulePkg/Library/AsanLibNull/AsanLibNull.inf
   PcdLib|MdePkg/Library/DxePcdLib/DxePcdLib.inf
   TimerLib|OvmfPkg/Library/AcpiTimerLib/DxeAcpiTimerLib.inf
   ResetSystemLib|OvmfPkg/Library/ResetSystemLib/DxeResetSystemLib.inf
