@@ -730,11 +730,18 @@ SmmEntryPoint (
         //
         DEBUG ((
           DEBUG_INFO,
-          "SmmCore: rejected CommBuffer %p size %lu overlap=%d overunder=%d\n",
+          // Only IsOverlapped is printed. This DEBUG is carried onto every edk2 the
+          // port is applied to, and upstream has since folded the over/underflow
+          // test INTO InternalIsBufferOverlapped -- whose own documentation says
+          // "@retval TRUE  Math error." -- and dropped the caller's
+          // IsOverUnderflow declaration. Naming it here compiles in this tree and
+          // fails on those with "use of undeclared identifier", which only shows
+          // up in a DEBUG build with SMM_REQUIRE=TRUE: rare enough that it sat
+          // unnoticed and looked like an upstream defect.
+          "SmmCore: rejected CommBuffer %p size %lu overlap=%d\n",
           CommunicationBuffer,
           (UINT64)gSmmCorePrivate->BufferSize,
-          IsOverlapped,
-          IsOverUnderflow
+          IsOverlapped
           ));
         gSmmCorePrivate->CommunicationBuffer = NULL;
         gSmmCorePrivate->ReturnStatus        = EFI_ACCESS_DENIED;
