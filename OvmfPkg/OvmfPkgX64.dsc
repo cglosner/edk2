@@ -505,18 +505,30 @@
 
 [LibraryClasses.common.DXE_SMM_DRIVER]
   # SMM and MM run in SMRAM behind their own page tables, so the shadow at
-  # PcdAsanShadowStart is unreachable from them and the real AsanLib cannot report. SAN_FLAGS
-  # instruments them regardless -- it is a toolchain flag, not a per-module choice -- so
-  # without an instance resolved here the link fails on undefined __asan_init/__asan_load*.
-  # The Null instance answers those as no-ops, which is what makes SMM_REQUIRE=TRUE build.
+  # PcdAsanShadowStart IS reachable from them, contrary to what this comment used to say:
+  # PcdCpuSmmRestrictedMemoryAccess defaults to FALSE, so SMM has unrestricted access to
+  # memory outside SMRAM, and even with it TRUE the permitted types are reserved, runtime
+  # and ACPI NVS -- and OvmfPkg/PlatformPei/MemDetect.c reserves the shadow as
+  # EfiRuntimeServicesData, one of exactly those. AsanLib.inf has always listed
+  # DXE_SMM_DRIVER and SMM_CORE in its LIBRARY_CLASS; nothing here resolved it.
+  #
+  # SAN_FLAGS instruments these module types regardless -- a toolchain flag, not a
+  # per-module choice -- so an instance must be resolved here or the link fails on undefined
+  # __asan_init/__asan_load*. The Null instance would answer those as no-ops: it builds and
+  # detects nothing, which is what was here before.
+  #
+  # Measured on edk2-stable202511 with SMM_REQUIRE=TRUE: builds at FV 68%, boots, the self
+  # test still reports, and PiSmmCore, PiSmmCpuDxeSmm and VariableSmm each carry both the
+  # instrumentation and AsanLib's own symbols. NOT yet shown: a report raised from inside an
+  # SMM driver, which needs a deliberate fault in one that no benchmark case plants today.
   # NULL| is required: no SMM module INF asks for AsanLib, so resolving the class alone
   # would not pull it in. Added to the EXISTING sections rather than a new combined one --
   # this file holds its whole body twice and dedup_sections() in apply_asan.py locates the
   # duplicate by matching the longest repeated run of section HEADERS, so a new header
   # re-aligns that search and it drops the wrong copy (observed: the [Defines] body
   # vanished and the build stopped at "Redundant '!endif'").
-  AsanLib|MdeModulePkg/Library/AsanLibNull/AsanLibNull.inf
-  NULL|MdeModulePkg/Library/AsanLibNull/AsanLibNull.inf
+  AsanLib|MdeModulePkg/Library/AsanLib/AsanLib.inf
+  NULL|MdeModulePkg/Library/AsanLib/AsanLib.inf
   PcdLib|MdePkg/Library/DxePcdLib/DxePcdLib.inf
   TimerLib|OvmfPkg/Library/AcpiTimerLib/DxeAcpiTimerLib.inf
   ResetSystemLib|OvmfPkg/Library/ResetSystemLib/DxeResetSystemLib.inf
@@ -541,18 +553,30 @@
 
 [LibraryClasses.common.SMM_CORE]
   # SMM and MM run in SMRAM behind their own page tables, so the shadow at
-  # PcdAsanShadowStart is unreachable from them and the real AsanLib cannot report. SAN_FLAGS
-  # instruments them regardless -- it is a toolchain flag, not a per-module choice -- so
-  # without an instance resolved here the link fails on undefined __asan_init/__asan_load*.
-  # The Null instance answers those as no-ops, which is what makes SMM_REQUIRE=TRUE build.
+  # PcdAsanShadowStart IS reachable from them, contrary to what this comment used to say:
+  # PcdCpuSmmRestrictedMemoryAccess defaults to FALSE, so SMM has unrestricted access to
+  # memory outside SMRAM, and even with it TRUE the permitted types are reserved, runtime
+  # and ACPI NVS -- and OvmfPkg/PlatformPei/MemDetect.c reserves the shadow as
+  # EfiRuntimeServicesData, one of exactly those. AsanLib.inf has always listed
+  # DXE_SMM_DRIVER and SMM_CORE in its LIBRARY_CLASS; nothing here resolved it.
+  #
+  # SAN_FLAGS instruments these module types regardless -- a toolchain flag, not a
+  # per-module choice -- so an instance must be resolved here or the link fails on undefined
+  # __asan_init/__asan_load*. The Null instance would answer those as no-ops: it builds and
+  # detects nothing, which is what was here before.
+  #
+  # Measured on edk2-stable202511 with SMM_REQUIRE=TRUE: builds at FV 68%, boots, the self
+  # test still reports, and PiSmmCore, PiSmmCpuDxeSmm and VariableSmm each carry both the
+  # instrumentation and AsanLib's own symbols. NOT yet shown: a report raised from inside an
+  # SMM driver, which needs a deliberate fault in one that no benchmark case plants today.
   # NULL| is required: no SMM module INF asks for AsanLib, so resolving the class alone
   # would not pull it in. Added to the EXISTING sections rather than a new combined one --
   # this file holds its whole body twice and dedup_sections() in apply_asan.py locates the
   # duplicate by matching the longest repeated run of section HEADERS, so a new header
   # re-aligns that search and it drops the wrong copy (observed: the [Defines] body
   # vanished and the build stopped at "Redundant '!endif'").
-  AsanLib|MdeModulePkg/Library/AsanLibNull/AsanLibNull.inf
-  NULL|MdeModulePkg/Library/AsanLibNull/AsanLibNull.inf
+  AsanLib|MdeModulePkg/Library/AsanLib/AsanLib.inf
+  NULL|MdeModulePkg/Library/AsanLib/AsanLib.inf
   PcdLib|MdePkg/Library/DxePcdLib/DxePcdLib.inf
   TimerLib|OvmfPkg/Library/AcpiTimerLib/DxeAcpiTimerLib.inf
   ResetSystemLib|OvmfPkg/Library/ResetSystemLib/DxeResetSystemLib.inf
@@ -1651,18 +1675,30 @@
 
 [LibraryClasses.common.DXE_SMM_DRIVER]
   # SMM and MM run in SMRAM behind their own page tables, so the shadow at
-  # PcdAsanShadowStart is unreachable from them and the real AsanLib cannot report. SAN_FLAGS
-  # instruments them regardless -- it is a toolchain flag, not a per-module choice -- so
-  # without an instance resolved here the link fails on undefined __asan_init/__asan_load*.
-  # The Null instance answers those as no-ops, which is what makes SMM_REQUIRE=TRUE build.
+  # PcdAsanShadowStart IS reachable from them, contrary to what this comment used to say:
+  # PcdCpuSmmRestrictedMemoryAccess defaults to FALSE, so SMM has unrestricted access to
+  # memory outside SMRAM, and even with it TRUE the permitted types are reserved, runtime
+  # and ACPI NVS -- and OvmfPkg/PlatformPei/MemDetect.c reserves the shadow as
+  # EfiRuntimeServicesData, one of exactly those. AsanLib.inf has always listed
+  # DXE_SMM_DRIVER and SMM_CORE in its LIBRARY_CLASS; nothing here resolved it.
+  #
+  # SAN_FLAGS instruments these module types regardless -- a toolchain flag, not a
+  # per-module choice -- so an instance must be resolved here or the link fails on undefined
+  # __asan_init/__asan_load*. The Null instance would answer those as no-ops: it builds and
+  # detects nothing, which is what was here before.
+  #
+  # Measured on edk2-stable202511 with SMM_REQUIRE=TRUE: builds at FV 68%, boots, the self
+  # test still reports, and PiSmmCore, PiSmmCpuDxeSmm and VariableSmm each carry both the
+  # instrumentation and AsanLib's own symbols. NOT yet shown: a report raised from inside an
+  # SMM driver, which needs a deliberate fault in one that no benchmark case plants today.
   # NULL| is required: no SMM module INF asks for AsanLib, so resolving the class alone
   # would not pull it in. Added to the EXISTING sections rather than a new combined one --
   # this file holds its whole body twice and dedup_sections() in apply_asan.py locates the
   # duplicate by matching the longest repeated run of section HEADERS, so a new header
   # re-aligns that search and it drops the wrong copy (observed: the [Defines] body
   # vanished and the build stopped at "Redundant '!endif'").
-  AsanLib|MdeModulePkg/Library/AsanLibNull/AsanLibNull.inf
-  NULL|MdeModulePkg/Library/AsanLibNull/AsanLibNull.inf
+  AsanLib|MdeModulePkg/Library/AsanLib/AsanLib.inf
+  NULL|MdeModulePkg/Library/AsanLib/AsanLib.inf
   PcdLib|MdePkg/Library/DxePcdLib/DxePcdLib.inf
   TimerLib|OvmfPkg/Library/AcpiTimerLib/DxeAcpiTimerLib.inf
   ResetSystemLib|OvmfPkg/Library/ResetSystemLib/DxeResetSystemLib.inf
@@ -1687,18 +1723,30 @@
 
 [LibraryClasses.common.SMM_CORE]
   # SMM and MM run in SMRAM behind their own page tables, so the shadow at
-  # PcdAsanShadowStart is unreachable from them and the real AsanLib cannot report. SAN_FLAGS
-  # instruments them regardless -- it is a toolchain flag, not a per-module choice -- so
-  # without an instance resolved here the link fails on undefined __asan_init/__asan_load*.
-  # The Null instance answers those as no-ops, which is what makes SMM_REQUIRE=TRUE build.
+  # PcdAsanShadowStart IS reachable from them, contrary to what this comment used to say:
+  # PcdCpuSmmRestrictedMemoryAccess defaults to FALSE, so SMM has unrestricted access to
+  # memory outside SMRAM, and even with it TRUE the permitted types are reserved, runtime
+  # and ACPI NVS -- and OvmfPkg/PlatformPei/MemDetect.c reserves the shadow as
+  # EfiRuntimeServicesData, one of exactly those. AsanLib.inf has always listed
+  # DXE_SMM_DRIVER and SMM_CORE in its LIBRARY_CLASS; nothing here resolved it.
+  #
+  # SAN_FLAGS instruments these module types regardless -- a toolchain flag, not a
+  # per-module choice -- so an instance must be resolved here or the link fails on undefined
+  # __asan_init/__asan_load*. The Null instance would answer those as no-ops: it builds and
+  # detects nothing, which is what was here before.
+  #
+  # Measured on edk2-stable202511 with SMM_REQUIRE=TRUE: builds at FV 68%, boots, the self
+  # test still reports, and PiSmmCore, PiSmmCpuDxeSmm and VariableSmm each carry both the
+  # instrumentation and AsanLib's own symbols. NOT yet shown: a report raised from inside an
+  # SMM driver, which needs a deliberate fault in one that no benchmark case plants today.
   # NULL| is required: no SMM module INF asks for AsanLib, so resolving the class alone
   # would not pull it in. Added to the EXISTING sections rather than a new combined one --
   # this file holds its whole body twice and dedup_sections() in apply_asan.py locates the
   # duplicate by matching the longest repeated run of section HEADERS, so a new header
   # re-aligns that search and it drops the wrong copy (observed: the [Defines] body
   # vanished and the build stopped at "Redundant '!endif'").
-  AsanLib|MdeModulePkg/Library/AsanLibNull/AsanLibNull.inf
-  NULL|MdeModulePkg/Library/AsanLibNull/AsanLibNull.inf
+  AsanLib|MdeModulePkg/Library/AsanLib/AsanLib.inf
+  NULL|MdeModulePkg/Library/AsanLib/AsanLib.inf
   PcdLib|MdePkg/Library/DxePcdLib/DxePcdLib.inf
   TimerLib|OvmfPkg/Library/AcpiTimerLib/DxeAcpiTimerLib.inf
   ResetSystemLib|OvmfPkg/Library/ResetSystemLib/DxeResetSystemLib.inf
