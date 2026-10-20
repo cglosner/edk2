@@ -1064,7 +1064,14 @@
   #
   MdeModulePkg/Universal/SanBenchDxe/SanBenchDxe.inf {
     <BuildOptions>
-      *_CLANGSAN_X64_SAN_FLAGS == $(ASAN_SAN_FLAGS) -mllvm -asan-stack=0
+      # Stack instrumentation ON for this module only, which is the whole point of the
+      # experiment. Globally it is fatal: the compiler writes frame redzones inline and
+      # unconditionally, bypassing AsanLib's range guard -- that guard covers the checks
+      # only -- so a module whose stack falls outside the mapped shadow corrupts whatever
+      # MEM_TO_SHADOW lands on, and the symptom is a clobbered return address with ZERO
+      # ASan reports. Per module it is answerable: this driver's stack is the DXE one, in
+      # the low memory the shadow covers.
+      *_CLANGSAN_X64_SAN_FLAGS == $(ASAN_SAN_FLAGS)
     <LibraryClasses>
       AsanLib|MdeModulePkg/Library/AsanLib/AsanLib.inf
       NULL|MdeModulePkg/Library/AsanLib/AsanLib.inf

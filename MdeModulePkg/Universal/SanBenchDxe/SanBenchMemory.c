@@ -256,11 +256,61 @@ SanBenchUseSession (
   return EFI_SUCCESS;
 }
 
+/**
+  Overflow a LOCAL array, so the redzone that catches it is a stack frame's.
+
+  Correct for Length <= sizeof (Buffer). Above that it writes past a local, which the
+  heap classes in this file cannot cover: the compiler emits a frame redzone inline and
+  unconditionally, so this reports only when the module was built WITHOUT
+  -mllvm -asan-stack=0. That makes it the one case here whose verdict says whether stack
+  instrumentation is actually on -- a silent PASS elsewhere proves nothing about it.
+
+  Kept small and copied with CopyMem so the write is a plain run off the end rather than
+  something the optimiser can fold away. noinline because an inlined frame merges into the
+  caller's and the redzone moves with it.
+**/
+STATIC
+EFI_STATUS
+EFIAPI
+SanBenchStackRecord (
+  IN SAN_BENCH_MEMORY_PROTOCOL  *This,
+  IN VOID                       *Record,
+  IN UINTN                      Length
+  )
+{
+  UINT8  Buffer[32];
+
+  if (Record == NULL) {
+    return EFI_INVALID_PARAMETER;
+  }
+
+  //
+  // Bounded well above the array but not wildly: a Length of thousands leaves the frame
+  // entirely and faults on a guard page, which reports as an exception rather than as a
+  // stack overflow with a named class.
+  //
+  if (Length > sizeof (Buffer) * 4) {
+    return EFI_INVALID_PARAMETER;
+  }
+
+  CopyMem (Buffer, Record, Length);          // past the end when Length > 32
+
+  //
+  // Consume it so the copy cannot be dropped as dead.
+  //
+  if (Buffer[0] == 0xFF) {
+    return EFI_ABORTED;
+  }
+
+  return EFI_SUCCESS;
+}
+
 SAN_BENCH_MEMORY_PROTOCOL  gSanBenchMemory = {
   SanBenchCopyRecord,
   SanBenchReadEntry,
   SanBenchParseTlv,
   SanBenchFillTable,
   SanBenchReleaseSession,
-  SanBenchUseSession
+  SanBenchUseSession,
+  SanBenchStackRecord
 };

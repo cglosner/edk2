@@ -111,6 +111,22 @@ EFI_STATUS
   OUT UINT32                     *Value
   );
 
+/**
+  Write Length bytes into a 32 byte LOCAL array.
+
+  Correct for Length <= 32. Above that it runs off a stack frame rather than a heap
+  allocation, which is a different detector: the compiler writes the frame's redzones
+  inline, so this only reports when the module was built WITHOUT -mllvm -asan-stack=0.
+  Every other case here is heap or FWSAN and says nothing about that.
+**/
+typedef
+EFI_STATUS
+(EFIAPI *SAN_BENCH_STACK_RECORD)(
+  IN SAN_BENCH_MEMORY_PROTOCOL  *This,
+  IN VOID                       *Record,
+  IN UINTN                      Length
+  );
+
 struct _SAN_BENCH_MEMORY_PROTOCOL {
   SAN_BENCH_COPY_RECORD      CopyRecord;
   SAN_BENCH_READ_ENTRY       ReadEntry;
@@ -118,6 +134,7 @@ struct _SAN_BENCH_MEMORY_PROTOCOL {
   SAN_BENCH_FILL_TABLE       FillTable;
   SAN_BENCH_RELEASE_SESSION  ReleaseSession;
   SAN_BENCH_USE_SESSION      UseSession;
+  SAN_BENCH_STACK_RECORD     StackRecord;
 };
 
 /**

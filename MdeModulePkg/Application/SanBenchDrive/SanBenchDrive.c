@@ -93,11 +93,39 @@ CaseHeapUnderflow (
 }
 
 //
-// On the heap, not the stack. The obvious way to write this is a two byte local, and it
-// reports nothing: the build carries -mllvm -asan-stack=0 because enabling stack
-// instrumentation faults the boot in CpuDxe, so a stack overread is outside what this
-// sanitizer can see at all. Putting the blob on the heap measures the coverage that
-// exists rather than the gap that is already known.
+// Runs off a LOCAL array, which is the one case here that stack instrumentation has to be
+// on for. The driver side keeps the array small and copies with CopyMem so the write is a
+// plain run off the end; the redzone that catches it is the frame's, emitted inline by the
+// compiler, so this reports only when SanBenchDxe was built WITHOUT
+// -mllvm -asan-stack=0. Its verdict is therefore the answer to "is stack instrumentation
+// actually enabled", which no other case in this table can give.
+//
+STATIC
+VOID
+CaseStackOverflow (
+  VOID
+  )
+{
+  UINT8  Blob[64];
+  UINTN  Index;
+
+  //
+  // Filled by hand rather than with SetMem: this application does not declare
+  // BaseMemoryLib, and adding it for one fill would change what the exerciser links.
+  //
+  for (Index = 0; Index < sizeof (Blob); Index++) {
+    Blob[Index] = 0xA5;
+  }
+
+  mMem->StackRecord (mMem, Blob, sizeof (Blob));   // 64 into a 32 byte local
+}
+
+//
+// On the heap, not the stack -- deliberately, and not for want of the case above. This one
+// measures the heap path, which is instrumented platform wide; the stack path is per
+// module, because the compiler writes frame redzones inline and unconditionally and a
+// module whose stack falls outside the mapped shadow corrupts whatever MEM_TO_SHADOW
+// lands on.
 //
 STATIC
 VOID
@@ -253,6 +281,7 @@ STATIC CONST SAN_BENCH_ENTRY  mCases[] = {
   { "boot-service-after-exit", CaseLateBootService,    FALSE },
   { "variable-size-trusted",  CaseVariableSizeTrusted, FALSE },
   { "use-after-free",         CaseUseAfterFree,        FALSE },
+  { "stack-buffer-overflow",  CaseStackOverflow,       FALSE },
   { "double-free",            CaseDoubleFree,          TRUE  },
   { "size-overflow",          CaseSizeOverflow,        TRUE  },
 };
