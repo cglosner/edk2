@@ -117,6 +117,37 @@ jobs:
           # not defects, so one PR per candidate would be noise.
           open-pr: true
 
+      # The results directory lives under the runner's own temp, which the runner wipes
+      # when the job ends -- so on a failure the only copy of the stage logs is the
+      # artifact, and reading that needs a token the person debugging the runner may not
+      # have. Keep a copy on the box itself, next to the runner, where it can just be read.
+      # This branch exists to exercise CI; a consumer of the action does not need it.
+      - name: Keep the stage logs on the runner
+        if: always()
+        shell: bash
+        env:
+          RESULTS: ${{ steps.fuzz.outputs.results }}
+        run: |
+          set -uo pipefail
+          [ -n "${RESULTS:-}" ] || { echo "the fuzz step published no results path"; exit 0; }
+          KEEP="$HOME/fuzzuer-ci-logs/${GITHUB_RUN_ID}"
+          mkdir -p "$KEEP"
+          for f in run.json bugs.md bugs.json presence.csv .candidates; do
+            [ -f "$RESULTS/$f" ] && cp -a "$RESULTS/$f" "$KEEP/" 2>/dev/null
+          done
+          cp -a "$RESULTS"/*.log "$KEEP/" 2>/dev/null || true
+          # Per campaign, the heartbeat and the serial log -- not the corpora, which are
+          # large and say nothing a failure needs.
+          for c in "$RESULTS"/campaigns/*/; do
+            [ -d "$c" ] || continue
+            n=$(basename "$c")
+            mkdir -p "$KEEP/campaigns/$n"
+            for f in run.log fuzz.txt log.json crashes.csv; do
+              [ -f "$c/$f" ] && cp -a "$c/$f" "$KEEP/campaigns/$n/" 2>/dev/null
+            done
+          done
+          echo "kept $(find "$KEEP" -type f | wc -l) file(s) in $KEEP"
+
       # Always, including on failure: a run that fell over at a stage is exactly when the
       # logs are worth having.
       - name: Upload everything the run produced
