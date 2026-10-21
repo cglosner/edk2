@@ -1,10 +1,19 @@
 # Fuzz this edk2 with FuzzUEr, and bring the findings back here as a pull request.
 #
-# This is the consumer side of the action: FuzzUEr lives in another repository and is used
-# by reference, exactly as any other edk2 fork would use it. Nothing of FuzzUEr is vendored
-# here -- the action fetches its own submodules on first use and caches them on the runner,
-# because GitHub hands a referenced action over as an archive with no git history and its
-# submodules would otherwise arrive empty.
+# This is the consumer side of the action: FuzzUEr lives in another repository and nothing of
+# it is vendored here.
+#
+# It is checked out with actions/checkout rather than used as `uses: BreakingBoot/FuzzUEr@main`.
+# That shorter form does not work for this action, and the failure is not obvious: the runner
+# fetches a referenced action as a repository ARCHIVE through an HTTP client with a hard
+# 100 second timeout, and FuzzUEr's archive does not arrive inside it. The job then dies in
+# "Downloading actions" with
+#
+#   DownloadActionException: Failed to download archive '...'
+#   The request was canceled due to the configured HttpClient.Timeout of 100 seconds elapsing
+#
+# before a single step of the workflow runs. actions/checkout clones over git instead, which
+# that timeout does not apply to, and pinning the ref makes the version explicit.
 #
 # Needs a SELF-HOSTED runner registered against THIS repository. A run builds
 # LLVM-instrumented OVMF and a QEMU that libafl compiles from source; a hosted runner has
@@ -68,9 +77,21 @@ jobs:
           fetch-depth: 0
           submodules: recursive
 
+      # Cloned, not downloaded as an archive -- see the note at the top. submodules:
+      # recursive because the harness generator, the sanitizer and the edk2 the port is
+      # taken from are submodules, and the action needs all of them.
+      - name: Check out FuzzUEr
+        uses: actions/checkout@v4
+        with:
+          repository: BreakingBoot/FuzzUEr
+          ref: main
+          path: fuzzuer
+          submodules: recursive
+          fetch-depth: 1
+
       - name: Fuzz it
         id: fuzz
-        uses: BreakingBoot/FuzzUEr@main
+        uses: ./fuzzuer
         with:
           source: edk2
           # The fallback matters: on a push or the schedule there are no inputs, and an
