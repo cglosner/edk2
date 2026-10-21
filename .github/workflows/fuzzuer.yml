@@ -34,6 +34,10 @@ on:
         type: boolean
         required: false
         default: false
+  # Pushing this branch runs it. The branch exists for exercising CI, so a push is the
+  # signal; master is deliberately left alone, since it mirrors upstream byte for byte.
+  push:
+    branches: ['fuzzuer-ci']
   # Weekly, on the day least likely to collide with anything else.
   schedule:
     - cron: '0 4 * * 0'
@@ -69,7 +73,11 @@ jobs:
         uses: BreakingBoot/FuzzUEr@main
         with:
           source: edk2
-          targets: ${{ github.event.inputs.targets }}
+          # The fallback matters: on a push or the schedule there are no inputs, and an
+          # EMPTY targets means every protocol discovered -- 245 of them, which at any
+          # useful budget is most of a day. A named handful keeps an unattended trigger
+          # to something that finishes; widen it from the dispatch form deliberately.
+          targets: ${{ github.event.inputs.targets || 'EfiAcpiTable EfiHiiFont EfiSmbios EdkiiFormBrowserEx' }}
           budget: ${{ github.event.inputs.budget || '300' }}
           qualify-only: ${{ github.event.inputs.qualify_only || 'false' }}
           smm: ${{ github.event.inputs.smm || 'false' }}
