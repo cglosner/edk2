@@ -70,23 +70,33 @@ jobs:
       # The tree under test. Full depth because the pipeline resolves the ref out of git
       # history and makes a worktree of it, and recursive because edk2 vendors its
       # dependencies -- three separate build failures name none of them.
+      # No submodules here on purpose. FuzzUEr makes a git worktree of the ref and runs
+      # `git submodule update --init --depth=1` on it itself, non-recursively, which is
+      # exactly what an OVMF build needs.
+      #
+      # `submodules: recursive` is actively wrong for edk2: it descends into OpenSSL's own
+      # submodules -- fuzz-corpora, krb5, oqs-provider, pkcs11-provider, tlsfuzzer -- which
+      # are gigabytes that no firmware build touches, and the job dies in checkout long
+      # before any fuzzing. Even `submodules: true` is unnecessary work here.
       - name: Check out this edk2
         uses: actions/checkout@v4
         with:
           path: edk2
           fetch-depth: 0
-          submodules: recursive
 
-      # Cloned, not downloaded as an archive -- see the note at the top. submodules:
-      # recursive because the harness generator, the sanitizer and the edk2 the port is
-      # taken from are submodules, and the action needs all of them.
+      # Cloned, not downloaded as an archive -- see the note at the top.
+      #
+      # submodules: true, NOT recursive. FuzzUEr's own submodules are what the action needs
+      # (the harness generator, the sanitizer, the edk2 the port is lifted from), but one of
+      # them IS an edk2, so recursing walks into OpenSSL's corpora for the same reason as
+      # above. The action initialises anything deeper itself if it needs it.
       - name: Check out FuzzUEr
         uses: actions/checkout@v4
         with:
           repository: BreakingBoot/FuzzUEr
           ref: main
           path: fuzzuer
-          submodules: recursive
+          submodules: true
           fetch-depth: 1
 
       - name: Fuzz it
