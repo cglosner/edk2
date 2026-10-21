@@ -1,0 +1,83 @@
+{
+  "ref": "6157c2c7d7b9f9d18c5dcc6ab27eff2633abbac4",
+  "stages": [
+    {
+      "name": "ready",
+      "ok": true,
+      "detail": "fuzzuer-ci:latest and fwbuild-stack are up",
+      "seconds": 0.1
+    },
+    {
+      "name": "fetch",
+      "ok": true,
+      "detail": "6157c2c7d7b9f9d18c5dcc6ab27eff2633abbac4 at 6157c2c7d7",
+      "seconds": 1.3
+    },
+    {
+      "name": "submodules",
+      "ok": true,
+      "detail": "14/14 populated",
+      "seconds": 37.9
+    },
+    {
+      "name": "port",
+      "ok": true,
+      "detail": "21 clean, 8 resolved, 0 unresolved, 0 failed",
+      "seconds": 3.3
+    },
+    {
+      "name": "vendor",
+      "ok": true,
+      "detail": "nothing to repair",
+      "seconds": 0.1
+    },
+    {
+      "name": "sync",
+      "ok": true,
+      "detail": "tree staged in the builder",
+      "seconds": 2.4
+    },
+    {
+      "name": "build",
+      "ok": true,
+      "detail": "firmware built, FV 65% full",
+      "seconds": 86.8
+    },
+    {
+      "name": "instrumented",
+      "ok": true,
+      "detail": "266/266 modules carry ASan checks",
+      "seconds": 9.6
+    },
+    {
+      "name": "discover",
+      "ok": true,
+      "detail": "245 protocols from 11 package(s), 16 SMI handlers (not fuzzed; pass --smi)",
+      "seconds": 1.5
+    },
+    {
+      "name": "image",
+      "ok": true,
+      "detail": "fuzzuer-6157c2c7d7b9f9d18c5dcc6ab27eff2633abbac4:latest carries this tree",
+      "seconds": 196.1
+    },
+    {
+      "name": "detects",
+      "ok": true,
+      "detail": "double-free + 3 store reports + length-driven overread (benchmark drivers absent: pass --bench to score them)",
+      "seconds": 195.7
+    },
+    {
+      "name": "fuzz",
+      "ok": true,
+      "detail": "3/4 campaign(s) fuzzed the harness (42849 iteration(s)), edge stability median 90% (1 campaign(s) under 90%), 1 reached the harness but never came back out of the call (EfiSmbios)",
+      "seconds": 1417.0
+    },
+    {
+      "name": "triage",
+      "ok": true,
+      "detail": "8 candidate(s) from 9 cluster(s)",
+      "seconds": 2.2
+    }
+  ]
+}

@@ -1,0 +1,117 @@
+{
+  "rows": 40,
+  "clusters": 9,
+  "candidates": [
+    {
+      "id": "AcpiTableDxe.efi|heap-buffer-overflow (read)|asan-outline-instrumentation",
+      "module": "AcpiTableDxe.efi",
+      "site": "asan-outline-instrumentation:479700441",
+      "class": "heap-buffer-overflow (read)",
+      "hits": 1124,
+      "severity": 4,
+      "detail": "read of 4 bytes at 0x000000001C78232C",
+      "protocols": [
+        "EfiAcpiTable"
+      ]
+    },
+    {
+      "id": "SetupBrowser.efi|fwsan-double-fetch (read)|fwsan",
+      "module": "SetupBrowser.efi",
+      "site": "fwsan:477185447",
+      "class": "fwsan-double-fetch (read)",
+      "hits": 1431,
+      "severity": 1,
+      "detail": "read of 2 bytes at 0x000000001C782328",
+      "protocols": [
+        "EdkiiFormBrowserEx"
+      ]
+    },
+    {
+      "id": "AcpiTableDxe.efi|[ASan]|UefiDriverModel.c",
+      "module": "AcpiTableDxe.efi",
+      "site": "UefiDriverModel.c:731",
+      "class": "[ASan]",
+      "hits": 1124,
+      "severity": 1,
+      "detail": "ip 0x000000001C97A5D9",
+      "protocols": [
+        "EfiAcpiTable"
+      ]
+    },
+    {
+      "id": "DxeCore.efi|fwsan-double-fetch (read)|fwsan",
+      "module": "DxeCore.efi",
+      "site": "fwsan:482722276",
+      "class": "fwsan-double-fetch (read)",
+      "hits": 649,
+      "severity": 1,
+      "detail": "read of 2 bytes at 0x000000001C86853C",
+      "protocols": [
+        "EfiHiiFont"
+      ]
+    },
+    {
+      "id": "HiiDatabase.efi|fwsan-double-fetch (read)|fwsan~0",
+      "module": "HiiDatabase.efi",
+      "site": "fwsan:482645001",
+      "class": "fwsan-double-fetch (read)",
+      "hits": 271,
+      "severity": 1,
+      "detail": "read of 4 bytes at 0x000000001C868530",
+      "protocols": [
+        "EfiHiiFont"
+      ]
+    },
+    {
+      "id": "HiiDatabase.efi|fwsan-double-fetch (read)|fwsan~1",
+      "module": "HiiDatabase.efi",
+      "site": "fwsan:482722565",
+      "class": "fwsan-double-fetch (read)",
+      "hits": 198,
+      "severity": 1,
+      "detail": "read of 2 bytes at 0x000000001C86853A",
+      "protocols": [
+        "EfiHiiFont"
+      ]
+    },
+    {
+      "id": "HiiDatabase.efi|fwsan-double-fetch (read)|fwsan~2",
+      "module": "HiiDatabase.efi",
+      "site": "fwsan:530572356",
+      "class": "fwsan-double-fetch (read)",
+      "hits": 100,
+      "severity": 1,
+      "detail": "read of 4 bytes at 0x000000001C294780",
+      "protocols": [
+        "EfiHiiFont"
+      ]
+    },
+    {
+      "id": "|fwsan-double-fetch (read)|fwsan",
+      "module": "",
+      "site": "fwsan:477912604",
+      "class": "fwsan-double-fetch (read)",
+      "hits": 1,
+      "severity": 1,
+      "detail": "read of 2 bytes at 0x000000001C868528",
+      "protocols": [
+        "EfiSmbios"
+      ]
+    }
+  ],
+  "ubiquitous": [],
+  "filtered": {
+    "harness": [],
+    "artefact": [],
+    "background": [
+      {
+        "id": "HiiDatabase.efi|null-pointer-arithmetic|Database.c",
+        "module": "HiiDatabase.efi",
+        "site": "Database.c:3393-3484 (8 sites)",
+        "class": "null-pointer-arithmetic",
+        "hits": 32,
+        "reason": "only ever seen during boot, with no input in play"
+      }
+    ]
+  }
+}
