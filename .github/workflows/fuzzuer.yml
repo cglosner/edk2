@@ -52,11 +52,12 @@ on:
     - cron: '0 4 * * 0'
 
 permissions:
-  # The action opens the findings PR in THIS repository -- the one whose tree it fuzzed --
-  # so the job token needs to write here. No PAT is involved: FuzzUEr never pushes to its
-  # own repo, and it refuses outright to push findings at upstream tianocore.
-  contents: write
-  pull-requests: write
+  # The action files the findings issues in THIS repository -- the one whose tree it fuzzed
+  # -- so the job token needs to write issues here. No PAT is involved: FuzzUEr never files
+  # against its own repo, and it refuses outright to file findings at upstream tianocore.
+  # contents stays read: nothing is pushed to a branch any more.
+  contents: read
+  issues: write
 
 jobs:
   fuzz:
@@ -122,10 +123,11 @@ jobs:
           budget: ${{ github.event.inputs.budget || '300' }}
           qualify-only: ${{ github.event.inputs.qualify_only || 'false' }}
           smm: ${{ github.event.inputs.smm || 'false' }}
-          # Open the PR here when triage attributes candidates to firmware code. A clean
-          # run opens nothing, which is the point: a sweep yields candidates and most are
-          # not defects, so one PR per candidate would be noise.
-          open-pr: true
+          # File the findings here when triage attributes candidates to firmware code:
+          # one issue per candidate plus one for the run. A clean run files nothing, which
+          # is the point -- a sweep yields candidates and most are not defects. Re-running
+          # files nothing already open, so the weekly cron does not repeat itself.
+          open-issues: true
           out: ${{ steps.where.outputs.out }}
 
       - name: Say where the results are
@@ -165,17 +167,20 @@ jobs:
         env:
           STAGES: ${{ steps.fuzz.outputs.stages }}
           CANDIDATES: ${{ steps.fuzz.outputs.candidates }}
-          PR: ${{ steps.fuzz.outputs.pull-request }}
+          RUN_ISSUE: ${{ steps.fuzz.outputs.run-issue }}
+          FILED: ${{ steps.fuzz.outputs.issues-filed }}
         run: |
           {
             echo "### FuzzUEr"
             echo
             echo "- stages passed: \`${STAGES:-unknown}\`"
             echo "- candidates: \`${CANDIDATES:-none (triage did not run)}\`"
-            if [ -n "${PR:-}" ]; then
-              echo "- findings PR: $PR"
+            echo "- issues filed: \`${FILED:-0}\`"
+            if [ -n "${RUN_ISSUE:-}" ]; then
+              echo "- run issue: $RUN_ISSUE"
             else
-              echo "- no findings PR: either nothing was attributed to firmware code, or"
-              echo "  the branch could not be pushed. The artifact has everything either way."
+              echo "- no run issue: either nothing was attributed to firmware code, every"
+              echo "  candidate was already filed, or the token could not write issues."
+              echo "  The artifact has everything either way."
             fi
           } >> "$GITHUB_STEP_SUMMARY"
