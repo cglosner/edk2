@@ -125,13 +125,13 @@ jobs:
           targets: ${{ github.event.inputs.targets || 'EfiAcpiTable EfiHiiFont EfiSmbios EdkiiFormBrowserEx' }}
           budget: ${{ github.event.inputs.budget || '300' }}
           qualify-only: ${{ github.event.inputs.qualify_only || 'false' }}
-          smm: ${{ github.event.inputs.smm || 'false' }}
+          smm: ${{ github.event.inputs.smm || 'true' }}
           # The edk2 under test. Empty means the commit this workflow was pushed on, which
           # is the normal case; a SHA here fuzzes that version instead, which is how the
           # port's adaptation to an older tree gets exercised. 0d6d87f9 is 2024-08-01 --
           # two years behind master and well after the commit the port was written against,
           # so the port has real conflicts to resolve rather than applying cleanly.
-          ref: ${{ github.event.inputs.ref || '0d6d87f99485a1a3cfa7e27c74941f0f13beee66' }}
+          ref: ${{ github.event.inputs.ref || '' }}
           # File the findings here when triage attributes candidates to firmware code:
           # one issue per candidate plus one for the run. A clean run files nothing, which
           # is the point -- a sweep yields candidates and most are not defects. Re-running
