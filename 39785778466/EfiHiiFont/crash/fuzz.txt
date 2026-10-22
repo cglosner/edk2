@@ -1,0 +1,972 @@
+AsanLibConstructor begin
+Get hob of gAsanInfoGuid
+AsanLib: reporting arms at ReadyToBoot
+asan_inited = 0x0000000000000001
+asan_is_deactivated = 0x0000000000000000
+mAsanShadowMemoryStart = 0x0000000005000000
+mAsanShadowMemorySize = 0x0000000004000000
+AsanLibConstructor: preinit function pointers size = 0x0000000000000000
+AsanLibConstructor: init function pointers size = 0x00000000000000C5
+AsanLibConstructor done
+AsanLibConstructor begin
+Get hob of gAsanInfoGuid
+AsanLib: reporting arms at ReadyToBoot
+AsanLibConstructor begin
+Get hob of gAsanInfoGuid
+AsanLib: reporting arms at ReadyToBoot
+AsanLibConstructor begin
+Get hob of gAsanInfoGuid
+AsanLib: reporting arms at ReadyToBoot
+asan_inited = 0x0000000000000001
+asan_is_deactivated = 0x0000000000000000
+mAsanShadowMemoryStart = 0x0000000005000000
+mAsanShadowMemorySize = 0x0000000004000000
+AsanLibConstructor: preinit function pointers size = 0x0000000000000000
+AsanLibConstructor: init function pointers size = 0x0000000000000074
+AsanLibConstructor done
+AsanLibConstructor begin
+Get hob of gAsanInfoGuid
+AsanLib: reporting arms at ReadyToBoot
+asan_inited = 0x0000000000000001
+asan_is_deactivated = 0x0000000000000000
+mAsanShadowMemoryStart = 0x0000000005000000
+mAsanShadowMemorySize = 0x0000000004000000
+AsanLibConstructor: preinit function pointers size = 0x0000000000000000
+AsanLibConstructor: init function pointers size = 0x0000000000000074
+AsanLibConstructor done
+AsanLibConstructor begin
+Get hob of gAsanInfoGuid
+AsanLib: reporting arms at ReadyToBoot
+asan_inited = 0x0000000000000001
+asan_is_deactivated = 0x0000000000000000
+mAsanShadowMemoryStart = 0x0000000005000000
+mAsanShadowMemorySize = 0x0000000004000000
+AsanLibConstructor: preinit function pointers size = 0x0000000000000000
+AsanLibConstructor: init function pointers size = 0x0000000000000086
+AsanLibConstructor done
+AsanLibConstructor begin
+Get hob of gAsanInfoGuid
+AsanLib: reporting arms at ReadyToBoot
+asan_inited = 0x0000000000000001
+asan_is_deactivated = 0x0000000000000000
+mAsanShadowMemoryStart = 0x0000000005000000
+mAsanShadowMemorySize = 0x0000000004000000
+AsanLibConstructor: preinit function pointers size = 0x0000000000000000
+AsanLibConstructor: init function pointers size = 0x0000000000000080
+AsanLibConstructor done
+AsanLibConstructor begin
+Get hob of gAsanInfoGuid
+AsanLib: reporting arms at ReadyToBoot
+asan_inited = 0x0000000000000001
+asan_is_deactivated = 0x0000000000000000
+mAsanShadowMemoryStart = 0x0000000005000000
+mAsanShadowMemorySize = 0x0000000004000000
+AsanLibConstructor: preinit function pointers size = 0x0000000000000000
+AsanLibConstructor: init function pointers size = 0x000000000000008C
+AsanLibConstructor done
+AsanLibConstructor begin
+Get hob of gAsanInfoGuid
+AsanLib: reporting arms at ReadyToBoot
+asan_inited = 0x0000000000000001
+asan_is_deactivated = 0x0000000000000000
+mAsanShadowMemoryStart = 0x0000000005000000
+mAsanShadowMemorySize = 0x0000000004000000
+AsanLibConstructor: preinit function pointers size = 0x0000000000000000
+AsanLibConstructor: init function pointers size = 0x0000000000000079
+AsanLibConstructor done
+AsanLibConstructor begin
+Get hob of gAsanInfoGuid
+AsanLib: reporting arms at ReadyToBoot
+asan_inited = 0x0000000000000001
+asan_is_deactivated = 0x0000000000000000
+mAsanShadowMemoryStart = 0x0000000005000000
+mAsanShadowMemorySize = 0x0000000004000000
+AsanLibConstructor: preinit function pointers size = 0x0000000000000000
+AsanLibConstructor: init function pointers size = 0x0000000000000079
+AsanLibConstructor done
+AsanLibConstructor begin
+Get hob of gAsanInfoGuid
+AsanLib: reporting arms at ReadyToBoot
+asan_inited = 0x0000000000000001
+asan_is_deactivated = 0x0000000000000000
+mAsanShadowMemoryStart = 0x0000000005000000
+mAsanShadowMemorySize = 0x0000000004000000
+AsanLibConstructor: preinit function pointers size = 0x0000000000000000
+AsanLibConstructor: init function pointers size = 0x000000000000009C
+AsanLibConstructor done
+AsanLibConstructor begin
+Get hob of gAsanInfoGuid
+AsanLib: reporting arms at ReadyToBoot
+asan_inited = 0x0000000000000001
+asan_is_deactivated = 0x0000000000000000
+mAsanShadowMemoryStart = 0x0000000005000000
+mAsanShadowMemorySize = 0x0000000004000000
+AsanLibConstructor: preinit function pointers size = 0x0000000000000000
+AsanLibConstructor: init function pointers size = 0x0000000000000079
+AsanLibConstructor done
+AsanLibConstructor begin
+Get hob of gAsanInfoGuid
+AsanLib: reporting arms at ReadyToBoot
+asan_inited = 0x0000000000000001
+asan_is_deactivated = 0x0000000000000000
+mAsanShadowMemoryStart = 0x0000000005000000
+mAsanShadowMemorySize = 0x0000000004000000
+AsanLibConstructor: preinit function pointers size = 0x0000000000000000
+AsanLibConstructor: init function pointers size = 0x0000000000000070
+AsanLibConstructor done
+AsanLibConstructor begin
+Get hob of gAsanInfoGuid
+AsanLib: reporting arms at ReadyToBoot
+asan_inited = 0x0000000000000001
+asan_is_deactivated = 0x0000000000000000
+mAsanShadowMemoryStart = 0x0000000005000000
+mAsanShadowMemorySize = 0x0000000004000000
+AsanLibConstructor: preinit function pointers size = 0x0000000000000000
+AsanLibConstructor: init function pointers size = 0x00000000000000A3
+AsanLibConstructor done
+AsanLibConstructor begin
+Get hob of gAsanInfoGuid
+AsanLib: reporting arms at ReadyToBoot
+asan_inited = 0x0000000000000001
+asan_is_deactivated = 0x0000000000000000
+mAsanShadowMemoryStart = 0x0000000005000000
+mAsanShadowMemorySize = 0x0000000004000000
+AsanLibConstructor: preinit function pointers size = 0x0000000000000000
+AsanLibConstructor: init function pointers size = 0x0000000000000070
+AsanLibConstructor done
+AsanLibConstructor begin
+Get hob of gAsanInfoGuid
+AsanLib: reporting arms at ReadyToBoot
+asan_inited = 0x0000000000000001
+asan_is_deactivated = 0x0000000000000000
+mAsanShadowMemoryStart = 0x0000000005000000
+mAsanShadowMemorySize = 0x0000000004000000
+AsanLibConstructor: preinit function pointers size = 0x0000000000000000
+AsanLibConstructor: init function pointers size = 0x0000000000000077
+AsanLibConstructor done
+AsanLibConstructor begin
+Get hob of gAsanInfoGuid
+AsanLib: reporting arms at ReadyToBoot
+asan_inited = 0x0000000000000001
+asan_is_deactivated = 0x0000000000000000
+mAsanShadowMemoryStart = 0x0000000005000000
+mAsanShadowMemorySize = 0x0000000004000000
+AsanLibConstructor: preinit function pointers size = 0x0000000000000000
+AsanLibConstructor: init function pointers size = 0x0000000000000079
+AsanLibConstructor done
+AsanLibConstructor begin
+Get hob of gAsanInfoGuid
+AsanLib: reporting arms at ReadyToBoot
+asan_inited = 0x0000000000000001
+asan_is_deactivated = 0x0000000000000000
+mAsanShadowMemoryStart = 0x0000000005000000
+mAsanShadowMemorySize = 0x0000000004000000
+AsanLibConstructor: preinit function pointers size = 0x0000000000000000
+AsanLibConstructor: init function pointers size = 0x0000000000000075
+AsanLibConstructor done
+AsanLibConstructor begin
+Get hob of gAsanInfoGuid
+AsanLib: reporting arms at ReadyToBoot
+asan_inited = 0x0000000000000001
+asan_is_deactivated = 0x0000000000000000
+mAsanShadowMemoryStart = 0x0000000005000000
+mAsanShadowMemorySize = 0x0000000004000000
+AsanLibConstructor: preinit function pointers size = 0x0000000000000000
+AsanLibConstructor: init function pointers size = 0x0000000000000071
+AsanLibConstructor done
+AsanLibConstructor begin
+Get hob of gAsanInfoGuid
+AsanLib: reporting arms at ReadyToBoot
+asan_inited = 0x0000000000000001
+asan_is_deactivated = 0x0000000000000000
+mAsanShadowMemoryStart = 0x0000000005000000
+mAsanShadowMemorySize = 0x0000000004000000
+AsanLibConstructor: preinit function pointers size = 0x0000000000000000
+AsanLibConstructor: init function pointers size = 0x0000000000000077
+AsanLibConstructor done
+AsanLibConstructor begin
+Get hob of gAsanInfoGuid
+AsanLib: reporting arms at ReadyToBoot
+AsanLibConstructor begin
+Get hob of gAsanInfoGuid
+AsanLib: reporting arms at ReadyToBoot
+asan_inited = 0x0000000000000001
+asan_is_deactivated = 0x0000000000000000
+mAsanShadowMemoryStart = 0x0000000005000000
+mAsanShadowMemorySize = 0x0000000004000000
+AsanLibConstructor: preinit function pointers size = 0x0000000000000000
+AsanLibConstructor: init function pointers size = 0x000000000000007C
+AsanLibConstructor done
+AsanLibConstructor begin
+Get hob of gAsanInfoGuid
+AsanLib: reporting arms at ReadyToBoot
+asan_inited = 0x0000000000000001
+asan_is_deactivated = 0x0000000000000000
+mAsanShadowMemoryStart = 0x0000000005000000
+mAsanShadowMemorySize = 0x0000000004000000
+AsanLibConstructor: preinit function pointers size = 0x0000000000000000
+AsanLibConstructor: init function pointers size = 0x0000000000000077
+AsanLibConstructor done
+AsanLibConstructor begin
+Get hob of gAsanInfoGuid
+AsanLib: reporting arms at ReadyToBoot
+asan_inited = 0x0000000000000001
+asan_is_deactivated = 0x0000000000000000
+mAsanShadowMemoryStart = 0x0000000005000000
+mAsanShadowMemorySize = 0x0000000004000000
+AsanLibConstructor: preinit function pointers size = 0x0000000000000000
+AsanLibConstructor: init function pointers size = 0x0000000000000070
+AsanLibConstructor done
+AsanLibConstructor begin
+Get hob of gAsanInfoGuid
+AsanLib: reporting arms at ReadyToBoot
+asan_inited = 0x0000000000000001
+asan_is_deactivated = 0x0000000000000000
+mAsanShadowMemoryStart = 0x0000000005000000
+mAsanShadowMemorySize = 0x0000000004000000
+AsanLibConstructor: preinit function pointers size = 0x0000000000000000
+AsanLibConstructor: init function pointers size = 0x000000000000008C
+AsanLibConstructor done
+AsanLibConstructor begin
+Get hob of gAsanInfoGuid
+AsanLib: reporting arms at ReadyToBoot
+asan_inited = 0x0000000000000001
+asan_is_deactivated = 0x0000000000000000
+mAsanShadowMemoryStart = 0x0000000005000000
+mAsanShadowMemorySize = 0x0000000004000000
+AsanLibConstructor: preinit function pointers size = 0x0000000000000000
+AsanLibConstructor: init function pointers size = 0x0000000000000079
+AsanLibConstructor done
+AsanLibConstructor begin
+Get hob of gAsanInfoGuid
+AsanLib: reporting arms at ReadyToBoot
+asan_inited = 0x0000000000000001
+asan_is_deactivated = 0x0000000000000000
+mAsanShadowMemoryStart = 0x0000000005000000
+mAsanShadowMemorySize = 0x0000000004000000
+AsanLibConstructor: preinit function pointers size = 0x0000000000000000
+AsanLibConstructor: init function pointers size = 0x0000000000000073
+AsanLibConstructor done
+AsanLibConstructor begin
+Get hob of gAsanInfoGuid
+AsanLib: reporting arms at ReadyToBoot
+asan_inited = 0x0000000000000001
+asan_is_deactivated = 0x0000000000000000
+mAsanShadowMemoryStart = 0x0000000005000000
+mAsanShadowMemorySize = 0x0000000004000000
+AsanLibConstructor: preinit function pointers size = 0x0000000000000000
+AsanLibConstructor: init function pointers size = 0x000000000000008F
+AsanLibConstructor done
+AsanLibConstructor begin
+Get hob of gAsanInfoGuid
+AsanLib: reporting arms at ReadyToBoot
+asan_inited = 0x0000000000000001
+asan_is_deactivated = 0x0000000000000000
+mAsanShadowMemoryStart = 0x0000000005000000
+mAsanShadowMemorySize = 0x0000000004000000
+AsanLibConstructor: preinit function pointers size = 0x0000000000000000
+AsanLibConstructor: init function pointers size = 0x000000000000007A
+AsanLibConstructor done
+AsanLibConstructor begin
+Get hob of gAsanInfoGuid
+AsanLib: reporting arms at ReadyToBoot
+asan_inited = 0x0000000000000001
+asan_is_deactivated = 0x0000000000000000
+mAsanShadowMemoryStart = 0x0000000005000000
+mAsanShadowMemorySize = 0x0000000004000000
+AsanLibConstructor: preinit function pointers size = 0x0000000000000000
+AsanLibConstructor: init function pointers size = 0x0000000000000075
+AsanLibConstructor done
+AsanLibConstructor begin
+Get hob of gAsanInfoGuid
+AsanLib: reporting arms at ReadyToBoot
+asan_inited = 0x0000000000000001
+asan_is_deactivated = 0x0000000000000000
+mAsanShadowMemoryStart = 0x0000000005000000
+mAsanShadowMemorySize = 0x0000000004000000
+AsanLibConstructor: preinit function pointers size = 0x0000000000000000
+AsanLibConstructor: init function pointers size = 0x000000000000007A
+AsanLibConstructor done
+AsanLibConstructor begin
+Get hob of gAsanInfoGuid
+AsanLib: reporting arms at ReadyToBoot
+asan_inited = 0x0000000000000001
+asan_is_deactivated = 0x0000000000000000
+mAsanShadowMemoryStart = 0x0000000005000000
+mAsanShadowMemorySize = 0x0000000004000000
+AsanLibConstructor: preinit function pointers size = 0x0000000000000000
+AsanLibConstructor: init function pointers size = 0x0000000000000081
+AsanLibConstructor done
+AsanLibConstructor begin
+Get hob of gAsanInfoGuid
+AsanLib: reporting arms at ReadyToBoot
+asan_inited = 0x0000000000000001
+asan_is_deactivated = 0x0000000000000000
+mAsanShadowMemoryStart = 0x0000000005000000
+mAsanShadowMemorySize = 0x0000000004000000
+AsanLibConstructor: preinit function pointers size = 0x0000000000000000
+AsanLibConstructor: init function pointers size = 0x0000000000000079
+AsanLibConstructor done
+AsanLibConstructor begin
+Get hob of gAsanInfoGuid
+AsanLib: reporting arms at ReadyToBoot
+asan_inited = 0x0000000000000001
+asan_is_deactivated = 0x0000000000000000
+mAsanShadowMemoryStart = 0x0000000005000000
+mAsanShadowMemorySize = 0x0000000004000000
+AsanLibConstructor: preinit function pointers size = 0x0000000000000000
+AsanLibConstructor: init function pointers size = 0x0000000000000074
+AsanLibConstructor done
+AsanLibConstructor begin
+Get hob of gAsanInfoGuid
+AsanLib: reporting arms at ReadyToBoot
+asan_inited = 0x0000000000000001
+asan_is_deactivated = 0x0000000000000000
+mAsanShadowMemoryStart = 0x0000000005000000
+mAsanShadowMemorySize = 0x0000000004000000
+AsanLibConstructor: preinit function pointers size = 0x0000000000000000
+AsanLibConstructor: init function pointers size = 0x000000000000007D
+AsanLibConstructor done
+AsanLibConstructor begin
+Get hob of gAsanInfoGuid
+AsanLib: reporting arms at ReadyToBoot
+asan_inited = 0x0000000000000001
+asan_is_deactivated = 0x0000000000000000
+mAsanShadowMemoryStart = 0x0000000005000000
+mAsanShadowMemorySize = 0x0000000004000000
+AsanLibConstructor: preinit function pointers size = 0x0000000000000000
+AsanLibConstructor: init function pointers size = 0x0000000000000070
+AsanLibConstructor done
+AsanLibConstructor begin
+Get hob of gAsanInfoGuid
+AsanLib: reporting arms at ReadyToBoot
+asan_inited = 0x0000000000000001
+asan_is_deactivated = 0x0000000000000000
+mAsanShadowMemoryStart = 0x0000000005000000
+mAsanShadowMemorySize = 0x0000000004000000
+AsanLibConstructor: preinit function pointers size = 0x0000000000000000
+AsanLibConstructor: init function pointers size = 0x0000000000000074
+AsanLibConstructor done
+AsanLibConstructor begin
+Get hob of gAsanInfoGuid
+AsanLib: reporting arms at ReadyToBoot
+asan_inited = 0x0000000000000001
+asan_is_deactivated = 0x0000000000000000
+mAsanShadowMemoryStart = 0x0000000005000000
+mAsanShadowMemorySize = 0x0000000004000000
+AsanLibConstructor: preinit function pointers size = 0x0000000000000000
+AsanLibConstructor: init function pointers size = 0x0000000000000077
+AsanLibConstructor done
+AsanLibConstructor begin
+Get hob of gAsanInfoGuid
+AsanLib: reporting arms at ReadyToBoot
+asan_inited = 0x0000000000000001
+asan_is_deactivated = 0x0000000000000000
+mAsanShadowMemoryStart = 0x0000000005000000
+mAsanShadowMemorySize = 0x0000000004000000
+AsanLibConstructor: preinit function pointers size = 0x0000000000000000
+AsanLibConstructor: init function pointers size = 0x0000000000000070
+AsanLibConstructor done
+AsanLibConstructor begin
+Get hob of gAsanInfoGuid
+AsanLib: reporting arms at ReadyToBoot
+asan_inited = 0x0000000000000001
+asan_is_deactivated = 0x0000000000000000
+mAsanShadowMemoryStart = 0x0000000005000000
+mAsanShadowMemorySize = 0x0000000004000000
+AsanLibConstructor: preinit function pointers size = 0x0000000000000000
+AsanLibConstructor: init function pointers size = 0x000000000000009D
+AsanLibConstructor done
+AsanLibConstructor begin
+Get hob of gAsanInfoGuid
+AsanLib: reporting arms at ReadyToBoot
+asan_inited = 0x0000000000000001
+asan_is_deactivated = 0x0000000000000000
+mAsanShadowMemoryStart = 0x0000000005000000
+mAsanShadowMemorySize = 0x0000000004000000
+AsanLibConstructor: preinit function pointers size = 0x0000000000000000
+AsanLibConstructor: init function pointers size = 0x000000000000007A
+AsanLibConstructor done
+AsanLibConstructor begin
+Get hob of gAsanInfoGuid
+AsanLib: reporting arms at ReadyToBoot
+asan_inited = 0x0000000000000001
+asan_is_deactivated = 0x0000000000000000
+mAsanShadowMemoryStart = 0x0000000005000000
+mAsanShadowMemorySize = 0x0000000004000000
+AsanLibConstructor: preinit function pointers size = 0x0000000000000000
+AsanLibConstructor: init function pointers size = 0x0000000000000079
+AsanLibConstructor done
+AsanLibConstructor begin
+Get hob of gAsanInfoGuid
+AsanLib: reporting arms at ReadyToBoot
+asan_inited = 0x0000000000000001
+asan_is_deactivated = 0x0000000000000000
+mAsanShadowMemoryStart = 0x0000000005000000
+mAsanShadowMemorySize = 0x0000000004000000
+AsanLibConstructor: preinit function pointers size = 0x0000000000000000
+AsanLibConstructor: init function pointers size = 0x0000000000000079
+AsanLibConstructor done
+AsanLibConstructor begin
+Get hob of gAsanInfoGuid
+AsanLib: reporting arms at ReadyToBoot
+asan_inited = 0x0000000000000001
+asan_is_deactivated = 0x0000000000000000
+mAsanShadowMemoryStart = 0x0000000005000000
+mAsanShadowMemorySize = 0x0000000004000000
+AsanLibConstructor: preinit function pointers size = 0x0000000000000000
+AsanLibConstructor: init function pointers size = 0x0000000000000071
+AsanLibConstructor done
+AsanLibConstructor begin
+Get hob of gAsanInfoGuid
+AsanLib: reporting arms at ReadyToBoot
+asan_inited = 0x0000000000000001
+asan_is_deactivated = 0x0000000000000000
+mAsanShadowMemoryStart = 0x0000000005000000
+mAsanShadowMemorySize = 0x0000000004000000
+AsanLibConstructor: preinit function pointers size = 0x0000000000000000
+AsanLibConstructor: init function pointers size = 0x0000000000000072
+AsanLibConstructor done
+AsanLibConstructor begin
+Get hob of gAsanInfoGuid
+AsanLib: reporting arms at ReadyToBoot
+asan_inited = 0x0000000000000001
+asan_is_deactivated = 0x0000000000000000
+mAsanShadowMemoryStart = 0x0000000005000000
+mAsanShadowMemorySize = 0x0000000004000000
+AsanLibConstructor: preinit function pointers size = 0x0000000000000000
+AsanLibConstructor: init function pointers size = 0x0000000000000077
+AsanLibConstructor done
+AsanLibConstructor begin
+Get hob of gAsanInfoGuid
+AsanLib: reporting arms at ReadyToBoot
+asan_inited = 0x0000000000000001
+asan_is_deactivated = 0x0000000000000000
+mAsanShadowMemoryStart = 0x0000000005000000
+mAsanShadowMemorySize = 0x0000000004000000
+AsanLibConstructor: preinit function pointers size = 0x0000000000000000
+AsanLibConstructor: init function pointers size = 0x0000000000000088
+AsanLibConstructor done
+AsanLibConstructor begin
+Get hob of gAsanInfoGuid
+AsanLib: reporting arms at ReadyToBoot
+asan_inited = 0x0000000000000001
+asan_is_deactivated = 0x0000000000000000
+mAsanShadowMemoryStart = 0x0000000005000000
+mAsanShadowMemorySize = 0x0000000004000000
+AsanLibConstructor: preinit function pointers size = 0x0000000000000000
+AsanLibConstructor: init function pointers size = 0x00000000000000A3
+AsanLibConstructor done
+AsanLibConstructor begin
+Get hob of gAsanInfoGuid
+AsanLib: reporting arms at ReadyToBoot
+asan_inited = 0x0000000000000001
+asan_is_deactivated = 0x0000000000000000
+mAsanShadowMemoryStart = 0x0000000005000000
+mAsanShadowMemorySize = 0x0000000004000000
+AsanLibConstructor: preinit function pointers size = 0x0000000000000000
+AsanLibConstructor: init function pointers size = 0x0000000000000081
+AsanLibConstructor done
+AsanLibConstructor begin
+Get hob of gAsanInfoGuid
+AsanLib: reporting arms at ReadyToBoot
+asan_inited = 0x0000000000000001
+asan_is_deactivated = 0x0000000000000000
+mAsanShadowMemoryStart = 0x0000000005000000
+mAsanShadowMemorySize = 0x0000000004000000
+AsanLibConstructor: preinit function pointers size = 0x0000000000000000
+AsanLibConstructor: init function pointers size = 0x000000000000007C
+AsanLibConstructor done
+AsanLibConstructor begin
+Get hob of gAsanInfoGuid
+AsanLib: reporting arms at ReadyToBoot
+asan_inited = 0x0000000000000001
+asan_is_deactivated = 0x0000000000000000
+mAsanShadowMemoryStart = 0x0000000005000000
+mAsanShadowMemorySize = 0x0000000004000000
+AsanLibConstructor: preinit function pointers size = 0x0000000000000000
+AsanLibConstructor: init function pointers size = 0x0000000000000076
+AsanLibConstructor done
+AsanLibConstructor begin
+Get hob of gAsanInfoGuid
+AsanLib: reporting arms at ReadyToBoot
+asan_inited = 0x0000000000000001
+asan_is_deactivated = 0x0000000000000000
+mAsanShadowMemoryStart = 0x0000000005000000
+mAsanShadowMemorySize = 0x0000000004000000
+AsanLibConstructor: preinit function pointers size = 0x0000000000000000
+AsanLibConstructor: init function pointers size = 0x0000000000000078
+AsanLibConstructor done
+AsanLibConstructor begin
+Get hob of gAsanInfoGuid
+AsanLib: reporting arms at ReadyToBoot
+asan_inited = 0x0000000000000001
+asan_is_deactivated = 0x0000000000000000
+mAsanShadowMemoryStart = 0x0000000005000000
+mAsanShadowMemorySize = 0x0000000004000000
+AsanLibConstructor: preinit function pointers size = 0x0000000000000000
+AsanLibConstructor: init function pointers size = 0x0000000000000071
+AsanLibConstructor done
+AsanLibConstructor begin
+Get hob of gAsanInfoGuid
+AsanLib: reporting arms at ReadyToBoot
+asan_inited = 0x0000000000000001
+asan_is_deactivated = 0x0000000000000000
+mAsanShadowMemoryStart = 0x0000000005000000
+mAsanShadowMemorySize = 0x0000000004000000
+AsanLibConstructor: preinit function pointers size = 0x0000000000000000
+AsanLibConstructor: init function pointers size = 0x000000000000007E
+AsanLibConstructor done
+AsanLibConstructor begin
+Get hob of gAsanInfoGuid
+AsanLib: reporting arms at ReadyToBoot
+asan_inited = 0x0000000000000001
+asan_is_deactivated = 0x0000000000000000
+mAsanShadowMemoryStart = 0x0000000005000000
+mAsanShadowMemorySize = 0x0000000004000000
+AsanLibConstructor: preinit function pointers size = 0x0000000000000000
+AsanLibConstructor: init function pointers size = 0x0000000000000071
+AsanLibConstructor done
+AsanLibConstructor begin
+Get hob of gAsanInfoGuid
+AsanLib: reporting arms at ReadyToBoot
+asan_inited = 0x0000000000000001
+asan_is_deactivated = 0x0000000000000000
+mAsanShadowMemoryStart = 0x0000000005000000
+mAsanShadowMemorySize = 0x0000000004000000
+AsanLibConstructor: preinit function pointers size = 0x0000000000000000
+AsanLibConstructor: init function pointers size = 0x0000000000000073
+AsanLibConstructor done
+AsanLibConstructor begin
+Get hob of gAsanInfoGuid
+AsanLib: reporting arms at ReadyToBoot
+asan_inited = 0x0000000000000001
+asan_is_deactivated = 0x0000000000000000
+mAsanShadowMemoryStart = 0x0000000005000000
+mAsanShadowMemorySize = 0x0000000004000000
+AsanLibConstructor: preinit function pointers size = 0x0000000000000000
+AsanLibConstructor: init function pointers size = 0x0000000000000071
+AsanLibConstructor done
+AsanLibConstructor begin
+Get hob of gAsanInfoGuid
+AsanLib: reporting arms at ReadyToBoot
+asan_inited = 0x0000000000000001
+asan_is_deactivated = 0x0000000000000000
+mAsanShadowMemoryStart = 0x0000000005000000
+mAsanShadowMemorySize = 0x0000000004000000
+AsanLibConstructor: preinit function pointers size = 0x0000000000000000
+AsanLibConstructor: init function pointers size = 0x0000000000000071
+AsanLibConstructor done
+AsanLibConstructor begin
+Get hob of gAsanInfoGuid
+AsanLib: reporting arms at ReadyToBoot
+asan_inited = 0x0000000000000001
+asan_is_deactivated = 0x0000000000000000
+mAsanShadowMemoryStart = 0x0000000005000000
+mAsanShadowMemorySize = 0x0000000004000000
+AsanLibConstructor: preinit function pointers size = 0x0000000000000000
+AsanLibConstructor: init function pointers size = 0x0000000000000073
+AsanLibConstructor done
+AsanLibConstructor begin
+Get hob of gAsanInfoGuid
+AsanLib: reporting arms at ReadyToBoot
+asan_inited = 0x0000000000000001
+asan_is_deactivated = 0x0000000000000000
+mAsanShadowMemoryStart = 0x0000000005000000
+mAsanShadowMemorySize = 0x0000000004000000
+AsanLibConstructor: preinit function pointers size = 0x0000000000000000
+AsanLibConstructor: init function pointers size = 0x0000000000000074
+AsanLibConstructor done
+AsanLibConstructor begin
+Get hob of gAsanInfoGuid
+AsanLib: reporting arms at ReadyToBoot
+asan_inited = 0x0000000000000001
+asan_is_deactivated = 0x0000000000000000
+mAsanShadowMemoryStart = 0x0000000005000000
+mAsanShadowMemorySize = 0x0000000004000000
+AsanLibConstructor: preinit function pointers size = 0x0000000000000000
+AsanLibConstructor: init function pointers size = 0x0000000000000087
+AsanLibConstructor done
+AsanLibConstructor begin
+Get hob of gAsanInfoGuid
+AsanLib: reporting arms at ReadyToBoot
+asan_inited = 0x0000000000000001
+asan_is_deactivated = 0x0000000000000000
+mAsanShadowMemoryStart = 0x0000000005000000
+mAsanShadowMemorySize = 0x0000000004000000
+AsanLibConstructor: preinit function pointers size = 0x0000000000000000
+AsanLibConstructor: init function pointers size = 0x0000000000000072
+AsanLibConstructor done
+AsanLibConstructor begin
+Get hob of gAsanInfoGuid
+AsanLib: reporting arms at ReadyToBoot
+asan_inited = 0x0000000000000001
+asan_is_deactivated = 0x0000000000000000
+mAsanShadowMemoryStart = 0x0000000005000000
+mAsanShadowMemorySize = 0x0000000004000000
+AsanLibConstructor: preinit function pointers size = 0x0000000000000000
+AsanLibConstructor: init function pointers size = 0x0000000000000078
+AsanLibConstructor done
+AsanLibConstructor begin
+Get hob of gAsanInfoGuid
+AsanLib: reporting arms at ReadyToBoot
+asan_inited = 0x0000000000000001
+asan_is_deactivated = 0x0000000000000000
+mAsanShadowMemoryStart = 0x0000000005000000
+mAsanShadowMemorySize = 0x0000000004000000
+AsanLibConstructor: preinit function pointers size = 0x0000000000000000
+AsanLibConstructor: init function pointers size = 0x0000000000000076
+AsanLibConstructor done
+AsanLibConstructor begin
+Get hob of gAsanInfoGuid
+AsanLib: reporting arms at ReadyToBoot
+asan_inited = 0x0000000000000001
+asan_is_deactivated = 0x0000000000000000
+mAsanShadowMemoryStart = 0x0000000005000000
+mAsanShadowMemorySize = 0x0000000004000000
+AsanLibConstructor: preinit function pointers size = 0x0000000000000000
+AsanLibConstructor: init function pointers size = 0x0000000000000074
+AsanLibConstructor done
+AsanLibConstructor begin
+Get hob of gAsanInfoGuid
+AsanLib: reporting arms at ReadyToBoot
+asan_inited = 0x0000000000000001
+asan_is_deactivated = 0x0000000000000000
+mAsanShadowMemoryStart = 0x0000000005000000
+mAsanShadowMemorySize = 0x0000000004000000
+AsanLibConstructor: preinit function pointers size = 0x0000000000000000
+AsanLibConstructor: init function pointers size = 0x0000000000000071
+AsanLibConstructor done
+AsanLibConstructor begin
+Get hob of gAsanInfoGuid
+AsanLib: reporting arms at ReadyToBoot
+asan_inited = 0x0000000000000001
+asan_is_deactivated = 0x0000000000000000
+mAsanShadowMemoryStart = 0x0000000005000000
+mAsanShadowMemorySize = 0x0000000004000000
+AsanLibConstructor: preinit function pointers size = 0x0000000000000000
+AsanLibConstructor: init function pointers size = 0x0000000000000076
+AsanLibConstructor done
+AsanLibConstructor begin
+Get hob of gAsanInfoGuid
+AsanLib: reporting arms at ReadyToBoot
+asan_inited = 0x0000000000000001
+asan_is_deactivated = 0x0000000000000000
+mAsanShadowMemoryStart = 0x0000000005000000
+mAsanShadowMemorySize = 0x0000000004000000
+AsanLibConstructor: preinit function pointers size = 0x0000000000000000
+AsanLibConstructor: init function pointers size = 0x0000000000000070
+AsanLibConstructor done
+AsanLibConstructor begin
+Get hob of gAsanInfoGuid
+AsanLib: reporting arms at ReadyToBoot
+asan_inited = 0x0000000000000001
+asan_is_deactivated = 0x0000000000000000
+mAsanShadowMemoryStart = 0x0000000005000000
+mAsanShadowMemorySize = 0x0000000004000000
+AsanLibConstructor: preinit function pointers size = 0x0000000000000000
+AsanLibConstructor: init function pointers size = 0x0000000000000073
+AsanLibConstructor done
+AsanLibConstructor begin
+Get hob of gAsanInfoGuid
+AsanLib: reporting arms at ReadyToBoot
+asan_inited = 0x0000000000000001
+asan_is_deactivated = 0x0000000000000000
+mAsanShadowMemoryStart = 0x0000000005000000
+mAsanShadowMemorySize = 0x0000000004000000
+AsanLibConstructor: preinit function pointers size = 0x0000000000000000
+AsanLibConstructor: init function pointers size = 0x0000000000000072
+AsanLibConstructor done
+AsanLibConstructor begin
+Get hob of gAsanInfoGuid
+AsanLib: reporting arms at ReadyToBoot
+asan_inited = 0x0000000000000001
+asan_is_deactivated = 0x0000000000000000
+mAsanShadowMemoryStart = 0x0000000005000000
+mAsanShadowMemorySize = 0x0000000004000000
+AsanLibConstructor: preinit function pointers size = 0x0000000000000000
+AsanLibConstructor: init function pointers size = 0x0000000000000071
+AsanLibConstructor done
+AsanLibConstructor begin
+Get hob of gAsanInfoGuid
+AsanLib: reporting arms at ReadyToBoot
+asan_inited = 0x0000000000000001
+asan_is_deactivated = 0x0000000000000000
+mAsanShadowMemoryStart = 0x0000000005000000
+mAsanShadowMemorySize = 0x0000000004000000
+AsanLibConstructor: preinit function pointers size = 0x0000000000000000
+AsanLibConstructor: init function pointers size = 0x0000000000000079
+AsanLibConstructor done
+AsanLibConstructor begin
+Get hob of gAsanInfoGuid
+AsanLib: reporting arms at ReadyToBoot
+asan_inited = 0x0000000000000001
+asan_is_deactivated = 0x0000000000000000
+mAsanShadowMemoryStart = 0x0000000005000000
+mAsanShadowMemorySize = 0x0000000004000000
+AsanLibConstructor: preinit function pointers size = 0x0000000000000000
+AsanLibConstructor: init function pointers size = 0x0000000000000078
+AsanLibConstructor done
+AsanLibConstructor begin
+Get hob of gAsanInfoGuid
+AsanLib: reporting arms at ReadyToBoot
+asan_inited = 0x0000000000000001
+asan_is_deactivated = 0x0000000000000000
+mAsanShadowMemoryStart = 0x0000000005000000
+mAsanShadowMemorySize = 0x0000000004000000
+AsanLibConstructor: preinit function pointers size = 0x0000000000000000
+AsanLibConstructor: init function pointers size = 0x0000000000000077
+AsanLibConstructor done
+AsanLibConstructor begin
+Get hob of gAsanInfoGuid
+AsanLib: reporting arms at ReadyToBoot
+asan_inited = 0x0000000000000001
+asan_is_deactivated = 0x0000000000000000
+mAsanShadowMemoryStart = 0x0000000005000000
+mAsanShadowMemorySize = 0x0000000004000000
+AsanLibConstructor: preinit function pointers size = 0x0000000000000000
+AsanLibConstructor: init function pointers size = 0x0000000000000073
+AsanLibConstructor done
+AsanLibConstructor begin
+Get hob of gAsanInfoGuid
+AsanLib: reporting arms at ReadyToBoot
+asan_inited = 0x0000000000000001
+asan_is_deactivated = 0x0000000000000000
+mAsanShadowMemoryStart = 0x0000000005000000
+mAsanShadowMemorySize = 0x0000000004000000
+AsanLibConstructor: preinit function pointers size = 0x0000000000000000
+AsanLibConstructor: init function pointers size = 0x0000000000000073
+AsanLibConstructor done
+AsanLibConstructor begin
+Get hob of gAsanInfoGuid
+AsanLib: reporting arms at ReadyToBoot
+asan_inited = 0x0000000000000001
+asan_is_deactivated = 0x0000000000000000
+mAsanShadowMemoryStart = 0x0000000005000000
+mAsanShadowMemorySize = 0x0000000004000000
+AsanLibConstructor: preinit function pointers size = 0x0000000000000000
+AsanLibConstructor: init function pointers size = 0x0000000000000079
+AsanLibConstructor done
+AsanLibConstructor begin
+Get hob of gAsanInfoGuid
+AsanLib: reporting arms at ReadyToBoot
+asan_inited = 0x0000000000000001
+asan_is_deactivated = 0x0000000000000000
+mAsanShadowMemoryStart = 0x0000000005000000
+mAsanShadowMemorySize = 0x0000000004000000
+AsanLibConstructor: preinit function pointers size = 0x0000000000000000
+AsanLibConstructor: init function pointers size = 0x0000000000000073
+AsanLibConstructor done
+AsanLibConstructor begin
+Get hob of gAsanInfoGuid
+AsanLib: reporting arms at ReadyToBoot
+asan_inited = 0x0000000000000001
+asan_is_deactivated = 0x0000000000000000
+mAsanShadowMemoryStart = 0x0000000005000000
+mAsanShadowMemorySize = 0x0000000004000000
+AsanLibConstructor: preinit function pointers size = 0x0000000000000000
+AsanLibConstructor: init function pointers size = 0x0000000000000081
+AsanLibConstructor done
+AsanLibConstructor begin
+Get hob of gAsanInfoGuid
+AsanLib: reporting arms at ReadyToBoot
+asan_inited = 0x0000000000000001
+asan_is_deactivated = 0x0000000000000000
+mAsanShadowMemoryStart = 0x0000000005000000
+mAsanShadowMemorySize = 0x0000000004000000
+AsanLibConstructor: preinit function pointers size = 0x0000000000000000
+AsanLibConstructor: init function pointers size = 0x0000000000000074
+AsanLibConstructor done
+AsanLibConstructor begin
+Get hob of gAsanInfoGuid
+AsanLib: reporting arms at ReadyToBoot
+asan_inited = 0x0000000000000001
+asan_is_deactivated = 0x0000000000000000
+mAsanShadowMemoryStart = 0x0000000005000000
+mAsanShadowMemorySize = 0x0000000004000000
+AsanLibConstructor: preinit function pointers size = 0x0000000000000000
+AsanLibConstructor: init function pointers size = 0x000000000000008F
+AsanLibConstructor done
+AsanLibConstructor begin
+Get hob of gAsanInfoGuid
+AsanLib: reporting arms at ReadyToBoot
+asan_inited = 0x0000000000000001
+asan_is_deactivated = 0x0000000000000000
+mAsanShadowMemoryStart = 0x0000000005000000
+mAsanShadowMemorySize = 0x0000000004000000
+AsanLibConstructor: preinit function pointers size = 0x0000000000000000
+AsanLibConstructor: init function pointers size = 0x0000000000000090
+AsanLibConstructor done
+AsanLibConstructor begin
+Get hob of gAsanInfoGuid
+AsanLib: reporting arms at ReadyToBoot
+asan_inited = 0x0000000000000001
+asan_is_deactivated = 0x0000000000000000
+mAsanShadowMemoryStart = 0x0000000005000000
+mAsanShadowMemorySize = 0x0000000004000000
+AsanLibConstructor: preinit function pointers size = 0x0000000000000000
+AsanLibConstructor: init function pointers size = 0x0000000000000084
+AsanLibConstructor done
+AsanLibConstructor begin
+Get hob of gAsanInfoGuid
+AsanLib: reporting arms at ReadyToBoot
+asan_inited = 0x0000000000000001
+asan_is_deactivated = 0x0000000000000000
+mAsanShadowMemoryStart = 0x0000000005000000
+mAsanShadowMemorySize = 0x0000000004000000
+AsanLibConstructor: preinit function pointers size = 0x0000000000000000
+AsanLibConstructor: init function pointers size = 0x0000000000000077
+AsanLibConstructor done
+AsanLibConstructor begin
+Get hob of gAsanInfoGuid
+AsanLib: reporting arms at ReadyToBoot
+asan_inited = 0x0000000000000001
+asan_is_deactivated = 0x0000000000000000
+mAsanShadowMemoryStart = 0x0000000005000000
+mAsanShadowMemorySize = 0x0000000004000000
+AsanLibConstructor: preinit function pointers size = 0x0000000000000000
+AsanLibConstructor: init function pointers size = 0x0000000000000077
+AsanLibConstructor done
+AsanLibConstructor begin
+Get hob of gAsanInfoGuid
+AsanLib: reporting arms at ReadyToBoot
+asan_inited = 0x0000000000000001
+asan_is_deactivated = 0x0000000000000000
+mAsanShadowMemoryStart = 0x0000000005000000
+mAsanShadowMemorySize = 0x0000000004000000
+AsanLibConstructor: preinit function pointers size = 0x0000000000000000
+AsanLibConstructor: init function pointers size = 0x000000000000007A
+AsanLibConstructor done
+AsanLibConstructor begin
+Get hob of gAsanInfoGuid
+AsanLib: reporting arms at ReadyToBoot
+asan_inited = 0x0000000000000001
+asan_is_deactivated = 0x0000000000000000
+mAsanShadowMemoryStart = 0x0000000005000000
+mAsanShadowMemorySize = 0x0000000004000000
+AsanLibConstructor: preinit function pointers size = 0x0000000000000000
+AsanLibConstructor: init function pointers size = 0x0000000000000076
+AsanLibConstructor done
+AsanLibConstructor begin
+Get hob of gAsanInfoGuid
+AsanLib: reporting arms at ReadyToBoot
+asan_inited = 0x0000000000000001
+asan_is_deactivated = 0x0000000000000000
+mAsanShadowMemoryStart = 0x0000000005000000
+mAsanShadowMemorySize = 0x0000000004000000
+AsanLibConstructor: preinit function pointers size = 0x0000000000000000
+AsanLibConstructor: init function pointers size = 0x000000000000007B
+AsanLibConstructor done
+AsanLibConstructor begin
+Get hob of gAsanInfoGuid
+AsanLib: reporting arms at ReadyToBoot
+asan_inited = 0x0000000000000001
+asan_is_deactivated = 0x0000000000000000
+mAsanShadowMemoryStart = 0x0000000005000000
+mAsanShadowMemorySize = 0x0000000004000000
+AsanLibConstructor: preinit function pointers size = 0x0000000000000000
+AsanLibConstructor: init function pointers size = 0x0000000000000079
+AsanLibConstructor done
+AsanLibConstructor begin
+Get hob of gAsanInfoGuid
+AsanLib: reporting arms at ReadyToBoot
+asan_inited = 0x0000000000000001
+asan_is_deactivated = 0x0000000000000000
+mAsanShadowMemoryStart = 0x0000000005000000
+mAsanShadowMemorySize = 0x0000000004000000
+AsanLibConstructor: preinit function pointers size = 0x0000000000000000
+AsanLibConstructor: init function pointers size = 0x000000000000007A
+AsanLibConstructor done
+AsanLibConstructor begin
+Get hob of gAsanInfoGuid
+AsanLib: reporting arms at ReadyToBoot
+asan_inited = 0x0000000000000001
+asan_is_deactivated = 0x0000000000000000
+mAsanShadowMemoryStart = 0x0000000005000000
+mAsanShadowMemorySize = 0x0000000004000000
+AsanLibConstructor: preinit function pointers size = 0x0000000000000000
+AsanLibConstructor: init function pointers size = 0x0000000000000073
+AsanLibConstructor done
+AsanLibConstructor begin
+Get hob of gAsanInfoGuid
+AsanLib: reporting arms at ReadyToBoot
+asan_inited = 0x0000000000000001
+asan_is_deactivated = 0x0000000000000000
+mAsanShadowMemoryStart = 0x0000000005000000
+mAsanShadowMemorySize = 0x0000000004000000
+AsanLibConstructor: preinit function pointers size = 0x0000000000000000
+AsanLibConstructor: init function pointers size = 0x0000000000000071
+AsanLibConstructor done
+AsanLibConstructor begin
+Get hob of gAsanInfoGuid
+AsanLib: reporting arms at ReadyToBoot
+asan_inited = 0x0000000000000001
+asan_is_deactivated = 0x0000000000000000
+mAsanShadowMemoryStart = 0x0000000005000000
+mAsanShadowMemorySize = 0x0000000004000000
+AsanLibConstructor: preinit function pointers size = 0x0000000000000000
+AsanLibConstructor: init function pointers size = 0x0000000000000078
+AsanLibConstructor done
+AsanLibConstructor begin
+Get hob of gAsanInfoGuid
+AsanLib: reporting arms at ReadyToBoot
+asan_inited = 0x0000000000000001
+asan_is_deactivated = 0x0000000000000000
+mAsanShadowMemoryStart = 0x0000000005000000
+mAsanShadowMemorySize = 0x0000000004000000
+AsanLibConstructor: preinit function pointers size = 0x0000000000000000
+AsanLibConstructor: init function pointers size = 0x0000000000000073
+AsanLibConstructor done
+AsanLibConstructor begin
+Get hob of gAsanInfoGuid
+AsanLib: reporting arms at ReadyToBoot
+asan_inited = 0x0000000000000001
+asan_is_deactivated = 0x0000000000000000
+mAsanShadowMemoryStart = 0x0000000005000000
+mAsanShadowMemorySize = 0x0000000004000000
+AsanLibConstructor: preinit function pointers size = 0x0000000000000000
+AsanLibConstructor: init function pointers size = 0x0000000000000073
+AsanLibConstructor done
+/workspace/tmp/edk2/MdeModulePkg/Universal/HiiDatabaseDxe/Database.c, line:0x0D41, column:0x0027 ErrorType = NullPointerArithmetic: offset applied to a null pointer base 0x0000000000000000 result 0x0000000000000014
+ASAN MEMORY ACCESS check fail! __ubsan_handle_pointer_overflow is called:
+Return IP address is 0x000000001CAE22EA
+/workspace/tmp/edk2/MdeModulePkg/Universal/HiiDatabaseDxe/Database.c, line:0x0D4E, column:0x0027 ErrorType = NullPointerArithmetic: offset applied to a null pointer base 0x0000000000000000 result 0x0000000000000014
+ASAN MEMORY ACCESS check fail! __ubsan_handle_pointer_overflow is called:
+Return IP address is 0x000000001CAE2301
+/workspace/tmp/edk2/MdeModulePkg/Universal/HiiDatabaseDxe/Database.c, line:0x0D5B, column:0x0027 ErrorType = NullPointerArithmetic: offset applied to a null pointer base 0x0000000000000000 result 0x00000000000000C2
+ASAN MEMORY ACCESS check fail! __ubsan_handle_pointer_overflow is called:
+Return IP address is 0x000000001CAE2318
+/workspace/tmp/edk2/MdeModulePkg/Universal/HiiDatabaseDxe/Database.c, line:0x0D68, column:0x0027 ErrorType = NullPointerArithmetic: offset applied to a null pointer base 0x0000000000000000 result 0x00000000000000C2
+ASAN MEMORY ACCESS check fail! __ubsan_handle_pointer_overflow is called:
+Return IP address is 0x000000001CAE232F
+/workspace/tmp/edk2/MdeModulePkg/Universal/HiiDatabaseDxe/Database.c, line:0x0D75, column:0x0027 ErrorType = NullPointerArithmetic: offset applied to a null pointer base 0x0000000000000000 result 0x00000000000006ED
+ASAN MEMORY ACCESS check fail! __ubsan_handle_pointer_overflow is called:
+Return IP address is 0x000000001CAE2346
+/workspace/tmp/edk2/MdeModulePkg/Universal/HiiDatabaseDxe/Database.c, line:0x0D82, column:0x0027 ErrorType = NullPointerArithmetic: offset applied to a null pointer base 0x0000000000000000 result 0x00000000000006ED
+ASAN MEMORY ACCESS check fail! __ubsan_handle_pointer_overflow is called:
+Return IP address is 0x000000001CAE235D
+/workspace/tmp/edk2/MdeModulePkg/Universal/HiiDatabaseDxe/Database.c, line:0x0D8F, column:0x0027 ErrorType = NullPointerArithmetic: offset applied to a null pointer base 0x0000000000000000 result 0x00000000000006ED
+ASAN MEMORY ACCESS check fail! __ubsan_handle_pointer_overflow is called:
+Return IP address is 0x000000001CAE2374
+/workspace/tmp/edk2/MdeModulePkg/Universal/HiiDatabaseDxe/Database.c, line:0x0D9C, column:0x0027 ErrorType = NullPointerArithmetic: offset applied to a null pointer base 0x0000000000000000 result 0x00000000000006ED
+ASAN MEMORY ACCESS check fail! __ubsan_handle_pointer_overflow is called:
+Return IP address is 0x000000001CAE238B
+[2J[001;001H[=3h[2J[001;001H[2J[001;001H[8;042;160t[2J[001;001HBdsDxe: loading Boot0002 "UEFI QEMU HARDDISK QM00001 " from PciRoot(0x0)/Pci(0x1F,0x2)/Sata(0x0,0xFFFF,0x0)
+BdsDxe: starting Boot0002 "UEFI QEMU HARDDISK QM00001 " from PciRoot(0x0)/Pci(0x1F,0x2)/Sata(0x0,0xFFFF,0x0)
+AsanLibConstructor begin
+Get hob of gAsanInfoGuid
+asan_inited = 0x0000000000000001
+asan_is_deactivated = 0x0000000000000000
+mAsanShadowMemoryStart = 0x0000000005000000
+mAsanShadowMemorySize = 0x0000000004000000
+AsanLibConstructor: preinit function pointers size = 0x0000000000000000
+AsanLibConstructor: init function pointers size = 0x0000000000000000
+AsanLibConstructor done
+IN=0402:0303ffffffff
+FIRNESS: fuzzing starts
+FIRNESS: fuzzing starts
+FWSAN: double-fetch -- untrusted word read twice in one call
+[ASan] ===================================================
+[ASan] ERROR: Invalid memory access: address 0x000000001C660B30, size 0x0000000000000004, is_write 0x0000000000000000, ip 0x000000001CAEB409
+bug_descr=fwsan-double-fetch in file: fwsan at line: 0x000000001CAEB409
+IN=0402:030300010203
