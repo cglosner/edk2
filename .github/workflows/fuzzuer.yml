@@ -130,7 +130,7 @@ jobs:
           # it: the variable store has to be writable for an SMM_REQUIRE image and
           # read-only for the snapshot the fuzzer restores from. Leaving this on made
           # every scheduled run fail at the fuzz stage after about 75 minutes.
-          smm: ${{ github.event.inputs.smm || 'true' }}
+          smm: ${{ github.event.inputs.smm || 'false' }}
           # The edk2 under test. Empty means the commit this workflow was pushed on, which
           # is the normal case; a SHA here fuzzes that version instead, which is how the
           # port's adaptation to an older tree gets exercised. 0d6d87f9 is 2024-08-01 --
