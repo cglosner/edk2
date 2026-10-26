@@ -1,0 +1,57 @@
+[Defines]
+  INF_VERSION                    = 0x00010005
+  BASE_NAME                      = Firness
+  FILE_GUID                      = 3a6782e9-a1f0-4477-b7db-a6744f21f059
+  MODULE_TYPE                    = UEFI_APPLICATION
+  VERSION_STRING                 = 1.0
+  ENTRY_POINT                    = FirnessMain
+
+#
+#  This flag specifies whether HII resource section is generated into PE image.
+#
+  UEFI_HII_RESOURCE_SECTION      = TRUE
+
+#
+# The following information is for reference only and not required by the build tools.
+#
+#  VALID_ARCHITECTURES           = IA32 X64 EBC
+#
+
+[Sources]
+  FirnessMain.c
+  FirnessHarnesses.c
+  FirnessHelpers.c
+
+[Packages]
+  MdePkg/MdePkg.dec
+  MdeModulePkg/MdeModulePkg.dec
+  ShellPkg/ShellPkg.dec
+  NetworkPkg/NetworkPkg.dec
+  OvmfPkg/OvmfPkg.dec
+  UefiCpuPkg/UefiCpuPkg.dec
+
+[LibraryClasses]
+  UefiApplicationEntryPoint
+  UefiBootServicesTableLib
+  UefiRuntimeServicesTableLib
+  UefiLib
+  TimeBaseLib
+  PrintLib
+  DxeServicesLib
+  MemoryAllocationLib
+  HiiLib
+  StackCheckLib
+  StackCheckFailureHookLib
+  DebugLib
+  DevicePathLib
+  PerformanceLib
+  PcdLib
+  BaseMemoryLib
+  BaseLib
+  RegisterFilterLib
+  HobLib
+
+[Guids]
+
+[Protocols]
+  gEfiAcpiTableProtocolGuid

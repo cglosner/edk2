@@ -1,0 +1,26 @@
+Phase,AtBoot,Module,File,Line,Asan Msg,ErrorType,Message,Count
+fuzz,,DxeCore.efi,/workspace/tmp/edk2/MdeModulePkg/Core/Dxe/Hand/Locate.c,0,__asan_store0x08,asan,ip 0x000000001F9F2F30,1
+fuzz,,DxeCore.efi,/workspace/tmp/edk2/MdeModulePkg/Core/Dxe/Hand/Locate.c,399,__asan_load0x08,asan,ip 0x000000001F9F2487,1
+fuzz,,DxeCore.efi,/workspace/tmp/edk2/MdeModulePkg/Core/Dxe/Hand/Locate.c,400,__asan_store0x08,asan,ip 0x000000001F9F24B0,1
+fuzz,,DxeCore.efi,/workspace/tmp/edk2/MdeModulePkg/Core/Dxe/Hand/Locate.c,405,__asan_load0x08,asan,ip 0x000000001F9F24C1,1
+fuzz,,DxeCore.efi,/workspace/tmp/edk2/MdeModulePkg/Core/Dxe/Hand/Locate.c,598,__asan_store0x08,asan,ip 0x000000001F9F2F45,1
+fuzz,,DxeCore.efi,/workspace/tmp/edk2/MdeModulePkg/Core/Dxe/Hand/Locate.c,614,__asan_store0x08,asan,ip 0x000000001F9F3006,1
+fuzz,,DxeCore.efi,/workspace/tmp/edk2/MdeModulePkg/Core/Dxe/Hand/Locate.c,620,__asan_store0x08,asan,ip 0x000000001F9F3022,1
+fuzz,,DxeCore.efi,/workspace/tmp/edk2/MdePkg/Library/BaseLib/CpuDeadLoop.c,31,__asan_load0x08,asan,ip 0x000000001FA1DC7C,1
+fuzz,,DxeCore.efi,asan-outline-instrumentation,530523271,stack-buffer-overflow,asan,"address 0x000000001F9DD750, size 0x0000000000000008, is_write 0x0000000000000000, ip 0x000000001F9F2487",1
+fuzz,,DxeCore.efi,asan-outline-instrumentation,530523312,stack-buffer-overflow,asan,"address 0x000000001F9DD750, size 0x0000000000000008, is_write 0x0000000000000001, ip 0x000000001F9F24B0",1
+fuzz,,DxeCore.efi,asan-outline-instrumentation,530523329,stack-buffer-overflow,asan,"address 0x000000001F9DD758, size 0x0000000000000008, is_write 0x0000000000000000, ip 0x000000001F9F24C1",1
+fuzz,,DxeCore.efi,asan-outline-instrumentation,530526000,stack-buffer-overflow,asan,"address 0x000000001F9DD748, size 0x0000000000000008, is_write 0x0000000000000001, ip 0x000000001F9F2F30",1
+fuzz,,DxeCore.efi,asan-outline-instrumentation,530526021,stack-buffer-overflow,asan,"address 0x000000001F9DD750, size 0x0000000000000008, is_write 0x0000000000000001, ip 0x000000001F9F2F45",1
+fuzz,,DxeCore.efi,asan-outline-instrumentation,530526214,stack-buffer-overflow,asan,"address 0x000000001F9DD758, size 0x0000000000000008, is_write 0x0000000000000001, ip 0x000000001F9F3006",1
+fuzz,,DxeCore.efi,asan-outline-instrumentation,530526242,stack-buffer-overflow,asan,"address 0x000000001F9DD750, size 0x0000000000000008, is_write 0x0000000000000001, ip 0x000000001F9F3022",1
+fuzz,,,asan-outline-instrumentation,530701436,unknown-crash,asan,"address 0x000000001F9DD0F0, size 0x0000000000000008, is_write 0x0000000000000000, ip 0x000000001FA1DC7C",1
+fuzz,,DxeCore.efi,fwsan,482645001,fwsan-double-fetch,asan,"address 0x000000001C868530, size 0x0000000000000004, is_write 0x0000000000000000, ip 0x000000001CC49409",1
+boot,,HiiDatabase.efi,/workspace/tmp/edk2/MdeModulePkg/Universal/HiiDatabaseDxe/Database.c,3393,__ubsan_handle_pointer_overflow,NullPointerArithmetic,offset applied to a null pointer base 0x0000000000000000 result 0x0000000000000014,1
+boot,,HiiDatabase.efi,/workspace/tmp/edk2/MdeModulePkg/Universal/HiiDatabaseDxe/Database.c,3406,__ubsan_handle_pointer_overflow,NullPointerArithmetic,offset applied to a null pointer base 0x0000000000000000 result 0x0000000000000014,1
+boot,,HiiDatabase.efi,/workspace/tmp/edk2/MdeModulePkg/Universal/HiiDatabaseDxe/Database.c,3419,__ubsan_handle_pointer_overflow,NullPointerArithmetic,offset applied to a null pointer base 0x0000000000000000 result 0x00000000000000C2,1
+boot,,HiiDatabase.efi,/workspace/tmp/edk2/MdeModulePkg/Universal/HiiDatabaseDxe/Database.c,3432,__ubsan_handle_pointer_overflow,NullPointerArithmetic,offset applied to a null pointer base 0x0000000000000000 result 0x00000000000000C2,1
+boot,,HiiDatabase.efi,/workspace/tmp/edk2/MdeModulePkg/Universal/HiiDatabaseDxe/Database.c,3445,__ubsan_handle_pointer_overflow,NullPointerArithmetic,offset applied to a null pointer base 0x0000000000000000 result 0x00000000000006ED,1
+boot,,HiiDatabase.efi,/workspace/tmp/edk2/MdeModulePkg/Universal/HiiDatabaseDxe/Database.c,3458,__ubsan_handle_pointer_overflow,NullPointerArithmetic,offset applied to a null pointer base 0x0000000000000000 result 0x00000000000006ED,1
+boot,,HiiDatabase.efi,/workspace/tmp/edk2/MdeModulePkg/Universal/HiiDatabaseDxe/Database.c,3471,__ubsan_handle_pointer_overflow,NullPointerArithmetic,offset applied to a null pointer base 0x0000000000000000 result 0x00000000000006ED,1
+boot,,HiiDatabase.efi,/workspace/tmp/edk2/MdeModulePkg/Universal/HiiDatabaseDxe/Database.c,3484,__ubsan_handle_pointer_overflow,NullPointerArithmetic,offset applied to a null pointer base 0x0000000000000000 result 0x00000000000006ED,1
