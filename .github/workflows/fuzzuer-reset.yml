@@ -1,0 +1,55 @@
+# One-shot: clear the findings so the next sweep refiles them from scratch.
+#
+# Deleting issues is not possible here. The REST API cannot delete one at all -- that needs
+# the GraphQL deleteIssue mutation and admin rights -- so this closes them and then deletes
+# the `fuzzuer-finding` LABEL, which is what actually matters: the filer finds prior work by
+# listing that label, so removing it makes every existing issue invisible to the dedupe and
+# the next run files all of them again. Closing alone would NOT do it, because the dedupe
+# matches closed issues on purpose -- a closed issue means somebody already looked.
+#
+# The issues themselves stay, unlabelled and closed, as a record.
+name: FuzzUEr reset
+
+on:
+  push:
+    branches: ['fuzzuer-reset']
+
+permissions:
+  issues: write
+
+jobs:
+  reset:
+    runs-on: [self-hosted, linux, x64]
+    timeout-minutes: 20
+    steps:
+      - name: Close the findings and drop the label
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+        run: |
+          set -uo pipefail
+          api() { curl -sS -H "Authorization: Bearer $GH_TOKEN" \
+                       -H "Accept: application/vnd.github+json" \
+                       -H "X-GitHub-Api-Version: 2022-11-28" "$@"; }
+
+          closed=0
+          for page in 1 2 3 4 5; do
+            # One physical line: a multi-line -c program inside this block scalar puts
+            # its continuations at column 0 and ends the scalar, which YAML then rejects.
+            nums=$(api "https://api.github.com/repos/$REPO/issues?labels=fuzzuer-finding&state=all&per_page=100&page=$page" | python3 -c "import json,sys; d=json.load(sys.stdin); print(' '.join(str(i['number']) for i in d if 'pull_request' not in i) if isinstance(d,list) else '')")
+            [ -n "${nums// /}" ] || break
+            for n in $nums; do
+              api -X PATCH -d '{"state":"closed","state_reason":"not_planned"}' \
+                  "https://api.github.com/repos/$REPO/issues/$n" >/dev/null && closed=$((closed+1))
+            done
+          done
+          echo "closed $closed finding issue(s)"
+
+          code=$(api -o /dev/null -w '%{http_code}' -X DELETE \
+                 "https://api.github.com/repos/$REPO/labels/fuzzuer-finding")
+          echo "label delete -> http $code"
+          case "$code" in
+            204|404) echo "the fuzzuer-finding label is gone; the next run will refile every finding" ;;
+            *)       echo "::warning::could not delete the label (http $code); the dedupe will still see the old issues" ;;
+          esac
