@@ -1,0 +1,77 @@
+File 'Asan.h' already exists in 'MdeModulePkg/Include/Library', skipping copy.
+File 'AsanInfo.h' already exists in 'MdeModulePkg/Include/Guid', skipping copy.
+File 'AsanLib' already exists in 'MdeModulePkg/Library/', skipping copy.
+File 'AsanLibNull' already exists in 'MdeModulePkg/Library/', skipping copy.
+File 'AsanRuntimeLib' already exists in 'MdeModulePkg/Library/', skipping copy.
+File 'AsanMemoryLib' already exists in 'MdePkg/Library/', skipping copy.
+File 'AsanMemoryLibRepStr' already exists in 'MdePkg/Library/', skipping copy.
+Patch has already been applied. Skipping patching.
+++++ Instrumented Firmware ++++
+++++ Reusing the compilation database (1278 entries) ++++
+++++ Ran Static Analysis Tool ++++
+WARNING: No generator functions were captured!!
+
+Removing TcgPhysicalPresenceLib because it depends on UefiDriverEntryPoint which is not in the library map
+Removing Tcg2PhysicalPresenceLib because it depends on Tcg2PhysicalPresencePromptLib which is not in the library map
+Removing CustomizedDisplayLib because it depends on UefiDriverEntryPoint which is not in the library map
+Removing PciHostBridgeLib because it depends on MapMmioLib which is not in the library map
+Removing ArmFfaLib because it depends on MmServicesTableLib which is not in the library map
+Removing FspMeasurementLib because it depends on PeiServicesTablePointerLib which is not in the library map
+Removing FspWrapperPlatformMultiPhaseLib because it depends on PeiServicesLib which is not in the library map
+Removing FspWrapperMultiPhaseProcessLib because it depends on PeiServicesLib which is not in the library map
+Removing SmmRelocationLib because it depends on PeiServicesLib which is not in the library map
+Removing MmSaveStateLib because it depends on MmServicesTableLib which is not in the library map
+253 libraries found
+INFO: 4 protocol member(s) built from their header!!
+INFO: read 6 argument(s) from their declarations -- named 0, 1 of which the callee accepts NULL for
+INFO: Collecting known constants complete!!
+INFO: Collecting directly fuzzable arguments complete!!
+INFO: Collecting generator functions complete!!
+INFO: Collecting fuzzable structs complete!!
+INFO: Adding output variables complete!!
+INFO: Handling optional arguments complete!!
+INFO: named 6 parameter(s) from their protocol typedef!!
+Total Functions: 4
+Total Generators: 0
+Total Scalable Types: 3
+Total Pointer Types: 0
+Total Struct Types: 3
+Total Constants: 0
+INFO: not linking 20 librar(ies) the harness never calls: DpcLib, DxeServicesLib, DxeServicesTableLib, HobPrintLib, HttpIoLib, IoLib, PciCapPciIoLib, PciCf8Lib, PciExpressLib, PciLib, PeCoffGetEntryPointLib, ReportStatusCodeLib, SafeIntLib, SerialPortLib, SortLib, SynchronizationLib, TimerLib, UefiBootManagerLib, UefiHiiServicesLib, VariablePolicyHelperLib
+
+/usr/local/lib/python3.10/dist-packages/fuzzywuzzy/fuzz.py:11: UserWarning: Using slow pure-python SequenceMatcher. Install python-Levenshtein to remove this warning
+  warnings.warn('Using slow pure-python SequenceMatcher. Install python-Levenshtein to remove this warning')
+
+++++ Generated Harness ++++
+++++ Compiled Harness ++++
+Wrote 24 seeds for 4 target(s) into /workspace/firness_output/qemu/corpus (1026 bytes and 26 bytes)
+  seeds dispatch 4/4 target(s) on their first step, 4 step(s) each
+++++ Booting to the harness (up to 2082s), then fuzzing under LibAFL-QEMU for 300s ++++
+++++ Harness reached after 248s of boot; fuzzing for 300s ++++
+Fuzzed 41841 iteration(s), 941 edge(s), 3009 solution(s)
+++++ Collected Unique Crashes ++++
+  boot baseline: 8 report(s) at 8 site(s) -- not fuzzing findings
+  fuzzing:       3009 report(s) at 1 site(s)
+    leaving 1 site(s) attributable to an input
++---------+----------+------------------+----------------------------------------------------------------------+-----------+---------------------------------+-----------------------+---------------------------------------------------------------------------------------------------------+---------+
+| Phase   | AtBoot   | Module           | File                                                                 |      Line | Asan Msg                        | ErrorType             | Message                                                                                                 |   Count |
++=========+==========+==================+======================================================================+===========+=================================+=======================+=========================================================================================================+=========+
+| fuzz    |          | SetupBrowser.efi | fwsan                                                                | 477185447 | fwsan-double-fetch              | asan                  | address 0x000000001C782328, size 0x0000000000000002, is_write 0x0000000000000000, ip 0x000000001C7145A7 |    3009 |
++---------+----------+------------------+----------------------------------------------------------------------+-----------+---------------------------------+-----------------------+---------------------------------------------------------------------------------------------------------+---------+
+| boot    |          | HiiDatabase.efi  | /workspace/tmp/edk2/MdeModulePkg/Universal/HiiDatabaseDxe/Database.c |      3393 | __ubsan_handle_pointer_overflow | NullPointerArithmetic | offset applied to a null pointer base 0x0000000000000000 result 0x0000000000000014                      |       1 |
++---------+----------+------------------+----------------------------------------------------------------------+-----------+---------------------------------+-----------------------+---------------------------------------------------------------------------------------------------------+---------+
+| boot    |          | HiiDatabase.efi  | /workspace/tmp/edk2/MdeModulePkg/Universal/HiiDatabaseDxe/Database.c |      3406 | __ubsan_handle_pointer_overflow | NullPointerArithmetic | offset applied to a null pointer base 0x0000000000000000 result 0x0000000000000014                      |       1 |
++---------+----------+------------------+----------------------------------------------------------------------+-----------+---------------------------------+-----------------------+---------------------------------------------------------------------------------------------------------+---------+
+| boot    |          | HiiDatabase.efi  | /workspace/tmp/edk2/MdeModulePkg/Universal/HiiDatabaseDxe/Database.c |      3419 | __ubsan_handle_pointer_overflow | NullPointerArithmetic | offset applied to a null pointer base 0x0000000000000000 result 0x00000000000000C2                      |       1 |
++---------+----------+------------------+----------------------------------------------------------------------+-----------+---------------------------------+-----------------------+---------------------------------------------------------------------------------------------------------+---------+
+| boot    |          | HiiDatabase.efi  | /workspace/tmp/edk2/MdeModulePkg/Universal/HiiDatabaseDxe/Database.c |      3432 | __ubsan_handle_pointer_overflow | NullPointerArithmetic | offset applied to a null pointer base 0x0000000000000000 result 0x00000000000000C2                      |       1 |
++---------+----------+------------------+----------------------------------------------------------------------+-----------+---------------------------------+-----------------------+---------------------------------------------------------------------------------------------------------+---------+
+| boot    |          | HiiDatabase.efi  | /workspace/tmp/edk2/MdeModulePkg/Universal/HiiDatabaseDxe/Database.c |      3445 | __ubsan_handle_pointer_overflow | NullPointerArithmetic | offset applied to a null pointer base 0x0000000000000000 result 0x00000000000006ED                      |       1 |
++---------+----------+------------------+----------------------------------------------------------------------+-----------+---------------------------------+-----------------------+---------------------------------------------------------------------------------------------------------+---------+
+| boot    |          | HiiDatabase.efi  | /workspace/tmp/edk2/MdeModulePkg/Universal/HiiDatabaseDxe/Database.c |      3458 | __ubsan_handle_pointer_overflow | NullPointerArithmetic | offset applied to a null pointer base 0x0000000000000000 result 0x00000000000006ED                      |       1 |
++---------+----------+------------------+----------------------------------------------------------------------+-----------+---------------------------------+-----------------------+---------------------------------------------------------------------------------------------------------+---------+
+| boot    |          | HiiDatabase.efi  | /workspace/tmp/edk2/MdeModulePkg/Universal/HiiDatabaseDxe/Database.c |      3471 | __ubsan_handle_pointer_overflow | NullPointerArithmetic | offset applied to a null pointer base 0x0000000000000000 result 0x00000000000006ED                      |       1 |
++---------+----------+------------------+----------------------------------------------------------------------+-----------+---------------------------------+-----------------------+---------------------------------------------------------------------------------------------------------+---------+
+| boot    |          | HiiDatabase.efi  | /workspace/tmp/edk2/MdeModulePkg/Universal/HiiDatabaseDxe/Database.c |      3484 | __ubsan_handle_pointer_overflow | NullPointerArithmetic | offset applied to a null pointer base 0x0000000000000000 result 0x00000000000006ED                      |       1 |
++---------+----------+------------------+----------------------------------------------------------------------+-----------+---------------------------------+-----------------------+---------------------------------------------------------------------------------------------------------+---------+
+++++ Generated Report ++++
