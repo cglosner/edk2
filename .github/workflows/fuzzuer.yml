@@ -48,6 +48,12 @@ on:
   push:
     branches: ['fuzzuer-ci']
   # Weekly, on the day least likely to collide with anything else.
+  #
+  # NOTE: this fires only when the workflow is on the repository's DEFAULT branch.
+  # GitHub ignores `schedule` on every other branch, silently -- no run, no warning, no
+  # entry in the Actions list. On this branch it has therefore never fired, and the runs
+  # here have all come from pushes. A consumer who puts this on their default branch gets
+  # the weekly sweep; keeping it on a side branch means dispatch and push only.
   schedule:
     - cron: '0 4 * * 0'
 
