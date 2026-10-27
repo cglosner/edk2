@@ -1,0 +1,220 @@
+File 'Asan.h' already exists in 'MdeModulePkg/Include/Library', skipping copy.
+File 'AsanInfo.h' already exists in 'MdeModulePkg/Include/Guid', skipping copy.
+File 'AsanLib' already exists in 'MdeModulePkg/Library/', skipping copy.
+File 'AsanLibNull' already exists in 'MdeModulePkg/Library/', skipping copy.
+File 'AsanRuntimeLib' already exists in 'MdeModulePkg/Library/', skipping copy.
+File 'AsanMemoryLib' already exists in 'MdePkg/Library/', skipping copy.
+File 'AsanMemoryLibRepStr' already exists in 'MdePkg/Library/', skipping copy.
+Patch has already been applied. Skipping patching.
+++++ Instrumented Firmware ++++
+++++ Reusing the compilation database (1278 entries) ++++
+++++ Ran Static Analysis Tool ++++
+Removing TcgPhysicalPresenceLib because it depends on TcgPpVendorLib which is not in the library map
+Removing Tcg2PhysicalPresenceLib because it depends on Tcg2PpVendorLib which is not in the library map
+Removing CustomizedDisplayLib because it depends on UefiDriverEntryPoint which is not in the library map
+Removing PciHostBridgeLib because it depends on PciPcdProducerLib which is not in the library map
+Removing ArmFfaLib because it depends on MmServicesTableLib which is not in the library map
+Removing FspMeasurementLib because it depends on PeiServicesTablePointerLib which is not in the library map
+Removing FspWrapperPlatformMultiPhaseLib because it depends on PeiServicesLib which is not in the library map
+Removing FspWrapperMultiPhaseProcessLib because it depends on PeiServicesLib which is not in the library map
+Removing SmmRelocationLib because it depends on PeiServicesLib which is not in the library map
+Removing MmSaveStateLib because it depends on MmServicesTableLib which is not in the library map
+253 libraries found
+INFO: read 67 argument(s) from their declarations -- named 50, 20 of which the callee accepts NULL for
+ERROR: EFI_DECOMPRESS_PROTOCOL:GetInfo has a protocol assignment that could not be parsed!!
+ERROR: CoreLocateProtocol (&gEfiDecompressProtocolGuid, NULL, (VOID **)&Decompress)
+ERROR: IfConfig6ParseManualAddressList has an argument that is an ARG_LIST!!
+True
+ERROR: IfConfig6ParseGwDnsAddressList has an argument that is an ARG_LIST!!
+True
+ERROR: IfConfig6ParseInterfaceId has an argument that is an ARG_LIST!!
+True
+ERROR: IfConfig6ParseDadXmits has an argument that is an ARG_LIST!!
+True
+INFO: Collecting known constants complete!!
+INFO: Collecting directly fuzzable arguments complete!!
+INFO: Collecting generator functions complete!!
+INFO: Collecting fuzzable structs complete!!
+INFO: Adding output variables complete!!
+INFO: Handling optional arguments complete!!
+INFO: dropping generator BmExpandNetworkFileSystem -- no declaration the harness can include
+INFO: dropping generator BmFindUsbDevice -- no declaration the harness can include
+INFO: dropping generator BmGetActiveConsoleIn -- no declaration the harness can include
+INFO: dropping generator BmGetFreeOptionNumber -- no declaration the harness can include
+INFO: dropping generator BmGetKeyOptions -- no declaration the harness can include
+INFO: dropping generator BmInitializeKeyFields -- no declaration the harness can include
+INFO: dropping generator BuildLoopData -- no declaration the harness can include
+INFO: dropping generator BuildNextStatement -- no declaration the harness can include
+INFO: dropping generator CalculateTimeout -- no declaration the harness can include
+INFO: dropping generator ConvertHandleToHiiHandle -- no declaration the harness can include
+INFO: dropping generator ConvertStrToGuid -- no declaration the harness can include
+INFO: dropping generator CreateExtraRootBusMap -- no declaration the harness can include
+INFO: dropping generator FileBufferCutLine -- no declaration the harness can include
+INFO: dropping generator FindHiiHandleViaDevPath -- no declaration the harness can include
+INFO: dropping generator FreadCrc -- no declaration the harness can include
+INFO: dropping generator GetApLoopMode -- no declaration the harness can include
+INFO: dropping generator GetBlockDataInfo -- no declaration the harness can include
+INFO: dropping generator GetGopDevicePath -- no declaration the harness can include
+INFO: dropping generator GetNextWaitingProcessorNumber -- no declaration the harness can include
+INFO: dropping generator GetNvVarsFile -- no declaration the harness can include
+INFO: dropping generator GetValueFromRequest -- no declaration the harness can include
+INFO: dropping generator HBufferImageIsAtHighBits -- no declaration the harness can include
+INFO: dropping generator HClipBoardGet -- no declaration the harness can include
+INFO: dropping generator HardwareInfoPciHostBridgeGet -- no declaration the harness can include
+INFO: dropping generator HardwareInfoPciHostBridgeLastMmioAddress -- no declaration the harness can include
+INFO: dropping generator HttpIoParseContentLengthHeader -- no declaration the harness can include
+INFO: dropping generator InternalGetSectionFromFv -- no declaration the harness can include
+INFO: dropping generator InternalHiiExtractGuidFromHiiHandle -- no declaration the harness can include
+INFO: dropping generator InternalHiiGetBufferFromString -- no declaration the harness can include
+INFO: dropping generator InternalHiiGetValueOfNumber -- no declaration the harness can include
+INFO: dropping generator InternalShellStrDecimalToUint64 -- no declaration the harness can include
+INFO: dropping generator InternalShellStrHexToUint64 -- no declaration the harness can include
+INFO: dropping generator IsNeedAddNetworkMenu -- no declaration the harness can include
+INFO: dropping generator IsRequiredDriver -- no declaration the harness can include
+INFO: dropping generator IsTerminalDevicePath -- no declaration the harness can include
+INFO: dropping generator LibGetFileHandleFromDevicePath -- no declaration the harness can include
+INFO: dropping generator LibGetFileHandleFromMenu -- no declaration the harness can include
+INFO: dropping generator LibGetSmbios64BitStructure -- no declaration the harness can include
+INFO: dropping generator LibGetSmbiosStructure -- no declaration the harness can include
+INFO: dropping generator MapRootBusPosToBusNr -- no declaration the harness can include
+INFO: dropping generator MtrrLibIsMtrrSupported -- no declaration the harness can include
+INFO: dropping generator MtrrLibProgramFixedMtrr -- no declaration the harness can include
+INFO: dropping generator MtrrLibSetMemoryRanges -- no declaration the harness can include
+INFO: dropping generator PciGetNextBusRange -- no declaration the harness can include
+INFO: dropping generator ReadFileIntoBuffer -- no declaration the harness can include
+INFO: dropping generator Tpm2SanitizePeImageEventSize -- no declaration the harness can include
+INFO: dropping generator Tpm2SanitizePrimaryHeaderAllocationSize -- no declaration the harness can include
+INFO: dropping generator Tpm2SanitizePrimaryHeaderGptEventSize -- no declaration the harness can include
+INFO: dropping generator UefiLibGetStringWidth -- no declaration the harness can include
+INFO: named 32 parameter(s) from their protocol typedef!!
+INFO: dropping generator ChooseFile -- no declaration the harness can include
+INFO: dropping generator DisplayPageFrame -- no declaration the harness can include
+INFO: dropping generator ExtractGuidedSectionDecode -- no declaration the harness can include
+INFO: dropping generator ExtractGuidedSectionGetGuidList -- no declaration the harness can include
+INFO: dropping generator ExtractGuidedSectionGetInfo -- no declaration the harness can include
+INFO: dropping generator GetFileDevicePathFromAnyFv -- no declaration the harness can include
+INFO: dropping generator GetRandomNumber64 -- no declaration the harness can include
+INFO: dropping generator GetSectionFromAnyFv -- no declaration the harness can include
+INFO: dropping generator GetSectionFromFfs -- no declaration the harness can include
+INFO: dropping generator GetSectionFromFv -- no declaration the harness can include
+INFO: dropping generator GetVariableFlashFtwSpareInfo -- no declaration the harness can include
+INFO: dropping generator GetVariableFlashFtwWorkingInfo -- no declaration the harness can include
+INFO: dropping generator GetVariableFlashNvStorageInfo -- no declaration the harness can include
+INFO: dropping generator HttpGenRequestMessage -- no declaration the harness can include
+INFO: dropping generator HttpGetEntityLength -- no declaration the harness can include
+INFO: dropping generator HttpUrlGetIp4 -- no declaration the harness can include
+INFO: dropping generator HttpUrlGetIp6 -- no declaration the harness can include
+INFO: dropping generator HttpUrlGetPort -- no declaration the harness can include
+INFO: dropping generator MemEncryptSevLocateInitialSmramSaveStateMapPages -- no declaration the harness can include
+INFO: dropping generator MpInitLibGetNumberOfProcessors -- no declaration the harness can include
+INFO: dropping generator MpInitLibGetProcessorInfo -- no declaration the harness can include
+INFO: dropping generator MpInitLibWhoAmI -- no declaration the harness can include
+INFO: dropping generator NetLibAsciiStrToIp4 -- no declaration the harness can include
+INFO: dropping generator NetLibAsciiStrToIp6 -- no declaration the harness can include
+INFO: dropping generator NetLibDetectMediaWaitTimeout -- no declaration the harness can include
+INFO: dropping generator NetLibGetMacAddress -- no declaration the harness can include
+INFO: dropping generator NetLibGetSnpHandle -- no declaration the harness can include
+INFO: dropping generator NetLibGetSystemGuid -- no declaration the harness can include
+INFO: dropping generator NetLibStrToIp4 -- no declaration the harness can include
+INFO: dropping generator NetLibStrToIp6 -- no declaration the harness can include
+INFO: dropping generator NetLibStrToIp6andPrefix -- no declaration the harness can include
+INFO: dropping generator NetbufGetByte -- no declaration the harness can include
+INFO: dropping generator NetbufQueCopy -- no declaration the harness can include
+INFO: dropping generator PeiServicesAllocatePages -- no declaration the harness can include
+INFO: dropping generator PeiServicesFfsFindFileByName -- no declaration the harness can include
+INFO: dropping generator PeiServicesFfsFindSectionData3 -- no declaration the harness can include
+INFO: dropping generator PeiServicesFfsGetFileInfo -- no declaration the harness can include
+INFO: dropping generator PeiServicesGetBootMode -- no declaration the harness can include
+INFO: dropping generator PseudoRandomU32 -- no declaration the harness can include
+INFO: dropping generator QemuFwCfgFindFile -- no declaration the harness can include
+INFO: dropping generator QemuFwCfgParseUint32 -- no declaration the harness can include
+INFO: dropping generator QemuFwCfgReadNextHardwareInfoByType -- no declaration the harness can include
+INFO: dropping generator QemuLoadKernelImage -- no declaration the harness can include
+INFO: dropping generator SafeInt32ToUint64 -- no declaration the harness can include
+INFO: dropping generator SafeInt64ToUint64 -- no declaration the harness can include
+INFO: dropping generator SafeUint16Add -- no declaration the harness can include
+INFO: dropping generator SafeUint16Mult -- no declaration the harness can include
+INFO: dropping generator SafeUint16Sub -- no declaration the harness can include
+INFO: dropping generator SafeUint32Add -- no declaration the harness can include
+INFO: dropping generator SafeUint32Mult -- no declaration the harness can include
+INFO: dropping generator SafeUint32Sub -- no declaration the harness can include
+INFO: dropping generator SafeUint64Add -- no declaration the harness can include
+INFO: dropping generator SafeUint64Mult -- no declaration the harness can include
+INFO: dropping generator SafeUint64Sub -- no declaration the harness can include
+INFO: dropping generator SafeUint64ToUint32 -- no declaration the harness can include
+INFO: dropping generator SafeUint64ToUintn -- no declaration the harness can include
+INFO: dropping generator SafeUintnAdd -- no declaration the harness can include
+INFO: dropping generator SafeUintnMult -- no declaration the harness can include
+INFO: dropping generator SafeUintnToUint16 -- no declaration the harness can include
+INFO: dropping generator SafeUintnToUint32 -- no declaration the harness can include
+INFO: dropping generator SerializeVariablesNewInstance -- no declaration the harness can include
+INFO: dropping generator SerializeVariablesNewInstanceFromBuffer -- no declaration the harness can include
+INFO: dropping generator SmBusBlockProcessCall -- no declaration the harness can include
+INFO: dropping generator SmBusProcessCall -- no declaration the harness can include
+INFO: dropping generator SmBusReadBlock -- no declaration the harness can include
+INFO: dropping generator SmBusReadDataByte -- no declaration the harness can include
+INFO: dropping generator SmBusReadDataWord -- no declaration the harness can include
+INFO: dropping generator SmBusReceiveByte -- no declaration the harness can include
+INFO: dropping generator SmBusSendByte -- no declaration the harness can include
+INFO: dropping generator SmBusWriteBlock -- no declaration the harness can include
+INFO: dropping generator SmBusWriteDataByte -- no declaration the harness can include
+INFO: dropping generator SmBusWriteDataWord -- no declaration the harness can include
+INFO: dropping generator UefiDecompressGetInfo -- no declaration the harness can include
+INFO: dropping generator UriPercentDecode -- no declaration the harness can include
+INFO: dropping generator UsbClearEndpointHalt -- no declaration the harness can include
+INFO: dropping generator UsbGetConfiguration -- no declaration the harness can include
+INFO: dropping generator UsbGetDescriptor -- no declaration the harness can include
+INFO: dropping generator UsbSetConfiguration -- no declaration the harness can include
+INFO: dropping generator VirtioMapAllBytesInSharedBuffer -- no declaration the harness can include
+Total Functions: 4
+Total Generators: 1
+Total Scalable Types: 10
+Total Pointer Types: 7
+Total Struct Types: 15
+Total Constants: 1
+INFO: not linking 29 librar(ies) the harness never calls: CpuLib, DpcLib, DxeServicesLib, DxeServicesTableLib, FileHandleLib, HandleParsingLib, HobPrintLib, HttpIoLib, IoLib, LockBoxLib, MtrrLib, OrderedCollectionLib, PciCapPciIoLib, PciCf8Lib, PciExpressLib, PciLib, PciSegmentLib, PeCoffGetEntryPointLib, ReportStatusCodeLib, S3BootScriptLib, SafeIntLib, SerialPortLib, SmbusLib, SortLib, SynchronizationLib, TimerLib, UefiBootManagerLib, UefiHiiServicesLib, VariablePolicyHelperLib
+
+/usr/local/lib/python3.10/dist-packages/fuzzywuzzy/fuzz.py:11: UserWarning: Using slow pure-python SequenceMatcher. Install python-Levenshtein to remove this warning
+  warnings.warn('Using slow pure-python SequenceMatcher. Install python-Levenshtein to remove this warning')
+
+++++ Generated Harness ++++
+++++ Compiled Harness ++++
+Wrote 24 seeds for 4 target(s) into /workspace/firness_output/qemu/corpus (1026 bytes and 26 bytes)
+  seeds dispatch 4/4 target(s) on their first step, 4 step(s) each
+++++ Booting to the harness (up to 2083s), then fuzzing under LibAFL-QEMU for 300s ++++
+++++ Harness reached after 130s of boot; fuzzing for 300s ++++
+Fuzzed 4397 iteration(s), 1609 edge(s), 1557 solution(s)
+++++ Collected Unique Crashes ++++
+  boot baseline: 8 report(s) at 8 site(s) -- not fuzzing findings
+  fuzzing:       1557 report(s) at 5 site(s)
+    leaving 5 site(s) attributable to an input
++---------+----------+-----------------+----------------------------------------------------------------------+-----------+---------------------------------+-----------------------+---------------------------------------------------------------------------------------------------------+---------+
+| Phase   | AtBoot   | Module          | File                                                                 |      Line | Asan Msg                        | ErrorType             | Message                                                                                                 |   Count |
++=========+==========+=================+======================================================================+===========+=================================+=======================+=========================================================================================================+=========+
+| fuzz    |          | DxeCore.efi     | /workspace/tmp/edk2/MdeModulePkg/Core/Dxe/Event/Timer.c              |        54 | __ubsan_handle_pointer_overflow | NullPointerArithmetic | offset applied to a null pointer base 0x0000000000000000 result 0xFFFFFFFFFFFFFF68                      |       1 |
++---------+----------+-----------------+----------------------------------------------------------------------+-----------+---------------------------------+-----------------------+---------------------------------------------------------------------------------------------------------+---------+
+| fuzz    |          | DxeCore.efi     | fwsan                                                                | 482677769 | fwsan-double-fetch              | asan                  | address 0x000000001C847530, size 0x0000000000000004, is_write 0x0000000000000000, ip 0x000000001CC51409 |     344 |
++---------+----------+-----------------+----------------------------------------------------------------------+-----------+---------------------------------+-----------------------+---------------------------------------------------------------------------------------------------------+---------+
+| fuzz    |          | HiiDatabase.efi | fwsan                                                                | 482755044 | fwsan-double-fetch              | asan                  | address 0x000000001BEA422A, size 0x0000000000000002, is_write 0x0000000000000000, ip 0x000000001CC641E4 |     788 |
++---------+----------+-----------------+----------------------------------------------------------------------+-----------+---------------------------------+-----------------------+---------------------------------------------------------------------------------------------------------+---------+
+| fuzz    |          | HiiDatabase.efi | fwsan                                                                | 482755333 | fwsan-double-fetch              | asan                  | address 0x000000001C84753A, size 0x0000000000000002, is_write 0x0000000000000000, ip 0x000000001CC64305 |     313 |
++---------+----------+-----------------+----------------------------------------------------------------------+-----------+---------------------------------+-----------------------+---------------------------------------------------------------------------------------------------------+---------+
+| fuzz    |          | HiiDatabase.efi | fwsan                                                                | 530590676 | fwsan-double-fetch              | asan                  | address 0x000000001BEA4780, size 0x0000000000000004, is_write 0x0000000000000000, ip 0x000000001FA02BD4 |     111 |
++---------+----------+-----------------+----------------------------------------------------------------------+-----------+---------------------------------+-----------------------+---------------------------------------------------------------------------------------------------------+---------+
+| boot    |          | HiiDatabase.efi | /workspace/tmp/edk2/MdeModulePkg/Universal/HiiDatabaseDxe/Database.c |      3393 | __ubsan_handle_pointer_overflow | NullPointerArithmetic | offset applied to a null pointer base 0x0000000000000000 result 0x0000000000000014                      |       1 |
++---------+----------+-----------------+----------------------------------------------------------------------+-----------+---------------------------------+-----------------------+---------------------------------------------------------------------------------------------------------+---------+
+| boot    |          | HiiDatabase.efi | /workspace/tmp/edk2/MdeModulePkg/Universal/HiiDatabaseDxe/Database.c |      3406 | __ubsan_handle_pointer_overflow | NullPointerArithmetic | offset applied to a null pointer base 0x0000000000000000 result 0x0000000000000014                      |       1 |
++---------+----------+-----------------+----------------------------------------------------------------------+-----------+---------------------------------+-----------------------+---------------------------------------------------------------------------------------------------------+---------+
+| boot    |          | HiiDatabase.efi | /workspace/tmp/edk2/MdeModulePkg/Universal/HiiDatabaseDxe/Database.c |      3419 | __ubsan_handle_pointer_overflow | NullPointerArithmetic | offset applied to a null pointer base 0x0000000000000000 result 0x00000000000000C2                      |       1 |
++---------+----------+-----------------+----------------------------------------------------------------------+-----------+---------------------------------+-----------------------+---------------------------------------------------------------------------------------------------------+---------+
+| boot    |          | HiiDatabase.efi | /workspace/tmp/edk2/MdeModulePkg/Universal/HiiDatabaseDxe/Database.c |      3432 | __ubsan_handle_pointer_overflow | NullPointerArithmetic | offset applied to a null pointer base 0x0000000000000000 result 0x00000000000000C2                      |       1 |
++---------+----------+-----------------+----------------------------------------------------------------------+-----------+---------------------------------+-----------------------+---------------------------------------------------------------------------------------------------------+---------+
+| boot    |          | HiiDatabase.efi | /workspace/tmp/edk2/MdeModulePkg/Universal/HiiDatabaseDxe/Database.c |      3445 | __ubsan_handle_pointer_overflow | NullPointerArithmetic | offset applied to a null pointer base 0x0000000000000000 result 0x00000000000006ED                      |       1 |
++---------+----------+-----------------+----------------------------------------------------------------------+-----------+---------------------------------+-----------------------+---------------------------------------------------------------------------------------------------------+---------+
+| boot    |          | HiiDatabase.efi | /workspace/tmp/edk2/MdeModulePkg/Universal/HiiDatabaseDxe/Database.c |      3458 | __ubsan_handle_pointer_overflow | NullPointerArithmetic | offset applied to a null pointer base 0x0000000000000000 result 0x00000000000006ED                      |       1 |
++---------+----------+-----------------+----------------------------------------------------------------------+-----------+---------------------------------+-----------------------+---------------------------------------------------------------------------------------------------------+---------+
+| boot    |          | HiiDatabase.efi | /workspace/tmp/edk2/MdeModulePkg/Universal/HiiDatabaseDxe/Database.c |      3471 | __ubsan_handle_pointer_overflow | NullPointerArithmetic | offset applied to a null pointer base 0x0000000000000000 result 0x00000000000006ED                      |       1 |
++---------+----------+-----------------+----------------------------------------------------------------------+-----------+---------------------------------+-----------------------+---------------------------------------------------------------------------------------------------------+---------+
+| boot    |          | HiiDatabase.efi | /workspace/tmp/edk2/MdeModulePkg/Universal/HiiDatabaseDxe/Database.c |      3484 | __ubsan_handle_pointer_overflow | NullPointerArithmetic | offset applied to a null pointer base 0x0000000000000000 result 0x00000000000006ED                      |       1 |
++---------+----------+-----------------+----------------------------------------------------------------------+-----------+---------------------------------+-----------------------+---------------------------------------------------------------------------------------------------------+---------+
+++++ Generated Report ++++

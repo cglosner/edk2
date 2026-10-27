@@ -1,0 +1,11 @@
+Phase,AtBoot,Module,File,Line,Asan Msg,ErrorType,Message,Count
+fuzz,,AcpiTableDxe.efi,/workspace/tmp/edk2/MdePkg/Library/UefiLib/UefiDriverModel.c,731,[ASan],asan,ip 0x000000001C97A5D9,1061
+fuzz,,AcpiTableDxe.efi,asan-outline-instrumentation,479700441,heap-buffer-overflow,asan,"address 0x000000001C36D32C, size 0x0000000000000004, is_write 0x0000000000000000, ip 0x000000001C97A5D9",1061
+boot,,HiiDatabase.efi,/workspace/tmp/edk2/MdeModulePkg/Universal/HiiDatabaseDxe/Database.c,3393,__ubsan_handle_pointer_overflow,NullPointerArithmetic,offset applied to a null pointer base 0x0000000000000000 result 0x0000000000000014,1
+boot,,HiiDatabase.efi,/workspace/tmp/edk2/MdeModulePkg/Universal/HiiDatabaseDxe/Database.c,3406,__ubsan_handle_pointer_overflow,NullPointerArithmetic,offset applied to a null pointer base 0x0000000000000000 result 0x0000000000000014,1
+boot,,HiiDatabase.efi,/workspace/tmp/edk2/MdeModulePkg/Universal/HiiDatabaseDxe/Database.c,3419,__ubsan_handle_pointer_overflow,NullPointerArithmetic,offset applied to a null pointer base 0x0000000000000000 result 0x00000000000000C2,1
+boot,,HiiDatabase.efi,/workspace/tmp/edk2/MdeModulePkg/Universal/HiiDatabaseDxe/Database.c,3432,__ubsan_handle_pointer_overflow,NullPointerArithmetic,offset applied to a null pointer base 0x0000000000000000 result 0x00000000000000C2,1
+boot,,HiiDatabase.efi,/workspace/tmp/edk2/MdeModulePkg/Universal/HiiDatabaseDxe/Database.c,3445,__ubsan_handle_pointer_overflow,NullPointerArithmetic,offset applied to a null pointer base 0x0000000000000000 result 0x00000000000006ED,1
+boot,,HiiDatabase.efi,/workspace/tmp/edk2/MdeModulePkg/Universal/HiiDatabaseDxe/Database.c,3458,__ubsan_handle_pointer_overflow,NullPointerArithmetic,offset applied to a null pointer base 0x0000000000000000 result 0x00000000000006ED,1
+boot,,HiiDatabase.efi,/workspace/tmp/edk2/MdeModulePkg/Universal/HiiDatabaseDxe/Database.c,3471,__ubsan_handle_pointer_overflow,NullPointerArithmetic,offset applied to a null pointer base 0x0000000000000000 result 0x00000000000006ED,1
+boot,,HiiDatabase.efi,/workspace/tmp/edk2/MdeModulePkg/Universal/HiiDatabaseDxe/Database.c,3484,__ubsan_handle_pointer_overflow,NullPointerArithmetic,offset applied to a null pointer base 0x0000000000000000 result 0x00000000000006ED,1
