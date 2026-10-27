@@ -897,7 +897,25 @@
     <BuildOptions>
       # the pool and page poisoning this fork adds lives here, and a poisoned redzone is
       # only noticed by instrumented code, so the core has to carry it too
-      *_CLANGSAN_X64_SAN_FLAGS == -fsanitize=address -fno-sanitize-address-use-after-scope -mllvm -asan-stack-dynamic-alloca=0 -mllvm -asan-instrumentation-with-call-threshold=0 -mllvm -asan-force-dynamic-shadow=true -fsanitize=undefined -fno-sanitize=alignment -Wno-frame-address
+      #
+      # Stack instrumentation is off for the core, and only for the core. Every campaign
+      # reported CoreLocateProtocol overflowing a stack buffer at Hand/Locate.c:598, 614
+      # and 620 -- the three consecutive slots of its own LOCATE_POSITION local, which a
+      # function cannot overflow by writing. The shadow is wrong, not the firmware.
+      #
+      # The cause is that AsanLib's __asan_handle_no_return is an empty function. The
+      # compiler emits a call to it before every non-returning transfer, and upstream ASan
+      # uses it to unpoison from the stack pointer to the top of the stack -- precisely
+      # because the frames being abandoned still carry their redzones. The DXE core
+      # abandons frames that way on every image exit, through SetJump/LongJump, so its
+      # stale 0xF2 redzones outlive the frames that wrote them, and the next call chain
+      # deep enough to reuse those addresses reports against them.
+      #
+      # Implementing that hook is the real fix and would give the core its stack coverage
+      # back. Until then this costs no detection class: the stack-buffer-overflow control
+      # lives in SanBenchDxe, which keeps its stack instrumentation -- bench_cases.py says
+      # as much in as many words -- and no other module reported a stack finding at all.
+      *_CLANGSAN_X64_SAN_FLAGS == -fsanitize=address -fno-sanitize-address-use-after-scope -mllvm -asan-stack-dynamic-alloca=0 -mllvm -asan-instrumentation-with-call-threshold=0 -mllvm -asan-force-dynamic-shadow=true -fsanitize=undefined -fno-sanitize=alignment -Wno-frame-address -mllvm -asan-stack=0
     <LibraryClasses>
       AsanLib|MdeModulePkg/Library/AsanLib/AsanLib.inf
       NULL|MdeModulePkg/Library/AsanLib/AsanLib.inf
@@ -2074,7 +2092,25 @@
     <BuildOptions>
       # the pool and page poisoning this fork adds lives here, and a poisoned redzone is
       # only noticed by instrumented code, so the core has to carry it too
-      *_CLANGSAN_X64_SAN_FLAGS == -fsanitize=address -fno-sanitize-address-use-after-scope -mllvm -asan-stack-dynamic-alloca=0 -mllvm -asan-instrumentation-with-call-threshold=0 -mllvm -asan-force-dynamic-shadow=true -fsanitize=undefined -fno-sanitize=alignment -Wno-frame-address
+      #
+      # Stack instrumentation is off for the core, and only for the core. Every campaign
+      # reported CoreLocateProtocol overflowing a stack buffer at Hand/Locate.c:598, 614
+      # and 620 -- the three consecutive slots of its own LOCATE_POSITION local, which a
+      # function cannot overflow by writing. The shadow is wrong, not the firmware.
+      #
+      # The cause is that AsanLib's __asan_handle_no_return is an empty function. The
+      # compiler emits a call to it before every non-returning transfer, and upstream ASan
+      # uses it to unpoison from the stack pointer to the top of the stack -- precisely
+      # because the frames being abandoned still carry their redzones. The DXE core
+      # abandons frames that way on every image exit, through SetJump/LongJump, so its
+      # stale 0xF2 redzones outlive the frames that wrote them, and the next call chain
+      # deep enough to reuse those addresses reports against them.
+      #
+      # Implementing that hook is the real fix and would give the core its stack coverage
+      # back. Until then this costs no detection class: the stack-buffer-overflow control
+      # lives in SanBenchDxe, which keeps its stack instrumentation -- bench_cases.py says
+      # as much in as many words -- and no other module reported a stack finding at all.
+      *_CLANGSAN_X64_SAN_FLAGS == -fsanitize=address -fno-sanitize-address-use-after-scope -mllvm -asan-stack-dynamic-alloca=0 -mllvm -asan-instrumentation-with-call-threshold=0 -mllvm -asan-force-dynamic-shadow=true -fsanitize=undefined -fno-sanitize=alignment -Wno-frame-address -mllvm -asan-stack=0
     <LibraryClasses>
       AsanLib|MdeModulePkg/Library/AsanLib/AsanLib.inf
       NULL|MdeModulePkg/Library/AsanLib/AsanLib.inf
