@@ -1,0 +1,146 @@
+# Fuzz a pinned upstream edk2 release every week with FuzzUEr, and file what it finds as
+# issues in this repository.
+#
+# This doubles as the worked example. Everything a consumer needs is here: one `uses:`
+# line, a tree to point `source` at, and the two permissions the action needs to report
+# what it found. To fuzz THIS repository's own code instead of an upstream release, delete
+# the "Make the upstream releases reachable" step and the `ref:` input -- the action then
+# fuzzes whatever the checkout is on.
+#
+# WHAT THIS COSTS, because it is not a badge you add on a whim:
+#   * a dedicated SELF-HOSTED Linux x64 runner, registered to THIS repository. A runner
+#     registered to another repository will not pick this up, and the symptom is a job
+#     that sits in Queued with nothing explaining why.
+#   * ~100 GB free disk, and a first run that spends hours building LLVM-instrumented OVMF
+#     and a QEMU that libafl compiles from source. Later runs reuse the images.
+#   * one platform only: OvmfPkg/OvmfPkgX64.dsc, -a X64 -t CLANGSAN. No other DSC,
+#     architecture or toolchain is built.
+#
+# Findings are CANDIDATES, not confirmed vulnerabilities. Read bugs.md in the artifact and
+# the issue body's code snippet before acting on any of them.
+name: FuzzUEr weekly
+
+on:
+  schedule:
+    # Sundays, 04:00 UTC. GitHub only honours `schedule` from the repository's DEFAULT
+    # branch, which is why this file lives on master rather than on a feature branch --
+    # the same workflow on any other branch is dispatch-only and its cron never fires.
+    - cron: '0 4 * * 0'
+  workflow_dispatch:
+    inputs:
+      ref:
+        description: 'edk2 ref to fuzz (default: the pinned release below)'
+        required: false
+        default: ''
+      targets:
+        description: 'Space-separated protocols, or empty for the default set'
+        required: false
+        default: ''
+      budget:
+        description: 'Seconds per target'
+        required: false
+        default: '600'
+      qualify_only:
+        description: 'Build and check without spending the fuzzing budget'
+        required: false
+        default: 'false'
+
+# Both are needed and the action says so when they are missing. `issues: write` files the
+# findings; `contents: write` pushes the fuzzuer-evidence branch that carries each
+# finding's harness, crashing input and log. A read-only token fuzzes perfectly well and
+# then loses every finding at the last step.
+permissions:
+  contents: write
+  issues: write
+
+env:
+  # Bump deliberately. FuzzUEr's README records which releases have been through its own
+  # end-to-end gate; this one has.
+  STABLE_REF: edk2-stable202608
+
+jobs:
+  fuzz:
+    runs-on: [self-hosted, linux, x64]
+    # A full run is hours. The default budget below is deliberately modest so a weekly run
+    # finishes overnight rather than running into the next day.
+    timeout-minutes: 720
+    steps:
+      # Full depth on purpose: the pipeline resolves the ref out of git history, so a
+      # --depth=1 clone cannot name a tag or walk to a commit.
+      - name: Check out this edk2
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      # This fork carries no upstream tags of its own, so the release has to be fetchable
+      # before it can be named. Drop this step if you are fuzzing your own branch.
+      - name: Make the upstream releases reachable
+        run: |
+          git remote get-url tianocore >/dev/null 2>&1 \
+            || git remote add tianocore https://github.com/tianocore/edk2.git
+          git fetch --tags --depth=1 tianocore
+
+      # Out of RUNNER_TEMP. The action defaults there and the runner wipes it when the job
+      # ends, which takes the log, the report and the reproducers with it.
+      - name: Where to keep the results
+        id: where
+        run: echo "out=$HOME/fuzzuer-weekly/$GITHUB_RUN_ID" >> "$GITHUB_OUTPUT"
+
+      - name: Fuzz it
+        id: fuzz
+        uses: BreakingBoot/FuzzUEr@v1
+        with:
+          out: ${{ steps.where.outputs.out }}
+          source: .
+          ref: ${{ github.event.inputs.ref || env.STABLE_REF }}
+          targets: ${{ github.event.inputs.targets || 'EfiAcpiTable EfiHiiFont EfiSmbios EdkiiFormBrowserEx EfiHiiString EfiDevicePathToText' }}
+          budget: ${{ github.event.inputs.budget || '600' }}
+          qualify-only: ${{ github.event.inputs.qualify_only || 'false' }}
+          # One issue per candidate, keyed on module + bug class + source file so a later
+          # run that finds the same site again adds nothing. It deliberately leaves the
+          # build offset out of that key, because an offset moves every build and would
+          # file a fresh issue every week for a defect already open.
+          open-issues: true
+          # A finding is not a build failure. The issues and the artifact are the report;
+          # turning the job red as well only trains people to ignore it.
+          fail-on-findings: false
+
+      - name: What the run concluded
+        if: always()
+        shell: bash
+        env:
+          RESULTS: ${{ steps.fuzz.outputs.results }}
+          STAGES: ${{ steps.fuzz.outputs.stages }}
+          CANDIDATES: ${{ steps.fuzz.outputs.candidates }}
+          FILED: ${{ steps.fuzz.outputs.issues-filed }}
+          TRACKED: ${{ steps.fuzz.outputs.issues-tracked }}
+        run: |
+          set -uo pipefail
+          {
+            echo "### FuzzUEr: ${{ github.event.inputs.ref || env.STABLE_REF }}"
+            echo
+            echo "| | |"
+            echo "|---|---|"
+            echo "| stages passed | ${STAGES:-unknown} |"
+            echo "| candidates | ${CANDIDATES:-unknown} |"
+            echo "| issues filed | ${FILED:-0} |"
+            echo "| already tracked | ${TRACKED:-0} |"
+          } >> "$GITHUB_STEP_SUMMARY"
+          if [ -f "${RESULTS:-}/bugs.md" ]; then
+            { echo; cat "${RESULTS}/bugs.md"; } >> "$GITHUB_STEP_SUMMARY"
+          fi
+
+      - name: Keep the run
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: fuzzuer-${{ github.run_id }}
+          if-no-files-found: ignore
+          retention-days: 30
+          path: |
+            ${{ steps.where.outputs.out }}/pipeline.log
+            ${{ steps.where.outputs.out }}/bugs.md
+            ${{ steps.where.outputs.out }}/bugs.json
+            ${{ steps.where.outputs.out }}/run.json
+            ${{ steps.where.outputs.out }}/bench_cases.log
+            ${{ steps.where.outputs.out }}/reproducers
