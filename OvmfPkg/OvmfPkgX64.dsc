@@ -903,16 +903,23 @@
       # and 620 -- the three consecutive slots of its own LOCATE_POSITION local, which a
       # function cannot overflow by writing. The shadow is wrong, not the firmware.
       #
-      # The cause is that AsanLib's __asan_handle_no_return is an empty function. The
-      # compiler emits a call to it before every non-returning transfer, and upstream ASan
-      # uses it to unpoison from the stack pointer to the top of the stack -- precisely
-      # because the frames being abandoned still carry their redzones. The DXE core
-      # abandons frames that way on every image exit, through SetJump/LongJump, so its
-      # stale 0xF2 redzones outlive the frames that wrote them, and the next call chain
-      # deep enough to reuse those addresses reports against them.
+      # Stale frame poison is the mechanism: a 0xF2 redzone outlives the frame that wrote
+      # it, and the next call chain deep enough to reuse those addresses reports against
+      # it. An earlier revision of this comment blamed AsanLib's empty
+      # __asan_handle_no_return and called implementing it the real fix. That was wrong,
+      # and measuring it is cheap: clang emits the call only before a transfer it KNOWS
+      # cannot return, and nothing in edk2 marks LongJump that way -- BaseLib.h declares
+      # it plain VOID and neither BaseLib.h nor DebugLib.h uses NORETURN at all. Across
+      # the whole built tree the symbol is referenced by exactly one object file,
+      # CryptoPkg's aes_ige.obj. So no call is emitted at the sites that misreport, and
+      # implementing the hook would change nothing about Hand/Locate.c.
       #
-      # Implementing that hook is the real fix and would give the core its stack coverage
-      # back. Until then this costs no detection class: the stack-buffer-overflow control
+      # A real fix needs a stack extent to unpoison (the gEfiHobMemoryAllocStackGuid HOB
+      # has base and size), the unpoison itself, and a call at the site -- NORETURN on
+      # LongJump, which changes codegen for every caller in edk2, or an explicit call in
+      # CoreExit. That is three separate questions, so it stays parked.
+      #
+      # Parking it costs no detection class: the stack-buffer-overflow control
       # lives in SanBenchDxe, which keeps its stack instrumentation -- bench_cases.py says
       # as much in as many words -- and no other module reported a stack finding at all.
       *_CLANGSAN_X64_SAN_FLAGS == -fsanitize=address -fno-sanitize-address-use-after-scope -mllvm -asan-stack-dynamic-alloca=0 -mllvm -asan-instrumentation-with-call-threshold=0 -mllvm -asan-force-dynamic-shadow=true -fsanitize=undefined -fno-sanitize=alignment -Wno-frame-address -mllvm -asan-stack=0
@@ -2098,16 +2105,23 @@
       # and 620 -- the three consecutive slots of its own LOCATE_POSITION local, which a
       # function cannot overflow by writing. The shadow is wrong, not the firmware.
       #
-      # The cause is that AsanLib's __asan_handle_no_return is an empty function. The
-      # compiler emits a call to it before every non-returning transfer, and upstream ASan
-      # uses it to unpoison from the stack pointer to the top of the stack -- precisely
-      # because the frames being abandoned still carry their redzones. The DXE core
-      # abandons frames that way on every image exit, through SetJump/LongJump, so its
-      # stale 0xF2 redzones outlive the frames that wrote them, and the next call chain
-      # deep enough to reuse those addresses reports against them.
+      # Stale frame poison is the mechanism: a 0xF2 redzone outlives the frame that wrote
+      # it, and the next call chain deep enough to reuse those addresses reports against
+      # it. An earlier revision of this comment blamed AsanLib's empty
+      # __asan_handle_no_return and called implementing it the real fix. That was wrong,
+      # and measuring it is cheap: clang emits the call only before a transfer it KNOWS
+      # cannot return, and nothing in edk2 marks LongJump that way -- BaseLib.h declares
+      # it plain VOID and neither BaseLib.h nor DebugLib.h uses NORETURN at all. Across
+      # the whole built tree the symbol is referenced by exactly one object file,
+      # CryptoPkg's aes_ige.obj. So no call is emitted at the sites that misreport, and
+      # implementing the hook would change nothing about Hand/Locate.c.
       #
-      # Implementing that hook is the real fix and would give the core its stack coverage
-      # back. Until then this costs no detection class: the stack-buffer-overflow control
+      # A real fix needs a stack extent to unpoison (the gEfiHobMemoryAllocStackGuid HOB
+      # has base and size), the unpoison itself, and a call at the site -- NORETURN on
+      # LongJump, which changes codegen for every caller in edk2, or an explicit call in
+      # CoreExit. That is three separate questions, so it stays parked.
+      #
+      # Parking it costs no detection class: the stack-buffer-overflow control
       # lives in SanBenchDxe, which keeps its stack instrumentation -- bench_cases.py says
       # as much in as many words -- and no other module reported a stack finding at all.
       *_CLANGSAN_X64_SAN_FLAGS == -fsanitize=address -fno-sanitize-address-use-after-scope -mllvm -asan-stack-dynamic-alloca=0 -mllvm -asan-instrumentation-with-call-threshold=0 -mllvm -asan-force-dynamic-shadow=true -fsanitize=undefined -fno-sanitize=alignment -Wno-frame-address -mllvm -asan-stack=0

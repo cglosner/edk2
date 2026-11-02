@@ -296,11 +296,18 @@ FwSanHookTables (
   mRealFreePool     = gBS->FreePool;
   gBS->AllocatePool = FwSanAllocatePool;
   gBS->FreePool     = FwSanFreePool;
-  gBS->Hdr.CRC32    = 0;
-  gBS->CalculateCrc32 (gBS, gBS->Hdr.HeaderSize, &gBS->Hdr.CRC32);
 
-  mRealUninstall                     = gBS->UninstallProtocolInterface;
-  gBS->UninstallProtocolInterface    = FwSanUninstallProtocolInterface;
+  //
+  // Every entry this function replaces must be in place BEFORE the header CRC is
+  // recomputed. UninstallProtocolInterface was installed after it, which left gBS
+  // carrying a checksum for a table it no longer was -- the same mistake this
+  // function's own contract warns about, and which the gRT block below gets right.
+  //
+  mRealUninstall                  = gBS->UninstallProtocolInterface;
+  gBS->UninstallProtocolInterface = FwSanUninstallProtocolInterface;
+
+  gBS->Hdr.CRC32 = 0;
+  gBS->CalculateCrc32 (gBS, gBS->Hdr.HeaderSize, &gBS->Hdr.CRC32);
 
   mRealGetVariable  = gRT->GetVariable;
   gRT->GetVariable  = FwSanGetVariable;
