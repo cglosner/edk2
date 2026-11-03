@@ -114,6 +114,7 @@ jobs:
           CANDIDATES: ${{ steps.fuzz.outputs.candidates }}
           FILED: ${{ steps.fuzz.outputs.issues-filed }}
           TRACKED: ${{ steps.fuzz.outputs.issues-tracked }}
+          DEGRADED: ${{ steps.fuzz.outputs.degraded }}
         run: |
           set -uo pipefail
           {
@@ -125,6 +126,11 @@ jobs:
             echo "| candidates | ${CANDIDATES:-unknown} |"
             echo "| issues filed | ${FILED:-0} |"
             echo "| already tracked | ${TRACKED:-0} |"
+            # "true" when a stage did its job but not for every target -- a few campaigns
+            # of many that lost their boot, say. The job stays green for it on purpose,
+            # and the warnings in the log name the stage, so this row is what tells a
+            # reader a green run still has something in it worth looking at.
+            echo "| degraded | ${DEGRADED:-no} |"
           } >> "$GITHUB_STEP_SUMMARY"
           if [ -f "${RESULTS:-}/bugs.md" ]; then
             { echo; cat "${RESULTS}/bugs.md"; } >> "$GITHUB_STEP_SUMMARY"
