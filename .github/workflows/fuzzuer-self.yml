@@ -1,0 +1,260 @@
+# Fuzz THIS repository's own code with FuzzUEr, taken from the Marketplace.
+#
+# fuzzuer-weekly.yml fuzzes a pinned UPSTREAM release, which answers "did a tianocore
+# release break under the sanitizer". This one answers the other question: does the code on
+# master -- including whatever this fork carries that upstream does not -- hold up. The only
+# difference between the two files is that this one passes no `ref:`, so the action fuzzes
+# whatever the checkout is on.
+#
+# `uses: BreakingBoot/FuzzUEr@v1` is the published action, by tag. That matters more than it
+# looks: GitHub delivers a referenced action as a repository ARCHIVE, and an archive carries
+# no submodule contents. FuzzUEr needs four of them and clones its own repository at the ref
+# it was referenced by to repair that. Until this workflow ran, that had only ever been
+# exercised against a branch (`@main`), never against a tag -- and `_actions` on this
+# repository's runner held nothing but actions/checkout and actions/upload-artifact, so the
+# published action had never been downloaded here at all.
+#
+# WHAT THIS COSTS, because it is not a badge you add on a whim:
+#   * a dedicated SELF-HOSTED Linux x64 runner registered to THIS repository. One
+#     registered elsewhere will not pick this up, and the symptom is a job that sits in
+#     Queued with nothing explaining why.
+#   * ~100 GB free disk. A first run on a cold machine spends hours building LLVM 15 and a
+#     QEMU that libafl compiles from source; later runs reuse those and cost seconds.
+#   * one platform only: OvmfPkg/OvmfPkgX64.dsc, -a X64 -t CLANGSAN.
+#
+# No `schedule:` on purpose. fuzzuer-weekly.yml already books this runner for hours every
+# Sunday, and two multi-hour firmware jobs on one runner queue behind each other rather than
+# running side by side. Dispatch this one, or add a cron on a different day.
+name: FuzzUEr on this tree
+
+on:
+  # A push is the only way to start this without an API token. The branch name carries no
+  # meaning beyond matching here -- the run fuzzes whatever that branch has checked out, so
+  # a branch pushed at master's tip fuzzes master's code.
+  push:
+    branches: ['fuzzuer-self-**']
+  workflow_dispatch:
+    inputs:
+      targets:
+        description: 'Space-separated protocols, or empty for everything discovered'
+        required: false
+        default: ''
+      budget:
+        description: 'Seconds of fuzzing per target'
+        required: false
+        default: '600'
+      qualify_only:
+        description: 'Every stage except the fuzzing -- minutes, not hours. Try this first'
+        type: boolean
+        required: false
+        default: false
+      open_issues:
+        description: 'File one issue per candidate finding in this repository'
+        type: boolean
+        required: false
+        default: true
+
+# `issues: write` files the findings; `contents: write` pushes the fuzzuer-evidence branch
+# carrying each finding's harness, crashing input and log. A read-only token fuzzes
+# perfectly well and then loses every finding at the last step, which is the failure you
+# notice last.
+permissions:
+  contents: write
+  issues: write
+
+jobs:
+  fuzz:
+    runs-on: [self-hosted, linux, x64]
+    timeout-minutes: 720
+    steps:
+      # Full depth on purpose: the driver resolves a ref out of git history and makes a
+      # worktree of it, and a --depth=1 clone has one commit to work with.
+      - name: Check out this edk2
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      # A push event carries NO inputs. Every `github.event.inputs.*` is empty for a push,
+      # including the ones with declared defaults, because an input default applies to
+      # workflow_dispatch and nothing else. Left alone, an empty qualify_only reads as "not
+      # true" and a push would spend hours, and an empty open_issues would file findings
+      # from what is meant to be a smoke test. So the run is resolved once, here.
+      - name: What this run is
+        id: plan
+        shell: bash
+        env:
+          IN_TARGETS: ${{ github.event.inputs.targets }}
+          IN_BUDGET: ${{ github.event.inputs.budget }}
+          IN_QUALIFY: ${{ github.event.inputs.qualify_only }}
+          IN_ISSUES: ${{ github.event.inputs.open_issues }}
+        run: |
+          set -uo pipefail
+          TARGETS="${IN_TARGETS:-}"
+          BUDGET="${IN_BUDGET:-600}"
+          QUALIFY="${IN_QUALIFY:-}"
+          ISSUES="${IN_ISSUES:-}"
+          if [ "${GITHUB_EVENT_NAME:-}" = 'push' ]; then
+            # Four protocols that have produced work on every version tried, a short
+            # budget, and the whole pipeline including triage -- so the run proves a
+            # testcase reached a report rather than that nothing was attempted. No issues:
+            # a smoke test should not open tickets.
+            TARGETS='EfiAcpiTable EfiHiiFont EfiSmbios EdkiiFormBrowserEx'
+            BUDGET='300'
+            QUALIFY='false'
+            ISSUES='false'
+            echo "branch-pushed: the end-to-end self test, no issues filed"
+          fi
+          [ -n "$QUALIFY" ] || QUALIFY='false'
+          [ -n "$ISSUES" ] || ISSUES='true'
+          {
+            echo "targets=$TARGETS"
+            echo "budget=$BUDGET"
+            echo "qualify=$QUALIFY"
+            echo "issues=$ISSUES"
+          } >> "$GITHUB_OUTPUT"
+          echo "  commit       = $(git rev-parse --short HEAD)"
+          echo "  targets      = ${TARGETS:-<everything discovered>}"
+          echo "  budget       = ${BUDGET}s   qualify-only=${QUALIFY}   issues=${ISSUES}"
+
+      # Out of RUNNER_TEMP. The action defaults there and the runner wipes it when the job
+      # ends, which takes the log, the report and the reproducers with it.
+      - name: Where to keep the results
+        id: where
+        shell: bash
+        run: echo "out=$HOME/fuzzuer-self/$GITHUB_RUN_ID" >> "$GITHUB_OUTPUT"
+
+      - name: Fuzz this tree
+        id: fuzz
+        uses: BreakingBoot/FuzzUEr@v1
+        with:
+          out: ${{ steps.where.outputs.out }}
+          # This repository's checkout, and no `ref:` -- the action falls back to whatever
+          # commit is checked out, which is the point of this workflow.
+          source: .
+          targets: ${{ steps.plan.outputs.targets }}
+          budget: ${{ steps.plan.outputs.budget }}
+          qualify-only: ${{ steps.plan.outputs.qualify }}
+          # Keyed on module + bug class + source file, so a later run that finds the same
+          # site again adds nothing. The build offset is deliberately left out of that key:
+          # an offset moves every build and would file a fresh issue for a defect already
+          # open.
+          open-issues: ${{ steps.plan.outputs.issues }}
+          # A finding is not a build failure. The issues and the artifact are the report;
+          # turning the job red as well only trains people to ignore it.
+          fail-on-findings: false
+          # Nor is a degraded stage. It means the stage did its job but not for every
+          # target -- a campaign that lost its boot to a timeout. The summary row below is
+          # what tells a reader a green run still has something in it.
+          fail-on-degraded: false
+
+      - name: The run reached a report
+        if: always()
+        shell: bash
+        env:
+          RESULTS: ${{ steps.fuzz.outputs.results }}
+          STAGES: ${{ steps.fuzz.outputs.stages }}
+          QUALIFY: ${{ steps.plan.outputs.qualify }}
+        run: |
+          set -uo pipefail
+          echo "  results = ${RESULTS:-<empty>}"
+          echo "  stages  = ${STAGES:-<empty>}   (passed/total)"
+          [ -n "${RESULTS:-}" ] || { echo "::error::the action set no results path"; exit 1; }
+          # Against run.json, not the `stages` output. That output is a COUNT -- "13/13" --
+          # so matching it for stage names can never fire however broken the run was.
+          python3 - "$RESULTS" "${QUALIFY:-false}" <<'PY'
+          import json, os, re, sys
+          root, qualify = sys.argv[1], sys.argv[2] == 'true'
+          try:
+              run = json.load(open(os.path.join(root, 'run.json')))
+          except OSError as exc:
+              sys.exit(f'::error::cannot read run.json: {exc} -- the action failed before '
+                       f'the driver ran at all, so the fault is in its own setup steps '
+                       f'rather than in any stage')
+          mark = lambda ok: ('SKIP' if ok is None else 'PASS' if ok is True
+                             else 'WARN' if ok == 'warn' else 'FAIL')
+          for s in run.get('stages', []):
+              print(f"  [{mark(s['ok'])}] {s['name']:<13} {s.get('detail','')[:76]}")
+          stages = {s['name']: s for s in run.get('stages', [])}
+          # ok is True, False, 'warn', or None for a stage that did not run. Only False is
+          # a failure: `not s['ok']` would count a skipped stage as one, and under
+          # qualify-only fuzz and triage are skipped by design.
+          bad = [n for n, s in stages.items() if s['ok'] is False]
+          # These two name the `uses:` path rather than a driver regression. An archive
+          # carries no submodule contents, and the stages that read one notice first.
+          for name in ('submodules', 'port'):
+              if name in bad:
+                  print(f"::error::the '{name}' stage failed. GitHub delivers an action as an")
+                  print("::error::archive, which carries no submodule contents, and FuzzUEr")
+                  print("::error::clones its own repository at the referenced ref to repair")
+                  print("::error::that -- so suspect the @v1 reference before the driver.")
+          if bad:
+              sys.exit(f"::error::stage(s) failed: {', '.join(bad)}")
+          if qualify:
+              print('  qualify-only: the port applied, the firmware built and the sanitizer '
+                    'self test fired')
+              raise SystemExit(0)
+          # Not under qualify-only: the last two stages are exactly the ones it skips, and
+          # they are where a tree that moved under the port shows up. A build can succeed
+          # and the firmware still never reach a harness. WARN counts as ran; the False
+          # case is already caught above.
+          missing = [n for n in ('fuzz', 'triage')
+                     if n not in stages or stages[n]['ok'] not in (True, 'warn')]
+          if missing:
+              sys.exit(f"::error::{', '.join(missing)} did not run, and this was not a "
+                       f"qualify-only run")
+          detail = stages['fuzz'].get('detail', '')
+          hit = re.search(r'(\d+)/(\d+) campaign\(s\) fuzzed the harness', detail)
+          if hit and hit.group(1) == '0':
+              sys.exit('::error::no campaign reached the harness. The port applied and the '
+                       'firmware built, but nothing was fuzzed -- every stage still passes '
+                       'and the report is simply empty, which is why this is asserted.')
+          if not os.path.isfile(os.path.join(root, 'bugs.json')):
+              sys.exit('::error::triage wrote no bugs.json')
+          print(f"  fuzz: {detail[:100]}")
+          print('  end to end on this tree: OK')
+          PY
+
+      - name: What the run concluded
+        if: always()
+        shell: bash
+        env:
+          RESULTS: ${{ steps.fuzz.outputs.results }}
+          STAGES: ${{ steps.fuzz.outputs.stages }}
+          CANDIDATES: ${{ steps.fuzz.outputs.candidates }}
+          FILED: ${{ steps.fuzz.outputs.issues-filed }}
+          TRACKED: ${{ steps.fuzz.outputs.issues-tracked }}
+          DEGRADED: ${{ steps.fuzz.outputs.degraded }}
+        run: |
+          set -uo pipefail
+          {
+            echo "### FuzzUEr on \`$(git rev-parse --short HEAD)\` (${GITHUB_REF_NAME:-?})"
+            echo
+            echo "| | |"
+            echo "|---|---|"
+            echo "| stages passed | ${STAGES:-unknown} |"
+            echo "| candidates | ${CANDIDATES:-unknown} |"
+            echo "| issues filed | ${FILED:-0} |"
+            echo "| already tracked | ${TRACKED:-0} |"
+            echo "| degraded | ${DEGRADED:-no} |"
+          } >> "$GITHUB_STEP_SUMMARY"
+          if [ -f "${RESULTS:-}/bugs.md" ]; then
+            { echo; cat "${RESULTS}/bugs.md"; } >> "$GITHUB_STEP_SUMMARY"
+          fi
+
+      - name: Keep the run
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: fuzzuer-self-${{ github.run_id }}
+          if-no-files-found: ignore
+          retention-days: 30
+          path: |
+            ${{ steps.where.outputs.out }}/pipeline.log
+            ${{ steps.where.outputs.out }}/run.json
+            ${{ steps.where.outputs.out }}/bugs.md
+            ${{ steps.where.outputs.out }}/bugs.json
+            ${{ steps.where.outputs.out }}/presence.csv
+            ${{ steps.where.outputs.out }}/bench_cases.log
+            ${{ steps.where.outputs.out }}/campaigns/*/crashes.csv
+            ${{ steps.where.outputs.out }}/campaigns/*/log.json
+            ${{ steps.where.outputs.out }}/reproducers
