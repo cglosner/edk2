@@ -96,13 +96,21 @@ jobs:
           if [ "${GITHUB_EVENT_NAME:-}" = 'push' ]; then
             # Four protocols that have produced work on every version tried, a short
             # budget, and the whole pipeline including triage -- so the run proves a
-            # testcase reached a report rather than that nothing was attempted. No issues:
-            # a smoke test should not open tickets.
+            # testcase reached a report rather than that nothing was attempted.
             TARGETS='EfiAcpiTable EfiHiiFont EfiSmbios EdkiiFormBrowserEx'
             BUDGET='300'
             QUALIFY='false'
-            ISSUES='false'
-            echo "branch-pushed: the end-to-end self test, no issues filed"
+            # Issues ARE filed on this path. The first version of this file suppressed
+            # them on the grounds that a smoke test should not open tickets, and that was
+            # wrong twice over: the report IS the product, so a run that files nothing has
+            # not been tested end to end, and the filing step -- the code snippet, the
+            # harness and input links, the evidence branch -- is the part with the least
+            # cover. Filing is idempotent: each issue carries its candidate's fingerprint
+            # (module + bug class + source file, deliberately NOT the build offset, which
+            # moves every build), so re-pushing this branch adds nothing for a site that
+            # is already open.
+            ISSUES='true'
+            echo "branch-pushed: the end-to-end self test, issues filed with evidence"
           fi
           [ -n "$QUALIFY" ] || QUALIFY='false'
           [ -n "$ISSUES" ] || ISSUES='true'
