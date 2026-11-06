@@ -746,7 +746,32 @@ SmmEntryPoint (
         gSmmCorePrivate->CommunicationBuffer = NULL;
         gSmmCorePrivate->ReturnStatus        = EFI_ACCESS_DENIED;
       } else {
+        //
+        // Declared here rather than with the function's other locals on purpose. That
+        // block already differs between this port's base and the trees the port is
+        // applied to -- it carries IsOverUnderflow, which upstream folded into
+        // InternalIsBufferOverlapped and then deleted -- so a line added there turns a
+        // file that merges cleanly into one with two conflicting hunks. This arm is
+        // rewritten by the port already.
+        //
+        EFI_GUID  DispatchGuid;
+
         CommunicateHeader = (EFI_SMM_COMMUNICATE_HEADER *)CommunicationBuffer;
+        //
+        // Taken BEFORE SmiManage, and by value. The narration below used to be handed
+        // &CommunicateHeader->HeaderGuid, a pointer into the caller's buffer, and %g
+        // formats a GUID through BasePrintLib -- ReadUnaligned32 for Data1,
+        // ReadUnaligned16 twice, then Data4[0..7] one byte at a time. BasePrintLib is an
+        // instrumented library while this core's own code is not, so those ten reads were
+        // the only instrumented reads of the dispatch GUID in the whole SMI, and FWSAN
+        // reported every one of them as a double fetch of untrusted memory. Measured on
+        // EVAL-1 run 42176147435: ten sites, 71662 hits each, 716620 report rows, filed
+        // as issues #37-#46 -- all of them this DEBUG statement and none of them a defect.
+        // A plain struct assignment compiles to loads and stores in this module's own
+        // uninstrumented code, so the print reads a local and reports nothing; CopyGuid
+        // would route it back through instrumented BaseLib.
+        //
+        DispatchGuid = CommunicateHeader->HeaderGuid;
         // BufferSize was updated by the SafeUintnSub() call above.
         Status = SmiManage (
                    &CommunicateHeader->HeaderGuid,
@@ -766,7 +791,7 @@ SmmEntryPoint (
         DEBUG ((
           DEBUG_INFO,
           "SmmCore: dispatch %g len %lu -> %r\n",
-          &CommunicateHeader->HeaderGuid,
+          &DispatchGuid,
           (UINT64)BufferSize,
           Status
           ));
