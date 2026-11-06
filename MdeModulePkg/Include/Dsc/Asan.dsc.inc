@@ -138,6 +138,18 @@
   GCC:*_*_*_CC_FLAGS = -D FIRNESS_LIBAFL_CRASH_ON_EXCEPTION
 !endif
 !endif
+  #
+  # Opt in to double-fetch findings becoming fuzzer solutions. Off by default: a
+  # comm-buffer field read twice is what a validating handler does, so this fires on
+  # nearly every well-formed SMI call, and an objective is not added to the corpus --
+  # which left the EVAL-1 SMI campaign at corpus 0 for its whole budget. The report
+  # still reaches serial either way; this only decides whether the input is saved.
+  #
+!ifdef FWSAN_DOUBLE_FETCH_SOLUTION
+!if "$(FWSAN_DOUBLE_FETCH_SOLUTION)" == "TRUE"
+  GCC:*_*_*_CC_FLAGS = -D FWSAN_DOUBLE_FETCH_SOLUTION
+!endif
+!endif
 !if "$(ASAN_FUZZER)" == "qemu"
   GCC:*_*_*_CC_FLAGS = -D ASAN_FUZZER_BACKEND=2
 !elseif "$(ASAN_FUZZER)" == "none"
