@@ -529,30 +529,6 @@
   # vanished and the build stopped at "Redundant '!endif'").
   AsanLib|MdeModulePkg/Library/AsanLib/AsanLib.inf
   NULL|MdeModulePkg/Library/AsanLib/AsanLib.inf
-  #
-  # Every CopyMem, SetMem, ZeroMem and CompareMem an SMM driver makes, bounds checked.
-  #
-  # No SMM module has its OWN code instrumented -- the compiler flag applies but the
-  # instrumented-image gate counts 0 of 17 for their own translation units -- so a defect
-  # inside a handler raises nothing and only the libraries it links can report. This
-  # instance is how a length reaches a check without the driver being recompiled:
-  # AsanInternalMemCopyMem calls asan_check_memory on the source and the destination for
-  # the full Length before it copies anything, so CopyMem(dst, src, attacker_length) is
-  # caught in the library rather than faulting somewhere unattributable later.
-  #
-  # Only three DXE modules were given this instance -- HiiDatabaseDxe, SanBenchDrive and
-  # AsanFaultDxe -- and SMM inherited the uninstrumented BaseMemoryLibRepStr from the
-  # global section. Measured on EVAL-1 run 42490347442: five injected SMM drivers were
-  # dispatched between 31709 and 90503 times each and only RWVariable produced a finding,
-  # and RWVariable only because it hands its arguments to another module whose libraries
-  # ARE instrumented.
-  #
-  # Added to the existing sections for the reason the note above gives: this file holds
-  # its whole body twice and dedup_sections() finds the duplicate by the longest repeated
-  # run of section headers, so a new header re-aligns that search and the wrong copy is
-  # dropped.
-  #
-  BaseMemoryLib|MdePkg/Library/AsanMemoryLibRepStr/AsanMemoryLibRepStr.inf
   PcdLib|MdePkg/Library/DxePcdLib/DxePcdLib.inf
   TimerLib|OvmfPkg/Library/AcpiTimerLib/DxeAcpiTimerLib.inf
   ResetSystemLib|OvmfPkg/Library/ResetSystemLib/DxeResetSystemLib.inf
@@ -601,30 +577,6 @@
   # vanished and the build stopped at "Redundant '!endif'").
   AsanLib|MdeModulePkg/Library/AsanLib/AsanLib.inf
   NULL|MdeModulePkg/Library/AsanLib/AsanLib.inf
-  #
-  # Every CopyMem, SetMem, ZeroMem and CompareMem an SMM driver makes, bounds checked.
-  #
-  # No SMM module has its OWN code instrumented -- the compiler flag applies but the
-  # instrumented-image gate counts 0 of 17 for their own translation units -- so a defect
-  # inside a handler raises nothing and only the libraries it links can report. This
-  # instance is how a length reaches a check without the driver being recompiled:
-  # AsanInternalMemCopyMem calls asan_check_memory on the source and the destination for
-  # the full Length before it copies anything, so CopyMem(dst, src, attacker_length) is
-  # caught in the library rather than faulting somewhere unattributable later.
-  #
-  # Only three DXE modules were given this instance -- HiiDatabaseDxe, SanBenchDrive and
-  # AsanFaultDxe -- and SMM inherited the uninstrumented BaseMemoryLibRepStr from the
-  # global section. Measured on EVAL-1 run 42490347442: five injected SMM drivers were
-  # dispatched between 31709 and 90503 times each and only RWVariable produced a finding,
-  # and RWVariable only because it hands its arguments to another module whose libraries
-  # ARE instrumented.
-  #
-  # Added to the existing sections for the reason the note above gives: this file holds
-  # its whole body twice and dedup_sections() finds the duplicate by the longest repeated
-  # run of section headers, so a new header re-aligns that search and the wrong copy is
-  # dropped.
-  #
-  BaseMemoryLib|MdePkg/Library/AsanMemoryLibRepStr/AsanMemoryLibRepStr.inf
   PcdLib|MdePkg/Library/DxePcdLib/DxePcdLib.inf
   TimerLib|OvmfPkg/Library/AcpiTimerLib/DxeAcpiTimerLib.inf
   ResetSystemLib|OvmfPkg/Library/ResetSystemLib/DxeResetSystemLib.inf
@@ -1779,30 +1731,6 @@
   # vanished and the build stopped at "Redundant '!endif'").
   AsanLib|MdeModulePkg/Library/AsanLib/AsanLib.inf
   NULL|MdeModulePkg/Library/AsanLib/AsanLib.inf
-  #
-  # Every CopyMem, SetMem, ZeroMem and CompareMem an SMM driver makes, bounds checked.
-  #
-  # No SMM module has its OWN code instrumented -- the compiler flag applies but the
-  # instrumented-image gate counts 0 of 17 for their own translation units -- so a defect
-  # inside a handler raises nothing and only the libraries it links can report. This
-  # instance is how a length reaches a check without the driver being recompiled:
-  # AsanInternalMemCopyMem calls asan_check_memory on the source and the destination for
-  # the full Length before it copies anything, so CopyMem(dst, src, attacker_length) is
-  # caught in the library rather than faulting somewhere unattributable later.
-  #
-  # Only three DXE modules were given this instance -- HiiDatabaseDxe, SanBenchDrive and
-  # AsanFaultDxe -- and SMM inherited the uninstrumented BaseMemoryLibRepStr from the
-  # global section. Measured on EVAL-1 run 42490347442: five injected SMM drivers were
-  # dispatched between 31709 and 90503 times each and only RWVariable produced a finding,
-  # and RWVariable only because it hands its arguments to another module whose libraries
-  # ARE instrumented.
-  #
-  # Added to the existing sections for the reason the note above gives: this file holds
-  # its whole body twice and dedup_sections() finds the duplicate by the longest repeated
-  # run of section headers, so a new header re-aligns that search and the wrong copy is
-  # dropped.
-  #
-  BaseMemoryLib|MdePkg/Library/AsanMemoryLibRepStr/AsanMemoryLibRepStr.inf
   PcdLib|MdePkg/Library/DxePcdLib/DxePcdLib.inf
   TimerLib|OvmfPkg/Library/AcpiTimerLib/DxeAcpiTimerLib.inf
   ResetSystemLib|OvmfPkg/Library/ResetSystemLib/DxeResetSystemLib.inf
@@ -1851,30 +1779,6 @@
   # vanished and the build stopped at "Redundant '!endif'").
   AsanLib|MdeModulePkg/Library/AsanLib/AsanLib.inf
   NULL|MdeModulePkg/Library/AsanLib/AsanLib.inf
-  #
-  # Every CopyMem, SetMem, ZeroMem and CompareMem an SMM driver makes, bounds checked.
-  #
-  # No SMM module has its OWN code instrumented -- the compiler flag applies but the
-  # instrumented-image gate counts 0 of 17 for their own translation units -- so a defect
-  # inside a handler raises nothing and only the libraries it links can report. This
-  # instance is how a length reaches a check without the driver being recompiled:
-  # AsanInternalMemCopyMem calls asan_check_memory on the source and the destination for
-  # the full Length before it copies anything, so CopyMem(dst, src, attacker_length) is
-  # caught in the library rather than faulting somewhere unattributable later.
-  #
-  # Only three DXE modules were given this instance -- HiiDatabaseDxe, SanBenchDrive and
-  # AsanFaultDxe -- and SMM inherited the uninstrumented BaseMemoryLibRepStr from the
-  # global section. Measured on EVAL-1 run 42490347442: five injected SMM drivers were
-  # dispatched between 31709 and 90503 times each and only RWVariable produced a finding,
-  # and RWVariable only because it hands its arguments to another module whose libraries
-  # ARE instrumented.
-  #
-  # Added to the existing sections for the reason the note above gives: this file holds
-  # its whole body twice and dedup_sections() finds the duplicate by the longest repeated
-  # run of section headers, so a new header re-aligns that search and the wrong copy is
-  # dropped.
-  #
-  BaseMemoryLib|MdePkg/Library/AsanMemoryLibRepStr/AsanMemoryLibRepStr.inf
   PcdLib|MdePkg/Library/DxePcdLib/DxePcdLib.inf
   TimerLib|OvmfPkg/Library/AcpiTimerLib/DxeAcpiTimerLib.inf
   ResetSystemLib|OvmfPkg/Library/ResetSystemLib/DxeResetSystemLib.inf
