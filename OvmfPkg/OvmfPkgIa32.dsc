@@ -136,6 +136,19 @@
 !include MdePkg/MdeLibs.dsc.inc
 
 [LibraryClasses]
+  #
+  # The Null instance, so this platform still builds PiSmmCore.
+  #
+  # MdeModulePkg/Core/PiSmmCore/PiSmmCore.inf lists AsanLib in [LibraryClasses] because
+  # Pool.c calls PoisonPool/UnpoisonPool directly to maintain the SMM heap redzones. That
+  # makes the class a hard requirement of the SMM core on EVERY platform, and a DSC with
+  # no resolution for it fails the build with "instance of library class [AsanLib] is not
+  # found" -- which is a regression this port introduced against upstream buildability,
+  # not a property of the firmware. AsanLibNull answers the same entry points as no-ops
+  # and its LIBRARY_CLASS already lists SMM_CORE and DXE_SMM_DRIVER, so nothing here is
+  # instrumented and nothing here changes.
+  #
+  AsanLib|MdeModulePkg/Library/AsanLibNull/AsanLibNull.inf
   PcdLib|MdePkg/Library/BasePcdLibNull/BasePcdLibNull.inf
   TimerLib|OvmfPkg/Library/AcpiTimerLib/BaseAcpiTimerLib.inf
   ResetSystemLib|OvmfPkg/Library/ResetSystemLib/BaseResetSystemLib.inf

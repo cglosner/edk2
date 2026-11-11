@@ -379,6 +379,7 @@ AsanInitializeShadowMemory (
 {
   UINT64     ShadowStart;
   UINT64     ShadowSize;
+  UINT64     ShadowCeiling;
   ASAN_INFO  AsanInfo;
 
   ShadowStart = ASAN_SHADOW_MEMORY_START;
@@ -392,9 +393,23 @@ AsanInitializeShadowMemory (
   // Refuse rather than corrupt: if the shadow would run into the memory PEI is using,
   // a silently overlapping shadow turns every instrumented read into garbage.
   //
-  if ((ShadowStart + ShadowSize) > (UINT64)PlatformInfoHob->LowMemory) {
+  // The ceiling is the TSEG base, not LowMemory. TSEG is carved off the TOP of low
+  // memory -- PlatformInitLib's MemDetect publishes [1MB, LowMemory - TsegSize) as system
+  // memory and TsegSize above it as reserved -- so comparing against LowMemory lets the
+  // shadow be placed INSIDE SMRAM and still pass. It does not happen on the guests used
+  // today (LowMemory 0x20000000 with a 64MB TSEG leaves 8MB of shadow ending at
+  // 0x8FFFFFF, far below the 0x1C000000 TSEG base), and it starts happening below about
+  // 165MB of low memory with a 64MB TSEG. The failure would be quiet and total: the SMM
+  // core would allocate out of the region holding its own shadow.
+  //
+  ShadowCeiling = (UINT64)PlatformInfoHob->LowMemory;
+  if (PlatformInfoHob->SmmSmramRequire) {
+    ShadowCeiling -= (UINT64)PlatformInfoHob->Q35TsegMbytes * SIZE_1MB;
+  }
+
+  if ((ShadowStart + ShadowSize) > ShadowCeiling) {
     DEBUG ((DEBUG_ERROR, "Asan: shadow 0x%lx[0x%lx] does not fit below 0x%lx\n",
-            ShadowStart, ShadowSize, (UINT64)PlatformInfoHob->LowMemory));
+            ShadowStart, ShadowSize, ShadowCeiling));
     return;
   }
 
