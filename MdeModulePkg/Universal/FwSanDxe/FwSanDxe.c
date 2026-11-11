@@ -61,6 +61,7 @@ STATIC UINTN                  mVariableNext     = 0;
 VOID
 AsanReportFirmwareClass (
   IN CONST CHAR8  *BugDescr,
+  IN CONST CHAR8  *Detail,
   IN UINTN        Addr,
   IN UINTN        Size,
   IN UINTN        IsWrite,
@@ -99,7 +100,16 @@ FwSanReport (
   // is narration only -- 3283 double-fetch detections in one campaign produced zero report
   // rows, and bugs.md read as though the firmware sanitizer had found nothing.
   //
-  AsanReportFirmwareClass (Class, (UINTN)Address, 0, 0,
+  // Detail is passed, not omitted. The definition in AsanLib takes it SECOND, and
+  // this prototype used to leave it out -- so every argument shifted by one: the
+  // address arrived where a CONST CHAR8 *Detail was expected and the banner walked
+  // it as a NUL-terminated string, Addr and Size arrived as 0, IsWrite got the
+  // return address, and Ip was never passed at all -- which is the dedup key and
+  // the ip in the crashes.csv row. It survived because a byte near the destination
+  // happened to be zero. AsanReportFirmwareClass has no declaration in any header,
+  // so each caller writes its own prototype and nothing made them agree; the two
+  // AsanHelper.c copies got it right and this one did not.
+  AsanReportFirmwareClass (Class, Detail, (UINTN)Address, 0, 0,
                            (UINTN)__builtin_return_address (0));
   AsanSignalSolution ();
 }
