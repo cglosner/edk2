@@ -126,17 +126,52 @@ AsanPoisonPoolRedZones (
   IN POOL_HEADER  *PoolHdr
   )
 {
+  UINTN    UserEnd;
+  UINTN    PoisonEnd;
+  BOOLEAN  HasPoolTail;
+
   PoisonPool (
     (UINTN)PoolHdr->AsanLeftRZ,
     kAsanHeapLeftRedzoneSize,
     kAsanHeapLeftRedzoneMagic
     );
-  if (PoolHdr->AsanRightRZSize != 0) {
-    PoisonPool (
-      (UINTN)(PoolHdr + 1) + PoolHdr->OriSize,
-      PoolHdr->AsanRightRZSize,
-      kAsanHeapLeftRedzoneMagic
-      );
+
+  //
+  // ASAN. Poison everything between the caller's buffer and POOL_TAIL, not only
+  // AsanRightRZSize bytes of it.
+  //
+  // ComputePoolRightRedzoneSize sizes a redzone; it does not describe the gap a bucket
+  // allocation actually leaves.  A 16-byte request takes a 16-byte redzone and lands in
+  // the 256-byte bucket: POOL_HEADER is 168 bytes, the caller gets 168..183, the redzone
+  // covers 184..199, POOL_TAIL sits at 240..255, and 200..239 is padding that nothing
+  // described.  OvmfPkg/Spi/SmmSpi.c assigns SmmSpiReadDataIn->Buffer at block+200 --
+  // the first byte PAST the redzone -- before the check that would have stopped it, so
+  // the overflow this code exists to catch fell in the hole.  Measured: that write
+  // executed at least 261 times in run 42703964006 and reported nothing.
+  //
+  // Poisoning to the tail closes the hole and makes the right redzone the whole slack of
+  // the bucket rather than a fixed 16 bytes, so detection no longer depends on the
+  // request size landing near a bucket boundary.
+  //
+  // POOL_TAIL itself must stay addressable.  SmmInternalFreePool reads PoolTail->Signature
+  // and PoolTail->Size BEFORE it unpoisons the block, and once SMM_CORE is instrumented
+  // those reads are checked.  HasPoolTail is therefore recomputed exactly the way the free
+  // path computes it, so both agree where the poisoned span ends.  The fields the
+  // allocator reads out of POOL_HEADER sit below AsanLeftRZ, which is why poisoning the
+  // left redzone has always been safe.
+  //
+  UserEnd     = (UINTN)(PoolHdr + 1) + PoolHdr->OriSize;
+  HasPoolTail = !(IsHeapGuardEnabled () &&
+                  IsMemoryGuarded ((EFI_PHYSICAL_ADDRESS)(UINTN)PoolHdr) &&
+                  ((PcdGet8 (PcdHeapGuardPropertyMask) & BIT7) == 0));
+
+  PoisonEnd = (UINTN)PoolHdr + PoolHdr->Size;
+  if (HasPoolTail) {
+    PoisonEnd -= sizeof (POOL_TAIL);
+  }
+
+  if (PoisonEnd > UserEnd) {
+    PoisonPool (UserEnd, PoisonEnd - UserEnd, kAsanHeapLeftRedzoneMagic);
   }
 }
 

@@ -1892,6 +1892,38 @@ ComputePoolRightRedzoneSize(
 // void PoisonShadowForGlobal(const Global *g, UINT8 value) {
   // FastPoisonShadow(g->beg, g->size_with_redzone, value);
 // }
+// A pool range whose SHADOW falls outside the reservation must not be touched.
+//
+// PoisonPages has had this guard since the shadow bounds were fixed (AsanPageRangeHasShadow
+// below); PoisonPool and UnpoisonPool never did, and they are the two the SMM core reaches.
+// The shadow covers [0, LowMemory) -- OvmfPkg/PlatformPei/MemDetect.c sizes it as
+// LowMemory >> 3 -- so a block above that maps to a shadow address past the end of the
+// reservation, and writing it corrupts whatever lives there. Nothing reports, because the
+// write succeeds.
+//
+// The test is on MEM_TO_SHADOW of each end, never on the address itself: the shadow bound
+// variables bound the SHADOW region, so comparing a memory address against them is a
+// different question with a plausible-looking answer.
+BOOLEAN
+AsanPoolRangeHasShadow (
+  IN const UINTN Addr,
+  IN const UINTN Size
+  )
+{
+  UINT64  ShadowBegin;
+  UINT64  ShadowEnd;
+
+  if (Size == 0) {
+    return FALSE;
+  }
+
+  ShadowBegin = MEM_TO_SHADOW (Addr);
+  ShadowEnd   = MEM_TO_SHADOW (Addr + Size - 1);
+
+  return (BOOLEAN)((ShadowBegin >= mAsanShadowMemoryStart) &&
+                   (ShadowEnd   <= mAsanShadowMemoryEnd));
+}
+
 void
 PoisonPool(
   IN const UINTN Addr,
@@ -1913,6 +1945,10 @@ PoisonPool(
   }
 
   ASAN_ASSERT(Size != 0);
+
+  if (!AsanPoolRangeHasShadow (Addr, Size)) {
+    return ;
+  }
 
   // Shadow encoding: 0 means all 8 bytes addressable, 1..7 means that many LEADING
   // bytes addressable and the rest poisoned, a magic means the whole granule poisoned.
@@ -1968,6 +2004,10 @@ UnpoisonPool(
   }
 
   ASAN_ASSERT(Size != 0);
+
+  if (!AsanPoolRangeHasShadow (Addr, Size)) {
+    return ;
+  }
 
   aligned_addr = RoundUpTo(Addr, SHADOW_GRANULARITY);
   if (aligned_addr != Addr) {
