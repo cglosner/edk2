@@ -1845,6 +1845,26 @@ FastPoisonShadow(
   UINTN shadow_end = MEM_TO_SHADOW(
       aligned_beg + aligned_size - SHADOW_GRANULARITY) + 1;
 
+  //
+  // The one shadow writer that had no bounds test, and the only one PoisonGlobalRedZone
+  // reaches. A global whose image was relocated outside [0, LowMemory) maps to a shadow
+  // address past the end of the reservation, and this memset then corrupts live DRAM
+  // silently -- the write succeeds, so nothing reports and the damage surfaces later as
+  // something unrelated.
+  //
+  // Guarding here rather than in each caller covers globals, the stale-interface magic
+  // and the stack paths in one place, and keeps the two halves of register_global in
+  // step: UnpoisonGlobal goes through UnpoisonPool, which is guarded, so without this
+  // the unpoison would skip a range the poison still wrote.
+  //
+  // Safe with respect to ordering: AsanLibConstructor calls SetupAsanShadowMemory BEFORE
+  // it walks __preinit_array/__init_array, so the bounds are set by the time any global
+  // registers. Were that reversed, this guard would reject every global silently.
+  //
+  if ((shadow_beg < mAsanShadowMemoryStart) || (shadow_end - 1 > mAsanShadowMemoryEnd)) {
+    return ;
+  }
+
   Intrinsic_memset((void*)shadow_beg, value, shadow_end - shadow_beg);
 
 }

@@ -2487,11 +2487,26 @@
 
 [BuildOptions.common.EDKII.DXE_SMM_DRIVER, BuildOptions.common.EDKII.SMM_CORE]
   #
-  # SMM keeps its own shadow and its own runtime (AsanRuntimeLib) on the platform build.
-  # None of that is wired up here, and an instrumented SMM driver with no runtime does
-  # not link, so leave SMM out until it is done properly.
+  # SMM instrumentation. This block, not the one in Asan.dsc.inc, is what decides:
+  # _ExpandBuildOption keys options by the literal "*_CLANGSAN_X64_SAN_FLAGS" string in
+  # one dict per module type, so the LATER statement wins and this file is included after
+  # the .inc. Editing only the .inc changes nothing here, which is how that gate sat
+  # unnoticed while 0 of 17 SMM modules were checked.
   #
+  # Both arms are kept in step with MdeModulePkg/Include/Dsc/Asan.dsc.inc, where the
+  # reasoning is written out: the shadow is one region and already covers TSEG, AsanLib is
+  # resolved for both SMM module types here, and -asan-stack=0 is mandatory because clang
+  # writes frame redzones inline and bypasses the MEM_TO_SHADOW guard.
+  #
+  # "==" replaces, so this must restate the whole string: the tools_def default carries
+  # -fsanitize=local-bounds, whose handler AsanLib does not define, and omitting
+  # -asan-stack=0 instruments SMM stacks in TSEG.
+  #
+!if "$(ASAN_SMM)" == "TRUE"
+  *_CLANGSAN_X64_SAN_FLAGS == $(ASAN_SAN_FLAGS) -mllvm -asan-stack=0
+!else
   *_CLANGSAN_X64_SAN_FLAGS == -Wno-frame-address
+!endif
 
 [BuildOptions.common.EDKII.SEC, BuildOptions.common.EDKII.PEI_CORE, BuildOptions.common.EDKII.PEIM]
   #

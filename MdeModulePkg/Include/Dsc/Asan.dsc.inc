@@ -50,6 +50,19 @@
 !ifndef ASAN_FUZZER
   DEFINE ASAN_FUZZER = tsffs
 !endif
+!ifndef ASAN_SMM
+  #
+  # Instrument SMM_CORE and DXE_SMM_DRIVER. On by default: an SMI handler's own code is
+  # where the SMM attack surface is, and leaving it off is what made 0 of 17 SMM modules
+  # checked while the stage still called 288 of 290 images "instrumented".
+  #
+  # Set FALSE to go back to the old behaviour. Worth having as a knob rather than an edit,
+  # because the regions inside SMRAM that nothing maintains -- SMM page allocations and
+  # SMM stacks, neither of which has a poisoning hook -- can produce reports that are
+  # about the shadow rather than about the firmware.
+  #
+  DEFINE ASAN_SMM = TRUE
+!endif
   #
   # Named so an opt-in site can restate it. Every such site must repeat the flags
   # verbatim, because "==" replaces: an entry listing a subset silently turns the rest off.
@@ -190,12 +203,49 @@
   #
   *_CLANGSAN_X64_SAN_FLAGS == -Wno-frame-address
 
+#
+# SMM. The comment that used to sit here said SMM "keeps its own shadow and its own
+# runtime (AsanRuntimeLib)" and that an instrumented SMM driver "does not link". Both
+# statements were true when they were written and neither is true now:
+#
+#   * The shadow is ONE region and it already covers SMRAM. MemDetect.c sizes it as
+#     LowMemory >> 3 and reserves [0, LowMemory); PlatformInitLib carves TSEG out of the
+#     TOP of LowMemory, so TSEG is inside the reservation by construction, at any RAM
+#     size. Checked against two real configurations: with LowMemory 0x20000000 the shadow
+#     is [0x5000000, 0x8FFFFFF] and SMRAM 0x1C009000-0x1FFFFFFF maps to
+#     0x8801200-0x8FFFFFF; with LowMemory 0x80000000 the shadow is
+#     [0x5000000, 0x14FFFFFF] and SMRAM 0x7F009000-0x7FFFFFFF maps to
+#     0x14E01200-0x14FFFFFF. Both land inside, ending on the reservation's last byte.
+#   * SMM can reach it. PcdCpuSmmRestrictedMemoryAccess defaults FALSE, and even set TRUE
+#     the permitted types are reserved, runtime and ACPI NVS -- MemDetect.c reserves the
+#     shadow as EfiRuntimeServicesData, one of exactly those.
+#   * The runtime links. OvmfPkgX64.dsc resolves AsanLib and NULL|AsanLib for both module
+#     types, so __asan_init and the __asan_load/store family resolve.
+#
+# The check path guards on MEM_TO_SHADOW(addr) rather than on addr, so an access whose
+# shadow byte is outside the region is skipped instead of reading unmapped memory.
+#
+# -asan-stack=0 is NOT optional here and is the reason these blocks restate the flags
+# rather than falling through. Clang writes stack frame redzones INLINE and
+# unconditionally, which bypasses that guard entirely; an SMM stack lives in TSEG, so
+# without this the frame poisoning writes shadow for addresses nothing else maintains.
+#
+# What is still missing, so a report is read correctly: PiSmmCore/Page.c has no poisoning
+# hooks, so SMM page allocations read as addressable, and SMM stacks are untracked. Pool
+# allocations ARE tracked -- PiSmmCore/Pool.c poisons the left redzone and everything from
+# the caller's buffer to POOL_TAIL -- so SMM heap overflow is real detection. A finding
+# inside SMRAM from any other region should be treated as a shadow question first.
+#
+!if "$(ASAN_SMM)" == "TRUE"
 [BuildOptions.common.EDKII.SMM_CORE]
-  #
-  # SMM keeps its own shadow and its own runtime (AsanRuntimeLib). Wiring that is a
-  # separate job, and an instrumented SMM driver without it does not link.
-  #
+  *_CLANGSAN_X64_SAN_FLAGS == $(ASAN_SAN_FLAGS) -mllvm -asan-stack=0
+
+[BuildOptions.common.EDKII.DXE_SMM_DRIVER]
+  *_CLANGSAN_X64_SAN_FLAGS == $(ASAN_SAN_FLAGS) -mllvm -asan-stack=0
+!else
+[BuildOptions.common.EDKII.SMM_CORE]
   *_CLANGSAN_X64_SAN_FLAGS == -Wno-frame-address
 
 [BuildOptions.common.EDKII.DXE_SMM_DRIVER]
   *_CLANGSAN_X64_SAN_FLAGS == -Wno-frame-address
+!endif
