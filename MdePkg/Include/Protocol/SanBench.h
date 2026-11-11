@@ -217,4 +217,59 @@ struct _SAN_BENCH_FIRMWARE_PROTOCOL {
 extern EFI_GUID  gSanBenchMemoryProtocolGuid;
 extern EFI_GUID  gSanBenchFirmwareProtocolGuid;
 
+//
+// ---------------------------------------------------------------------------------
+// The SMM side of the benchmark.
+// ---------------------------------------------------------------------------------
+//
+// One definition, two ends: SanBenchSmm registers this handler GUID and SanBenchDrive
+// raises it through EFI_SMM_COMMUNICATION_PROTOCOL. Declared here rather than once in
+// each because two copies of a GUID drift, and a drifted GUID is the worst kind of
+// broken control -- SmiManage finds no handler, Communicate returns EFI_NOT_FOUND, and
+// the scoreboard reads "no report" for a sanitizer that was never asked anything.
+//
+// Not a protocol GUID and not in any DEC: it names an SMI handler, and
+// scripts/discover_smi.py finds those by the SmiHandlerRegister call site rather than by
+// a declared global.
+//
+#define SAN_BENCH_SMM_HANDLER_GUID \
+  { 0x7a2f1c84, 0x5d63, 0x4b19, { 0x9e, 0x0a, 0x3c, 0x71, 0xd4, 0x86, 0x2b, 0x55 } }
+
+#define SAN_BENCH_SMM_DATA_BYTES  64
+
+//
+// Data is a fixed array, not a trailing Data[1]. A flexible tail gets sizeof () == 1 in
+// the harness generator, and every command arm then reads its arguments out of whatever
+// happened to follow the header in the caller's buffer.
+//
+typedef struct {
+  UINT32    Command;
+  UINT32    Length;
+  UINT8     Data[SAN_BENCH_SMM_DATA_BYTES];
+} SAN_BENCH_SMM_COMM;
+
+//
+// One command per class, so one boot scores one thing. The SMM pool cases are all driven
+// against the same 32-byte allocation: with POOL_OVERHEAD at 184 and a 32-byte right
+// redzone that lands in the 256-byte bucket, so an overflow of up to
+// SAN_BENCH_SMM_DATA_BYTES stays inside the block's own poisoned slack and cannot reach
+// POOL_TAIL or the next block. Detectable without being destructive is what lets the
+// boot continue far enough to be scored.
+//
+#define SAN_BENCH_SMM_CMD_CONTROL        0x01
+#define SAN_BENCH_SMM_CMD_POOL_OVERFLOW  0x02
+#define SAN_BENCH_SMM_CMD_POOL_UAF       0x03
+#define SAN_BENCH_SMM_CMD_DOUBLE_FREE    0x04
+#define SAN_BENCH_SMM_CMD_PAGE_UAF       0x05
+
+//
+// What SanBenchSmm prints on the sanitizer's own wire at registration, so a report can
+// be attributed to this module rather than to a library linked into it. An ASan report
+// names no module -- "in file: asan-outline-instrumentation" -- and carries only an ip,
+// so the only way to say "this driver's own code raised it" is to publish the image's
+// range and test the ip against it. Resolving it from a load map instead would mean
+// guessing each image's end from the next image's base.
+//
+#define SAN_BENCH_SMM_IMAGE_PREFIX  "SanBenchSmm: image base="
+
 #endif

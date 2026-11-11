@@ -32,5 +32,10 @@
   DebugLib
 
 [Protocols]
-  gSanBenchMemoryProtocolGuid      ## CONSUMES
-  gSanBenchFirmwareProtocolGuid    ## CONSUMES
+  gSanBenchMemoryProtocolGuid         ## CONSUMES
+  gSanBenchFirmwareProtocolGuid       ## CONSUMES
+  #
+  # SOMETIMES_CONSUMES: a build without SMM_REQUIRE has no SMM core and no such
+  # protocol, and the DXE cases still have to be measurable there.
+  #
+  gEfiSmmCommunicationProtocolGuid    ## SOMETIMES_CONSUMES

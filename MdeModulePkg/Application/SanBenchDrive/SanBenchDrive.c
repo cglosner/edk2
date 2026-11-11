@@ -33,6 +33,7 @@
 #include <Library/UefiBootServicesTableLib.h>
 #include <Library/UefiRuntimeServicesTableLib.h>
 #include <Protocol/SanBench.h>
+#include <Protocol/SmmCommunication.h>
 
 //
 // Announce on the wire the sanitizers report on, not through DEBUG. The two are
@@ -43,8 +44,15 @@ VOID SerialOutput (IN CONST CHAR8 *String);
 VOID AsanSetRegionChecks (IN BOOLEAN Active);
 VOID AsanRegisterUntrusted (IN UINT64 Base, IN UINT64 Size);
 
-STATIC SAN_BENCH_MEMORY_PROTOCOL    *mMem;
-STATIC SAN_BENCH_FIRMWARE_PROTOCOL  *mFw;
+STATIC SAN_BENCH_MEMORY_PROTOCOL        *mMem;
+STATIC SAN_BENCH_FIRMWARE_PROTOCOL      *mFw;
+//
+// Optional. A firmware built without SMM_REQUIRE has no SMM core and no communication
+// protocol, and the DXE cases must still be measurable there -- so this is located
+// without failing the application, and the SMM cases say "not attempted" rather than
+// reporting nothing and being scored as a miss.
+//
+STATIC EFI_SMM_COMMUNICATION_PROTOCOL  *mSmmComm;
 
 typedef VOID (*SAN_BENCH_CASE) (VOID);
 
@@ -266,6 +274,146 @@ CaseSizeOverflow (
 }
 
 //
+// ---------------------------------------------------------------------------------
+// The SMM cases.
+// ---------------------------------------------------------------------------------
+//
+// These do not call a protocol. They raise a software SMI through
+// EFI_SMM_COMMUNICATION_PROTOCOL, which is the same channel the SMI harnesses use and
+// the only way a UEFI-phase caller can reach code inside SMRAM. The fault then happens
+// in SanBenchSmm's own instrumented statements, inside SMM, on SMM pool and SMM page
+// allocations -- which is the one thing no DXE case here can measure.
+//
+// The request layout, the command codes and the handler GUID all come from
+// Protocol/SanBench.h, shared with the module, so the two ends cannot drift apart.
+//
+STATIC
+VOID
+SmmRaise (
+  IN UINT32  Command,
+  IN UINTN   Length
+  )
+{
+  EFI_STATUS                  Status;
+  EFI_SMM_COMMUNICATE_HEADER  *Header;
+  SAN_BENCH_SMM_COMM          *Request;
+  EFI_GUID                    Handler = SAN_BENCH_SMM_HANDLER_GUID;
+  UINTN                       Total;
+  UINTN                       Index;
+  UINT8                       *Buffer;
+
+  if (mSmmComm == NULL) {
+    //
+    // "not attempted" is the phrase the scorer reads to tell a class that could not be
+    // exercised from one the sanitizer missed. Those are different results and scoring
+    // them the same is how a board silently shrinks its own denominator.
+    //
+    SerialOutput ("SanBenchDrive: no SMM communication protocol -- not attempted\n");
+    return;
+  }
+
+  Total  = OFFSET_OF (EFI_SMM_COMMUNICATE_HEADER, Data) + sizeof (SAN_BENCH_SMM_COMM);
+  Buffer = AllocatePool (Total);
+  if (Buffer == NULL) {
+    SerialOutput ("SanBenchDrive: no buffer for the SMI -- not attempted\n");
+    return;
+  }
+
+  for (Index = 0; Index < Total; Index++) {
+    Buffer[Index] = 0;
+  }
+
+  //
+  // A boot services pool buffer is outside SMRAM, which is what both the SMM core entry
+  // and the handler's own SmmIsBufferOutsideSmmValid require. It does NOT have to come
+  // from the published SMM communication region: SmmCommunicationCommunicate takes any
+  // non-NULL buffer and hands its address to the core through gSmmCorePrivate.
+  //
+  Header = (EFI_SMM_COMMUNICATE_HEADER *)Buffer;
+  //
+  // Struct assignment rather than CopyGuid, and the fill below is a loop rather than
+  // SetMem, to keep this application linking exactly what it linked before.
+  //
+  Header->HeaderGuid = Handler;
+  //
+  // The payload size, NOT the size of a pointer and NOT the whole buffer. MessageLength
+  // excludes the header by definition, and the SMM core subtracts OFFSET_OF(Data) before
+  // it calls the handler -- get this wrong and every command arm reads its arguments out
+  // of whatever follows.
+  //
+  Header->MessageLength = sizeof (SAN_BENCH_SMM_COMM);
+
+  Request          = (SAN_BENCH_SMM_COMM *)Header->Data;
+  Request->Command = Command;
+  Request->Length  = (UINT32)Length;
+  for (Index = 0; Index < sizeof (Request->Data); Index++) {
+    Request->Data[Index] = 0xA5;
+  }
+
+  Status = mSmmComm->Communicate (mSmmComm, Buffer, &Total);
+  if (EFI_ERROR (Status)) {
+    //
+    // EFI_NOT_FOUND here means SmiManage found no handler for the GUID, i.e. SanBenchSmm
+    // is not in this image. Not a detection failure, and not something to be silent
+    // about either.
+    //
+    SerialOutput ("SanBenchDrive: the SMI was not delivered -- not attempted\n");
+  }
+
+  FreePool (Buffer);
+}
+
+STATIC
+VOID
+CaseSmmControl (
+  VOID
+  )
+{
+  SmmRaise (SAN_BENCH_SMM_CMD_CONTROL, SAN_BENCH_SMM_DATA_BYTES);
+}
+
+STATIC
+VOID
+CaseSmmPoolOverflow (
+  VOID
+  )
+{
+  //
+  // 64 into a 32-byte SMM pool allocation. The handler's own bound rejects anything
+  // above SAN_BENCH_SMM_DATA_BYTES, so this is the largest overflow it will perform and
+  // it still lands inside the 256-byte bucket's poisoned slack.
+  //
+  SmmRaise (SAN_BENCH_SMM_CMD_POOL_OVERFLOW, SAN_BENCH_SMM_DATA_BYTES);
+}
+
+STATIC
+VOID
+CaseSmmPoolUseAfterFree (
+  VOID
+  )
+{
+  SmmRaise (SAN_BENCH_SMM_CMD_POOL_UAF, 0);
+}
+
+STATIC
+VOID
+CaseSmmDoubleFree (
+  VOID
+  )
+{
+  SmmRaise (SAN_BENCH_SMM_CMD_DOUBLE_FREE, 0);
+}
+
+STATIC
+VOID
+CaseSmmPageUseAfterFree (
+  VOID
+  )
+{
+  SmmRaise (SAN_BENCH_SMM_CMD_PAGE_UAF, 0);
+}
+
+//
 // Order matters for a whole-sequence run: everything measurable first, the two that take
 // the heap with them last. A selected run ignores the order entirely, which is the point
 // of having the selector.
@@ -282,6 +430,17 @@ STATIC CONST SAN_BENCH_ENTRY  mCases[] = {
   { "variable-size-trusted",  CaseVariableSizeTrusted, FALSE },
   { "use-after-free",         CaseUseAfterFree,        FALSE },
   { "stack-buffer-overflow",  CaseStackOverflow,       FALSE },
+  //
+  // The SMM cases sit before the two destructive DXE ones so a whole-sequence run
+  // reaches them. The SMM double free is marked destructive for the same reason the DXE
+  // one is: it leaves a block in the SMM pool's quarantine marked as already freed, and
+  // what follows it in the same boot is measuring that rather than itself.
+  //
+  { "smm-control",            CaseSmmControl,          FALSE },
+  { "smm-pool-overflow",      CaseSmmPoolOverflow,     FALSE },
+  { "smm-pool-use-after-free", CaseSmmPoolUseAfterFree, FALSE },
+  { "smm-page-use-after-free", CaseSmmPageUseAfterFree, FALSE },
+  { "smm-double-free",        CaseSmmDoubleFree,       TRUE  },
   { "double-free",            CaseDoubleFree,          TRUE  },
   { "size-overflow",          CaseSizeOverflow,        TRUE  },
 };
@@ -447,6 +606,20 @@ SanBenchDriveEntry (
   Status = gBS->LocateProtocol (&gSanBenchFirmwareProtocolGuid, NULL, (VOID **)&mFw);
   if (EFI_ERROR (Status)) {
     return Status;
+  }
+
+  //
+  // Optional, and deliberately not fatal. A build without SMM_REQUIRE has no SMM core at
+  // all; the DXE classes are still measurable there and the SMM rows report that they
+  // were not attempted.
+  //
+  Status = gBS->LocateProtocol (
+                  &gEfiSmmCommunicationProtocolGuid,
+                  NULL,
+                  (VOID **)&mSmmComm
+                  );
+  if (EFI_ERROR (Status)) {
+    mSmmComm = NULL;
   }
 
   SelectedCase (Want, sizeof (Want));

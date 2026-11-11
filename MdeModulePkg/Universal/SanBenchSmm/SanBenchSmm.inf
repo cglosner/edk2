@@ -30,6 +30,13 @@
 [LibraryClasses]
   UefiDriverEntryPoint
   SmmServicesTableLib
+  #
+  # For gBS, used once at registration to read this image's own base and size out of
+  # EFI_LOADED_IMAGE_PROTOCOL. The SMM core calls an SMM driver's entry point with the
+  # DXE-side ImageHandle, so that protocol is in the DXE database, not the SMM one. Only
+  # reached during SMM dispatch in the DXE phase, never from an SMI.
+  #
+  UefiBootServicesTableLib
   BaseMemoryLib
   DebugLib
   SmmMemLib
@@ -44,6 +51,9 @@
   # takes the guest with it. This module calls gSmst directly.
   #
   AsanLib
+
+[Protocols]
+  gEfiLoadedImageProtocolGuid      ## CONSUMES
 
 [Depex]
   TRUE

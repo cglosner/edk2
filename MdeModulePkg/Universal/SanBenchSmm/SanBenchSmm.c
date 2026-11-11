@@ -35,8 +35,9 @@
 #include <Library/DebugLib.h>
 #include <Library/SmmMemLib.h>
 #include <Library/SmmServicesTableLib.h>
-
-#define SAN_BENCH_SMM_DATA_BYTES  64
+#include <Library/UefiBootServicesTableLib.h>
+#include <Protocol/LoadedImage.h>
+#include <Protocol/SanBench.h>
 
 //
 // The allocation every pool case works on. 32 bytes requests a 32-byte right redzone
@@ -51,31 +52,11 @@
 #define SAN_BENCH_SMM_POOL_BYTES  32
 
 //
-// Command codes. Each selects exactly one class, so a boot scores one thing.
+// The command codes, the request layout and this GUID all live in
+// MdePkg/Include/Protocol/SanBench.h, because SanBenchDrive has to agree with them
+// exactly in order to raise the SMI. A second copy here would be a copy that can drift.
 //
-#define SAN_BENCH_SMM_CMD_CONTROL        0x01
-#define SAN_BENCH_SMM_CMD_POOL_OVERFLOW  0x02
-#define SAN_BENCH_SMM_CMD_POOL_UAF       0x03
-#define SAN_BENCH_SMM_CMD_DOUBLE_FREE    0x04
-#define SAN_BENCH_SMM_CMD_PAGE_UAF       0x05
-
-//
-// Data is a fixed array rather than a trailing Data[1]. A flexible tail gets
-// sizeof () == 1 in the harness generator, and every command arm then reads its
-// arguments out of whatever followed the header in the caller's buffer.
-//
-typedef struct {
-  UINT32    Command;
-  UINT32    Length;
-  UINT8     Data[SAN_BENCH_SMM_DATA_BYTES];
-} SAN_BENCH_SMM_COMM;
-
-//
-// 7A2F1C84-5D63-4B19-9E0A-3C71D4862B55
-//
-STATIC CONST EFI_GUID  mSanBenchSmmHandlerGuid = {
-  0x7a2f1c84, 0x5d63, 0x4b19, { 0x9e, 0x0a, 0x3c, 0x71, 0xd4, 0x86, 0x2b, 0x55 }
-};
+STATIC CONST EFI_GUID  mSanBenchSmmHandlerGuid = SAN_BENCH_SMM_HANDLER_GUID;
 
 //
 // Where every faulting read lands. volatile, because a load whose result is discarded is
@@ -371,6 +352,63 @@ SanBenchSmmHandler (
 }
 
 /**
+  Print this image's own address range on the sanitizer's wire.
+
+  An ASan report names no module. It says "in file: asan-outline-instrumentation" and
+  carries an ip, so "a report raised by an SMM driver's OWN code" -- the thing this
+  module exists to demonstrate -- cannot be read off the report text. Publishing the
+  range lets the scorer test the ip against it, and an ip outside it means the report
+  came from a library linked into this image instead, which is the result already in hand
+  and must not be scored as this one.
+
+  The range comes from EFI_LOADED_IMAGE_PROTOCOL, so it is the real base AND the real
+  size. The alternative -- parsing the SMM core's "Loading SMM driver at" lines -- gives
+  bases only, and each image's end then has to be guessed from the next image's base.
+
+  gBS, not gSmst: the SMM core calls an SMM driver's entry point with the DXE-side
+  ImageHandle (Dispatcher.c, "(DriverEntry->ImageHandle, gST)"), and it is the DXE
+  protocol database that carries the loaded-image protocol for that handle. The SMM
+  database has it on a different handle this function is never given. Boot services are
+  safe here because this runs during SMM dispatch in the DXE phase, not from an SMI.
+
+  @param  ImageHandle   The handle the entry point was given.
+**/
+STATIC
+VOID
+SanBenchSmmPublishImage (
+  IN EFI_HANDLE  ImageHandle
+  )
+{
+  EFI_STATUS                 Status;
+  EFI_LOADED_IMAGE_PROTOCOL  *Image;
+  CHAR8                      NumStr[19];
+
+  Image  = NULL;
+  Status = gBS->HandleProtocol (
+                  ImageHandle,
+                  &gEfiLoadedImageProtocolGuid,
+                  (VOID **)&Image
+                  );
+  if (EFI_ERROR (Status) || (Image == NULL)) {
+    //
+    // Said out loud rather than passed over. Without the range no report from this
+    // module can be attributed, and a scorer that cannot attribute must report that
+    // rather than credit the class.
+    //
+    SerialOutput ("SanBenchSmm: no loaded image protocol, reports cannot be attributed\n");
+    return;
+  }
+
+  SerialOutput (SAN_BENCH_SMM_IMAGE_PREFIX);
+  Num2Str64bit ((UINTN)Image->ImageBase, NumStr);
+  SerialOutput (NumStr);
+  SerialOutput (" size=");
+  Num2Str64bit ((UINTN)Image->ImageSize, NumStr);
+  SerialOutput (NumStr);
+  SerialOutput ("\n");
+}
+
+/**
   Register the handler. That is all this entry point does.
 
   No ASSERT_EFI_ERROR on the registration: this runs inside the SMM core's dispatch, and
@@ -403,6 +441,7 @@ SanBenchSmmEntry (
     return Status;
   }
 
+  SanBenchSmmPublishImage (ImageHandle);
   SerialOutput ("SanBenchSmm: armed\n");
   return EFI_SUCCESS;
 }
