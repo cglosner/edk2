@@ -1,0 +1,281 @@
+# Clear FuzzUEr's filed findings from this repository. Two jobs, one file, told apart by
+# the branch that was pushed.
+#
+# WIPE -- push a `wipe-findings-**` branch. Every issue carrying the `fuzzuer-finding`
+# label, open and closed, enumerated from the API because the numbers are not known up
+# front. This is how the find -> triage -> file -> link pipeline gets proved end to end:
+# wipe, then run a campaign (fuzzuer-self.yml, or the Sunday cron in fuzzuer-weekly.yml),
+# and every finding has to come back from scratch. It is not a routine operation and it is
+# not reversible by re-running.
+#
+# RETIRE -- push a `retire-issues-<numbers>` branch, e.g. `retire-issues-73-78`, or
+# dispatch with the issues input. A NAMED list, for findings whose defect the code no
+# longer produces. There is no standing list on this repository, so the numbers always
+# come from the branch name or the input.
+#
+# In both cases each issue is closed WITH ITS LABEL REMOVED, and the order is deliberate.
+# already_filed() queries `state=all` by design, so a closed issue still holds its site
+# key and the site is not refiled every week -- which is right for a real finding and
+# wrong for both of these jobs. Removing the label FIRST is what frees the key; closing
+# first and unlabelling after would not, and a wipe that only closed would look like it
+# worked and then the next campaign would file nothing at all.
+#
+# THIS SUPERSEDES fuzzuer-reset.yml, which lives on the `fuzzuer-reset` branch and does
+# the same job by closing every issue and then DELETING the `fuzzuer-finding` label
+# wholesale. That works, but by accident rather than by design: with the label deleted,
+# `?labels=fuzzuer-finding` keeps answering with the issues that used to carry it -- 24
+# came back on this repository while the label itself was a 404, every one of them
+# reporting `labels: []` -- so the filer had to be hardened to trust each issue's own
+# labels rather than the query it just made. The label also comes straight back the next
+# time anything files, since file_issues.py creates it. Per-issue unlabelling leaves the
+# repository in a state nothing has to be hardened against, and it is the path
+# scripts/close_issues_check.py asserts. Nothing here deletes the label.
+#
+# The branch names are not decorative. The triggers already on this repository are
+# `master` (codeql.yml, upl-build.yml), `fuzzuer-self-**` (fuzzuer-self.yml, on the
+# default branch), `fuzzuer-ci` (fuzzuer.yml) and `fuzzuer-reset` (fuzzuer-reset.yml).
+# Neither `wipe-findings-**` nor `retire-issues-**` matches any of them -- a name like
+# `fuzzuer-cleanup-x` would match `fuzzuer-self-**`'s sibling patterns on other forks and,
+# on eval1_edk2, would match `fuzzuer-**` and start a multi-hour campaign on the same
+# commit. This file's path is also not in use on the default branch, which matters because
+# GitHub keys a workflow by PATH and would otherwise merge the two into one workflow.
+#
+# A push is the only way to start this without an API token, and nothing here builds or
+# fuzzes -- it is a handful of API calls, so it does not queue behind a firmware job.
+name: FuzzUEr cleanup
+
+on:
+  push:
+    # NOT a fuzzuer-* name, for the reason in the header.
+    branches:
+      - 'wipe-findings-**'
+      - 'retire-issues-**'
+  workflow_dispatch:
+    inputs:
+      mode:
+        description: 'wipe the whole slate, or retire a named list'
+        type: choice
+        required: false
+        default: wipe
+        options: [wipe, retire]
+      issues:
+        description: 'retire mode only: numbers and inclusive ranges, e.g. 73-78'
+        required: false
+        default: ''
+      dry_run:
+        description: 'Say what would happen and change nothing'
+        type: boolean
+        required: false
+        default: true
+      fuzzuer_ref:
+        description: 'FuzzUEr ref holding the tool (a SHA pins it; main tracks it)'
+        required: false
+        default: 'main'
+
+# Only this. The cleanup reads and closes issues; it touches no content and needs no
+# contents: write, unlike fuzzuer-self.yml which pushes an evidence branch.
+permissions:
+  issues: write
+  contents: read
+
+jobs:
+  cleanup:
+    runs-on: [self-hosted, linux, x64]
+    timeout-minutes: 15
+    steps:
+      # The tool lives in FuzzUEr, tested there by scripts/close_issues_check.py, rather
+      # than inlined here. fuzzuer-reset.yml inlined its own curl-and-python version of
+      # this and that copy is now wrong in two ways nobody noticed, which is the argument.
+      # A SHA in fuzzuer_ref pins the behaviour of a job that closes issues; the default
+      # tracks main so a push works the day a fix lands, and the precondition step below
+      # is what stops a stale pin doing the wrong thing quietly.
+      - name: Get the tool
+        uses: actions/checkout@v4
+        with:
+          repository: BreakingBoot/FuzzUEr
+          ref: ${{ github.event.inputs.fuzzuer_ref || 'main' }}
+          path: fuzzuer
+          fetch-depth: 1
+
+      # Not a grep for a flag name: the checked-out tool has to pass its own assertions,
+      # which include the enumerate-by-label mode's pagination, its label-before-close
+      # ordering and its refusal to report a failed listing as an empty slate. A pin that
+      # predates the mode fails here, loudly, instead of running `--all-labelled` into an
+      # argparse error and leaving the slate up.
+      - name: The tool is the one this workflow needs
+        shell: bash
+        run: |
+          set -uo pipefail
+          python3 fuzzuer/scripts/close_issues_check.py || {
+            echo "::error::the FuzzUEr checkout at '${{ github.event.inputs.fuzzuer_ref || 'main' }}' does not pass scripts/close_issues_check.py. If this is a pinned SHA, it predates the mode this workflow uses."
+            exit 1
+          }
+
+      - name: What this run is
+        id: plan
+        shell: bash
+        env:
+          IN_MODE: ${{ github.event.inputs.mode }}
+          IN_ISSUES: ${{ github.event.inputs.issues }}
+          IN_DRY: ${{ github.event.inputs.dry_run }}
+        run: |
+          set -uo pipefail
+          # A push event carries NO inputs -- every github.event.inputs.* is empty for a
+          # push, declared defaults included, because a default applies to
+          # workflow_dispatch and nothing else. So the mode comes from the branch name on
+          # that path, which is also what makes the two entry points impossible to
+          # confuse: you cannot wipe the slate by pushing a retire-issues branch.
+          MODE="${IN_MODE:-}"
+          ISSUES="${IN_ISSUES:-}"
+          DRY="${IN_DRY:-}"
+          if [ "${GITHUB_EVENT_NAME:-}" = 'push' ]; then
+            case "${GITHUB_REF_NAME:-}" in
+              wipe-findings-*)
+                MODE='wipe'
+                # A push carries no inputs, and a push is the only entry point available
+                # without an API token -- so the ONLY way to preview a wipe is the branch
+                # name. "wipe-findings-dry..." enumerates and changes nothing; any other
+                # suffix is the real thing. Without this, the first wipe on a repository
+                # is also the first time its enumeration has ever run.
+                case "${GITHUB_REF_NAME#wipe-findings-}" in
+                  dry|dry-*) DRY='true'  ;;
+                  *)         DRY='false' ;;
+                esac
+                ;;
+              retire-issues-*)
+                MODE='retire'
+                # The branch suffix IS the list: retire-issues-73-78 retires #73 to #78
+                # without editing this file. There is no standing list here, so a suffix
+                # that does not read as numbers is an error rather than a fallback.
+                SUFFIX="${GITHUB_REF_NAME#retire-issues-}"
+                case "$SUFFIX" in
+                  ''|*[!0-9,-]*) ;;
+                  *) ISSUES="$SUFFIX" ;;
+                esac
+                ;;
+              *)
+                echo "::error::${GITHUB_REF_NAME:-?} matches neither wipe-findings-** nor retire-issues-**"
+                exit 1
+                ;;
+            esac
+            # Not unconditional: the wipe arm above may deliberately have chosen a dry
+            # run from the branch name, and this used to overwrite that.
+            [ -n "$DRY" ] || DRY='false'
+          fi
+          [ -n "$MODE" ] || MODE='wipe'
+          [ -n "$DRY" ] || DRY='true'
+          if [ "$MODE" = 'retire' ] && [ -z "$ISSUES" ]; then
+            echo "::error::retire mode needs a list of issues, and this repository has no standing one. Name it in the branch -- retire-issues-73-78 -- or dispatch this workflow with the issues input. To clear EVERYTHING instead, push a wipe-findings-** branch."
+            exit 1
+          fi
+          {
+            echo "mode=$MODE"
+            echo "issues=$ISSUES"
+            echo "dry=$DRY"
+          } >> "$GITHUB_OUTPUT"
+          echo "  mode    = $MODE"
+          echo "  issues  = ${ISSUES:-<n/a: the whole slate>}"
+          echo "  dry-run = $DRY"
+
+      - name: Wipe the slate
+        if: steps.plan.outputs.mode == 'wipe'
+        shell: bash
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          DRY: ${{ steps.plan.outputs.dry }}
+        run: |
+          set -uo pipefail
+          FLAGS=''
+          [ "$DRY" = 'true' ] && FLAGS='--dry-run'
+          # --unlabel is not optional here and the tool refuses the mode without it: a
+          # wipe that only closed would leave every site key held by a closed issue and
+          # the next campaign would refile nothing.
+          python3 fuzzuer/scripts/close_issues.py \
+            --slug "$GITHUB_REPOSITORY" \
+            --all-labelled \
+            --unlabel \
+            --reason "Closed by FuzzUEr cleanup as part of a deliberate slate wipe. Every issue carrying \`fuzzuer-finding\` on this repository was closed and unlabelled so that the next campaign refiles its findings from scratch -- that round trip is how the find -> triage -> file -> link pipeline is proved end to end. This is not a judgement about the defect: if it is still present, a campaign will file it again, with fresh evidence. The label is removed as well as the issue closed because \`already_filed()\` reads \`state=all\`, so a closed issue still holds its site key and closing alone would suppress the refile." \
+            $FLAGS | tee cleanup.log
+
+      - name: Retire the named issues
+        if: steps.plan.outputs.mode == 'retire'
+        shell: bash
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          ISSUES: ${{ steps.plan.outputs.issues }}
+          DRY: ${{ steps.plan.outputs.dry }}
+        run: |
+          set -uo pipefail
+          FLAGS=''
+          [ "$DRY" = 'true' ] && FLAGS='--dry-run'
+          python3 fuzzuer/scripts/close_issues.py \
+            --slug "$GITHUB_REPOSITORY" \
+            --issues "$ISSUES" \
+            --unlabel \
+            --reason "Closed by FuzzUEr cleanup: the defect this issue describes is no longer produced by the code that reported it. The \`fuzzuer-finding\` label is removed as well as the issue closed, so the site key is free and a future real report at the same site will not be suppressed by this one." \
+            $FLAGS | tee cleanup.log
+
+      - name: It did what it said
+        if: always()
+        shell: bash
+        env:
+          MODE: ${{ steps.plan.outputs.mode }}
+          DRY: ${{ steps.plan.outputs.dry }}
+        run: |
+          set -uo pipefail
+          [ -f cleanup.log ] || { echo "::error::no cleanup.log -- the tool did not run"; exit 1; }
+          {
+            echo "### FuzzUEr cleanup -- $MODE (dry-run=$DRY)"
+            echo
+            echo '```'
+            cat cleanup.log
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
+          # "0 failed" alone is NOT success, and neither is "0 failed" plus a green exit.
+          # A run in which every issue was SKIPPED also ends in 0 failed, which is exactly
+          # what a re-run looks like once the labels are off; so does a run whose
+          # enumeration FAILED and returned nothing. The two are opposite outcomes and the
+          # only way to tell them apart is to read the counts against each other, so the
+          # gate parses the tool's machine-readable result line rather than grepping its
+          # prose.
+          python3 - cleanup.log "$MODE" <<'PY'
+          import sys
+          log, mode = sys.argv[1], sys.argv[2]
+          line = next((l for l in open(log) if l.startswith('result:')), '')
+          if not line:
+              sys.exit('::error::the tool printed no `result:` line, so there is nothing '
+                       'to gate on. Either it died before its summary or this checkout '
+                       'of FuzzUEr predates the line.')
+          r = dict(p.split('=', 1) for p in line.split()[1:] if '=' in p)
+          print('  ' + ' '.join(f'{k}={v}' for k, v in r.items()))
+          num = lambda k: int(r.get(k, -1))
+          if r.get('list') == 'failed':
+              sys.exit('::error::the enumeration did not complete, so this is NOT a clean '
+                       'slate -- acting on part of one leaves the rest holding its site '
+                       'keys and the next campaign would refile some findings and '
+                       'silently drop the others.')
+          if num('failed') != 0:
+              sys.exit(f"::error::{num('failed')} issue(s) were not retired; see the log")
+          # The accounting, which is the part a grep cannot do: every issue that was
+          # enumerated has to be accounted for, and in wipe mode every one of them has to
+          # have LOST ITS LABEL. An issue that was closed but kept its label still holds
+          # its site key and still blocks the refile this whole exercise is for.
+          seen = num('enumerated')
+          if num('closed') + num('skipped') != seen:
+              sys.exit(f'::error::{seen} enumerated but {num("closed")} closed and '
+                       f'{num("skipped")} skipped -- the counts do not add up, so some '
+                       f'issues were neither acted on nor explained')
+          if mode == 'wipe' and num('unlabelled') != seen:
+              sys.exit(f'::error::{seen} enumerated but only {num("unlabelled")} lost the '
+                       f'`fuzzuer-finding` label. Every one of the rest still holds its '
+                       f'site key and will NOT be refiled, which is the one failure this '
+                       f'workflow exists to prevent.')
+          if seen == 0:
+              print('::notice::nothing carried the label, so there was nothing to do -- '
+                    'which is also what a second run of a completed cleanup looks like')
+          elif num('skipped') == seen:
+              print(f'::notice::all {seen} were skipped; see the per-issue reasons above')
+          else:
+              print(f'::notice::{num("unlabelled")} site key(s) freed and '
+                    f'{num("closed")} issue(s) closed of {seen} enumerated')
+          PY
