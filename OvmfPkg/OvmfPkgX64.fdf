@@ -414,6 +414,9 @@ INF  OvmfPkg/CpuHotplugSmm/CpuHotplugSmm.inf
 INF  UefiCpuPkg/CpuIo2Smm/CpuIo2Smm.inf
 INF  MdeModulePkg/Universal/LockBox/SmmLockBox/SmmLockBox.inf
 INF  UefiCpuPkg/PiSmmCpuDxeSmm/PiSmmCpuDxeSmm.inf
+!ifdef $(SAN_BENCH)
+INF  MdeModulePkg/Universal/SanBenchSmm/SanBenchSmm.inf
+!endif
 
 #
 # Variable driver stack (SMM)

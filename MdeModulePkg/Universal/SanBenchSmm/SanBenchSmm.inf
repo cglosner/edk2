@@ -1,0 +1,49 @@
+## @file
+#  Memory-safety faults inside SMRAM, raised from an SMM driver's own code.
+#
+#  The positive control for SMM detection: heap overflow, use-after-free and double free
+#  on SMM pool allocations, plus use-after-free on an SMM page allocation, each behind a
+#  command code carried by a software SMI.
+#
+#  Built only under SAN_BENCH. Never ship this.
+#
+#  Copyright (c) 2026, Intel Corporation. All rights reserved.<BR>
+#  SPDX-License-Identifier: BSD-2-Clause-Patent
+##
+
+[Defines]
+  INF_VERSION              = 0x00010005
+  BASE_NAME                = SanBenchSmm
+  FILE_GUID                = 1b9c5d20-8e47-4a6f-b2d8-0f5a93c417ee
+  MODULE_TYPE              = DXE_SMM_DRIVER
+  VERSION_STRING           = 1.0
+  PI_SPECIFICATION_VERSION = 0x0001000A
+  ENTRY_POINT              = SanBenchSmmEntry
+
+[Sources]
+  SanBenchSmm.c
+
+[Packages]
+  MdePkg/MdePkg.dec
+  MdeModulePkg/MdeModulePkg.dec
+
+[LibraryClasses]
+  UefiDriverEntryPoint
+  SmmServicesTableLib
+  BaseMemoryLib
+  DebugLib
+  SmmMemLib
+  #
+  # For SerialOutput, which is the wire the reports themselves arrive on. Listed here
+  # rather than relied on through the platform's NULL| resolution, because a module that
+  # calls into AsanLib and does not ask for it links only by accident.
+  #
+  # Deliberately NOT MemoryAllocationLib: its FreePool and FreePages end in
+  # ASSERT_EFI_ERROR, and the double-free case makes a free fail on purpose. With
+  # PcdDebugPropertyMask at 0x2F that ASSERT deadloops, and a CpuDeadLoop inside an SMI
+  # takes the guest with it. This module calls gSmst directly.
+  #
+  AsanLib
+
+[Depex]
+  TRUE

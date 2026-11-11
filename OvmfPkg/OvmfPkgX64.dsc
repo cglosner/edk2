@@ -1103,6 +1103,32 @@
       BaseMemoryLib|MdePkg/Library/AsanMemoryLibRepStr/AsanMemoryLibRepStr.inf
   }
 !endif
+!ifdef SAN_BENCH
+  #
+  # The same ground truth, inside SMRAM. Every SMM finding so far came from an
+  # instrumented library linked into an SMM image, never from an SMM driver's own code --
+  # the gap the SMM LibraryClasses comment above names as "NOT yet shown". This module
+  # closes it: the faults are direct loads and stores on its own statements, so a report
+  # names SanBenchSmm.efi rather than a memory wrapper.
+  #
+  # -mllvm -asan-stack=0 is not optional here, as it is for the DXE benchmark above.
+  # Clang writes frame redzones inline and unconditionally, bypassing AsanLib's
+  # MEM_TO_SHADOW range guard, and this module's stack is the SMM stack, in TSEG.
+  #
+  # AsanLib and the NULL| instance are NOT repeated: the platform's SMM LibraryClasses
+  # block already resolves both for every SMM driver, and naming the same NULL instance
+  # twice is how a component override turns into a build error.
+  #
+  # Neither comment spells that section header out in brackets. scripts/own_code_check.py
+  # asserts that dedup_sections() leaves exactly ONE occurrence of the literal string,
+  # counted over the whole deduped text rather than over section headers alone, so a
+  # comment quoting it verbatim fails a check about the file's structure.
+  #
+  MdeModulePkg/Universal/SanBenchSmm/SanBenchSmm.inf {
+    <BuildOptions>
+      *_CLANGSAN_X64_SAN_FLAGS == $(ASAN_SAN_FLAGS) -mllvm -asan-stack=0
+  }
+!endif
 !ifdef ASAN_FAULT_PROTOCOL
   #
   # A driver that is wrong on purpose. It is the positive control for the path a campaign

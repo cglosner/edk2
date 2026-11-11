@@ -469,6 +469,7 @@ InternalAllocPagesOnOneNode (
   UINTN           Top;
   UINTN           Bottom;
   FREE_PAGE_LIST  *Node;
+  UINTN           Allocated;
 
   Top = TRUNCATE_TO_PAGES (MaxAddress + 1 - (UINTN)Pages);
   if (Top > Pages->NumberOfPages) {
@@ -478,18 +479,58 @@ InternalAllocPagesOnOneNode (
   Bottom = Top - NumberOfPages;
 
   if (Top < Pages->NumberOfPages) {
-    Node                = (FREE_PAGE_LIST *)((UINTN)Pages + EFI_PAGES_TO_SIZE (Top));
+    Node = (FREE_PAGE_LIST *)((UINTN)Pages + EFI_PAGES_TO_SIZE (Top));
+    //
+    // ASAN. A NEW free list node is being built inside a range SmmInternalFreePagesEx
+    // poisoned, so the two writes below are writes to poisoned memory: the SMM core
+    // reporting a use-after-free against itself, on every allocation that leaves a
+    // remainder above it. Unpoison the node header, and only the node header -- the rest
+    // of the remainder is still free and has to stay described.
+    //
+    // This cannot wedge the boot. It writes shadow bytes and nothing else; AsanLib's
+    // AsanPoolRangeHasShadow skips a range whose shadow falls outside the reservation
+    // rather than writing unmapped memory; it allocates nothing and takes no lock; and it
+    // runs BEFORE the writes it exists to permit, so there is no window in which the core
+    // can report its own bookkeeping.
+    //
+    UnpoisonPool ((UINTN)Node, sizeof (FREE_PAGE_LIST));
     Node->NumberOfPages = Pages->NumberOfPages - Top;
     InsertHeadList (&Pages->Link, &Node->Link);
   }
 
   if (Bottom > 0) {
+    //
+    // Pages is a live free list node head, so these bytes were never poisoned: the free
+    // path leaves the first sizeof (FREE_PAGE_LIST) bytes of every freed range
+    // addressable precisely so that this write, InsertTailList and InternalMergeNodes
+    // do not have to unpoison anything.
+    //
     Pages->NumberOfPages = Bottom;
   } else {
     RemoveEntryList (&Pages->Link);
   }
 
-  return (UINTN)Pages + EFI_PAGES_TO_SIZE (Bottom);
+  Allocated = (UINTN)Pages + EFI_PAGES_TO_SIZE (Bottom);
+
+  //
+  // ASAN. Every SMM page allocation funnels through this one function --
+  // InternalAllocMaxAddress, InternalAllocAddress and HeapGuard.c's
+  // InternalAllocMaxAddressWithGuard all call it and nothing else allocates from
+  // mSmmMemoryMap -- so one hook here covers the lot, including the guarded path, with no
+  // edit to HeapGuard.c.
+  //
+  // The range is about to be handed to a caller, so it has to be addressable, and the
+  // free path poisons it again when it comes back. Nothing unpoisoned a page allocation
+  // in SMM before this because nothing poisoned one either: there is no SMM equivalent of
+  // CoreAddRange, which is where the DXE core unpoisons.
+  //
+  // It cannot wedge the boot: shadow writes only, bounds-guarded inside AsanLib, no
+  // allocation, no lock, and it is on the success path of a function that has already
+  // committed to returning this range.
+  //
+  UnpoisonPages ((UINT64)Allocated, NumberOfPages);
+
+  return Allocated;
 }
 
 /**
@@ -802,6 +843,8 @@ SmmInternalFreePagesEx (
 {
   LIST_ENTRY      *Node;
   FREE_PAGE_LIST  *Pages;
+  UINTN           PoisonStart;
+  UINTN           PoisonEnd;
 
   if (((Memory & EFI_PAGE_MASK) != 0) || (Memory == 0) || (NumberOfPages == 0)) {
     return EFI_INVALID_PARAMETER;
@@ -829,6 +872,53 @@ SmmInternalFreePagesEx (
     if ((UINTN)Pages + EFI_PAGES_TO_SIZE (Pages->NumberOfPages) > Memory) {
       return EFI_INVALID_PARAMETER;
     }
+  }
+
+  //
+  // ASAN. Poison the range now it is free, so a later read or write of it is reported.
+  // This file had no poisoning at all, which left two things invisible: a use-after-free
+  // on a page allocation -- what drivers use for anything larger than MAX_POOL_SIZE,
+  // including the pool's own page-backed blocks -- and an access to SMRAM that was never
+  // allocated, because the whole of free SMRAM arrives here once through
+  // SmmAddMemoryRegion.
+  //
+  // Placed BEFORE the range is linked into mSmmMemoryMap, which is the opposite of the
+  // DXE core (MdeModulePkg/Core/Dxe/Mem/Page.c poisons after its conversion because
+  // CoreConvertPages unpoisons on the way back into the map). The order is not
+  // interchangeable here: ConvertSmmMemoryMapEntry below can call
+  // AllocateMemoryMapEntry, which allocates a page OUT OF THIS VERY RANGE -- the
+  // allocator takes from the top of the highest free node, and at SMM core init that is
+  // the range being added -- so poisoning afterwards would poison a page that had just
+  // been handed out and is about to be filled with MEMORY_MAP descriptors, and every
+  // later read of those descriptors would report. Poisoning first leaves the allocation
+  // path to unpoison what it takes, which InternalAllocPagesOnOneNode now does.
+  //
+  // The first sizeof (FREE_PAGE_LIST) bytes stay addressable. They ARE the free list
+  // node: the NumberOfPages write below, the InsertTailList, InternalMergeNodes reading
+  // the neighbour's NumberOfPages and the RemoveEntryList on a merge all land there, and
+  // every one of them runs while the range is free. That leaves the first 24 bytes of a
+  // freed page range undetected -- the same hole FREE_POOL_HEADER leaves in the pool
+  // path, and the price of a free list kept in band.
+  //
+  // Why it cannot wedge the boot:
+  //
+  //   * it writes shadow bytes and nothing else, and AsanLib's AsanPoolRangeHasShadow
+  //     skips a range whose shadow falls outside the reservation rather than writing
+  //     unmapped memory;
+  //   * it allocates nothing, takes no lock and does not recurse;
+  //   * it is placed after EVERY validation above, so a range this function is about to
+  //     REJECT is never poisoned. Poisoning a live range is the one way this hook could
+  //     do real harm, and a rejected free is the only path on which that could happen;
+  //   * the init-time call poisons tens of MB at once, which is one memset of LowMemory
+  //     >> 3 bytes inside FastPoisonShadow, not a per-page loop;
+  //   * if ASan is not up yet the poison is a no-op, and so is the matching unpoison on
+  //     the allocation path -- asan_inited and asan_is_deactivated are set once in
+  //     AsanLibConstructor and never toggled, so the two halves cannot disagree.
+  //
+  PoisonStart = (UINTN)Memory + sizeof (FREE_PAGE_LIST);
+  PoisonEnd   = (UINTN)Memory + EFI_PAGES_TO_SIZE (NumberOfPages);
+  if (PoisonEnd > PoisonStart) {
+    PoisonPool (PoisonStart, PoisonEnd - PoisonStart, kAsanHeapFreeMagic);
   }
 
   Pages                = (FREE_PAGE_LIST *)(UINTN)Memory;
