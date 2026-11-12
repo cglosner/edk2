@@ -30,15 +30,18 @@
 #include <Library/UefiBootServicesTableLib.h>
 #include <Library/UefiDriverEntryPoint.h>
 #include <Library/UefiRuntimeServicesTableLib.h>
+#include <Library/Asan.h>
 
 //
-// AsanLib's reporting path. Declared rather than included so this driver does not
-// depend on the sanitizer's private header layout.
+// AsanLib's reporting path comes from its header now. This block used to hand-write
+// the declarations "so this driver does not depend on the sanitizer's private header
+// layout", and the cost of that independence was a six-parameter function called
+// with five arguments for as long as this driver has existed: Detail was missing, so
+// the address arrived where a CONST CHAR8 * was expected, Addr and Size arrived as 0,
+// IsWrite got the return address, and Ip -- the dedup key and the ip in the
+// crashes.csv row -- was never passed. Nothing could have caught it here; the
+// definition is in another package and no header named it.
 //
-VOID SerialOutput (IN CONST CHAR8 *String);
-VOID AsanSignalSolution (VOID);
-VOID AsanRegisterProtectedRegion (IN UINT64 Base, IN UINT64 Size, IN CONST CHAR8 *Name);
-UINTN AsanPoisonStaleInterface (IN VOID *Interface);
 
 #define FWSAN_VARIABLE_SLOTS  8
 
@@ -57,16 +60,6 @@ STATIC BOOLEAN                mAfterExitBoot    = FALSE;
 STATIC EFI_EVENT              mExitBootEvent    = NULL;
 STATIC FWSAN_VARIABLE_CALL    mVariableCalls[FWSAN_VARIABLE_SLOTS];
 STATIC UINTN                  mVariableNext     = 0;
-
-VOID
-AsanReportFirmwareClass (
-  IN CONST CHAR8  *BugDescr,
-  IN CONST CHAR8  *Detail,
-  IN UINTN        Addr,
-  IN UINTN        Size,
-  IN UINTN        IsWrite,
-  IN UINTN        Ip
-  );
 
 /**
   Say what happened and, inside the fuzzing window, make it a finding.
