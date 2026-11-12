@@ -252,17 +252,47 @@ FwSanUninstallProtocolInterface (
   )
 {
   EFI_STATUS  Status;
-  UINTN       Poisoned;
 
   Status = mRealUninstall (Handle, Protocol, Interface);
   if (EFI_ERROR (Status)) {
     return Status;
   }
 
-  Poisoned = AsanPoisonStaleInterface (Interface);
-  if (Poisoned != 0) {
-    SerialOutput ("FWSAN: interface uninstalled, storage poisoned\n");
+  //
+  // OFF unless asked for, because the class it produces is UNSOUND and this is
+  // measured, not suspected. On 2026-11-12 the detection benchmark scored its `control`
+  // row FAIL -- the row whose whole job is to report NOTHING on correct code -- against
+  // three consecutive eight-byte accesses at 0x7AE18098 carrying
+  // bug_descr=stale-protocol-interface. The same reports appear at the same addresses in
+  // every case's log, so they are raised by the BOOT and not by any case.
+  //
+  // The reason is in the UEFI spec rather than in this code. UninstallProtocolInterface
+  // removes the association between a handle and an interface; it says nothing about the
+  // STORAGE, which stays the owner's. A driver may keep using that struct, reinstall it,
+  // or hold it as a field of a context it goes on using, and all three are correct. So a
+  // read after uninstall is not a defect, and poisoning on uninstall reports correct
+  // firmware.
+  //
+  // Nor does the class add anything sound: if the storage is later FREED, every use of
+  // it is already a heap use-after-free that the pool poisoning catches with the right
+  // class and the right address.
+  //
+  // Kept rather than deleted, behind -D ASAN_STALE_INTERFACE, because a campaign hunting
+  // a suspected stale-interface bug in ONE driver is a reasonable thing to want, and the
+  // benchmark keeps scoring the class so this stays measured rather than assumed. It must
+  // not be the default: a detector that fires on every boot costs the control row, and
+  // the control row is worth more than the class.
+  //
+ #ifdef ASAN_STALE_INTERFACE
+  {
+    UINTN  Poisoned;
+
+    Poisoned = AsanPoisonStaleInterface (Interface);
+    if (Poisoned != 0) {
+      SerialOutput ("FWSAN: interface uninstalled, storage poisoned\n");
+    }
   }
+ #endif
 
   return Status;
 }
