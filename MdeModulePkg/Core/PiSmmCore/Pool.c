@@ -85,6 +85,24 @@ typedef struct {
   UINTN               PoolIndex;
 } ASAN_SMM_QUARANTINE_ENTRY;
 
+//
+// What the SMRAM memory profile shows while a block is held, which was worth settling
+// rather than leaving to be rediscovered. SmramProfileRecord.c counts and emits free
+// memory by walking mSmmPoolLists, in four places, and a held block is on none of them
+// -- so the profile reports up to ASAN_SMM_QUARANTINE_MAX_BYTES fewer free bytes than a
+// build without the quarantine would.
+//
+// That is CORRECT, not an under-report, and nothing adds the counter back. Those bytes
+// cannot be allocated: holding them is the entire mechanism. A profile of FREE memory
+// that listed them would be claiming the allocator could hand them out, which is the
+// one thing that is certainly untrue of a quarantined block. The count and the emitted
+// descriptor list are walked by the same loops, so the two stay consistent and the
+// buffer is sized for what is written.
+//
+// The bytes are not reported as allocated either, so a total across free and allocated
+// is short by the held amount -- bounded, at most 64 KiB, and only with the profile
+// enabled.
+//
 STATIC ASAN_SMM_QUARANTINE_ENTRY  mAsanSmmQuarantine[ASAN_SMM_QUARANTINE_SLOTS];
 STATIC UINTN                      mAsanSmmQuarantineFirst = 0;
 STATIC UINTN                      mAsanSmmQuarantineCount = 0;
@@ -743,11 +761,69 @@ SmmInternalFreePool (
     return EFI_INVALID_PARAMETER;
   }
 
-  ASSERT (FreePoolHdr->Header.Signature == POOL_HEAD_SIGNATURE);
-  ASSERT (!FreePoolHdr->Header.Available);
+  //
+  // ASAN. Anything that is not a live pool head reaches this allocator only as a bad
+  // free, and upstream answers with an ASSERT -- which in this build is a CpuDeadLoop
+  // inside an SMI. That hangs the guest with no report on the wire and forfeits every
+  // later iteration of the campaign, so these two cases are reported and returned
+  // AHEAD of the ASSERTs for the same reason the quarantine check above is.
+  //
+  // The case that makes this necessary rather than defensive is a double free of a
+  // PAGE-BACKED block, Size > MAX_POOL_SIZE. Such a block never enters the quarantine:
+  // the arm at the end of this function hands it straight to SmmInternalFreePages, so
+  // it keeps POOL_HEAD_SIGNATURE and is never marked. Those pages are then poisoned
+  // from Memory + sizeof (FREE_PAGE_LIST) onward and their first 24 bytes BECOME the
+  // free list node -- and Signature sits at offset 0 of POOL_HEADER, so
+  // Link.ForwardLink overwrites it. A second free therefore arrives with a pointer
+  // where the signature should be: not POOL_QUARANTINE_SIGNATURE, so the check above
+  // misses it, and not POOL_HEAD_SIGNATURE, so upstream deadloops. Marking the header
+  // instead would not survive, which is why this is a check and not a mark.
+  //
+  // Reported as its own class. A double free is the likely cause but not a provable
+  // one -- a wild or stale pointer arrives here identically -- and claiming the more
+  // specific class would put a cause in the report that the evidence does not carry.
+  // The address is what a developer needs either way.
+  //
+  // This cannot add boot noise. On a build that boots, no legitimate caller reaches
+  // here with either shape: upstream's ASSERT would already have deadlooped the boot
+  // if one did.
+  //
   if (FreePoolHdr->Header.Signature != POOL_HEAD_SIGNATURE) {
+    CHAR8  NumStr[19];
+
+    SerialOutput ("[ASan] ERROR: invalid free of ");
+    Num2Str64bit ((UINTN)Buffer, NumStr);
+    SerialOutput (NumStr);
+    SerialOutput ("\n");
+    SerialOutput ("bug_descr=invalid-free in file: "__FILE__" at line: 0x1F\n");
+    AsanSignalSolution ();
     return EFI_INVALID_PARAMETER;
   }
+
+  //
+  // Available means the allocator already holds it. A bucket block whose quarantine
+  // slot was evicted -- the ring is 64 slots and 64 KiB -- is back on mSmmPoolLists
+  // with Available set, so a double free of one that old lands here rather than on the
+  // signature check. Same treatment, and the class IS provable this time.
+  //
+  if (FreePoolHdr->Header.Available) {
+    CHAR8  NumStr[19];
+
+    SerialOutput ("[ASan] ERROR: double free of ");
+    Num2Str64bit ((UINTN)Buffer, NumStr);
+    SerialOutput (NumStr);
+    SerialOutput ("\n");
+    SerialOutput ("bug_descr=double-free in file: "__FILE__" at line: 0x1F\n");
+    AsanSignalSolution ();
+    return EFI_INVALID_PARAMETER;
+  }
+
+  //
+  // Kept, and now unreachable while false: the two checks above return first. They
+  // document upstream's invariant and can no longer deadloop an SMI.
+  //
+  ASSERT (FreePoolHdr->Header.Signature == POOL_HEAD_SIGNATURE);
+  ASSERT (!FreePoolHdr->Header.Available);
 
   MemoryGuarded = IsHeapGuardEnabled () &&
                   IsMemoryGuarded ((EFI_PHYSICAL_ADDRESS)(UINTN)FreePoolHdr);
