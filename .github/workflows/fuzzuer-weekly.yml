@@ -21,6 +21,14 @@
 name: FuzzUEr weekly
 
 on:
+  # A push is the only way to start this without an API token, and it exists to prove the
+  # published tag. `uses: BreakingBoot/FuzzUEr@v1` is resolved by GitHub, not by this
+  # checkout, so nothing local can tell you whether v1 points at something that still
+  # works -- and when it does not, the symptom is this job failing on a Sunday with
+  # whatever the tag happened to name. Push `fuzzuer-weekly-qualify-<anything>` for the
+  # minutes-long build-and-check, or `fuzzuer-weekly-full-<anything>` for a real campaign.
+  push:
+    branches: ['fuzzuer-weekly-**']
   schedule:
     # Sundays, 04:00 UTC. GitHub only honours `schedule` from the repository's DEFAULT
     # branch, which is why this file lives on master rather than on a feature branch --
@@ -86,6 +94,43 @@ jobs:
         id: where
         run: echo "out=$HOME/fuzzuer-weekly/$GITHUB_RUN_ID" >> "$GITHUB_OUTPUT"
 
+      # What this run is for, decided from the branch name rather than from an input,
+      # because a push carries no inputs -- every `github.event.inputs.*` above arrives as
+      # an empty string on one, so a pushed branch would otherwise take the full-campaign
+      # default and spend hours to answer a question about a tag.
+      #
+      # Deliberately no ${{ }} in this script: a branch name is attacker-controlled text
+      # in the general case, and interpolating it into a shell is how that becomes an
+      # injection. It arrives through the environment and is matched, never evaluated.
+      - name: What this run is for
+        id: plan
+        shell: bash
+        env:
+          EVENT: ${{ github.event_name }}
+          BRANCH: ${{ github.ref_name }}
+          IN_QUALIFY: ${{ github.event.inputs.qualify_only }}
+        run: |
+          set -uo pipefail
+          QUALIFY='false'
+          ISSUES='true'
+          if [ "$EVENT" = 'push' ]; then
+            case "$BRANCH" in
+              fuzzuer-weekly-full*) QUALIFY='false' ;;
+              # Anything else pushed under the prefix, qualify included: the cheap,
+              # safe default, so a mistyped branch costs minutes and files nothing.
+              *)                    QUALIFY='true'  ;;
+            esac
+            # Never from a push. A pushed branch is someone checking the plumbing, and
+            # filing issues from it would put a throwaway run's findings in the tracker
+            # under the same site keys the weekly needs.
+            ISSUES='false'
+          else
+            QUALIFY="${IN_QUALIFY:-false}"
+          fi
+          echo "qualify=$QUALIFY" >> "$GITHUB_OUTPUT"
+          echo "issues=$ISSUES"   >> "$GITHUB_OUTPUT"
+          echo "event=$EVENT branch=$BRANCH -> qualify-only=$QUALIFY open-issues=$ISSUES"
+
       - name: Fuzz it
         id: fuzz
         uses: BreakingBoot/FuzzUEr@v1
@@ -95,12 +140,12 @@ jobs:
           ref: ${{ github.event.inputs.ref || env.STABLE_REF }}
           targets: ${{ github.event.inputs.targets || 'EfiAcpiTable EfiHiiFont EfiSmbios EdkiiFormBrowserEx EfiHiiString EfiDevicePathToText' }}
           budget: ${{ github.event.inputs.budget || '600' }}
-          qualify-only: ${{ github.event.inputs.qualify_only || 'false' }}
+          qualify-only: ${{ steps.plan.outputs.qualify }}
           # One issue per candidate, keyed on module + bug class + source file so a later
           # run that finds the same site again adds nothing. It deliberately leaves the
           # build offset out of that key, because an offset moves every build and would
           # file a fresh issue every week for a defect already open.
-          open-issues: true
+          open-issues: ${{ steps.plan.outputs.issues }}
           # A finding is not a build failure. The issues and the artifact are the report;
           # turning the job red as well only trains people to ignore it.
           fail-on-findings: false
