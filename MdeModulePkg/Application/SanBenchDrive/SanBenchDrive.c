@@ -28,12 +28,14 @@
 #include <Library/DebugLib.h>
 #include <Library/MemoryAllocationLib.h>
 #include <Library/BaseLib.h>
+#include <Library/BaseMemoryLib.h>
 #include <Library/IoLib.h>
 #include <Library/UefiApplicationEntryPoint.h>
 #include <Library/UefiBootServicesTableLib.h>
 #include <Library/UefiRuntimeServicesTableLib.h>
 #include <Protocol/SanBench.h>
 #include <Protocol/SmmCommunication.h>
+#include <Guid/PiSmmCommunicationRegionTable.h>
 
 //
 // Announce on the wire the sanitizers report on, not through DEBUG. The two are
@@ -287,6 +289,76 @@ CaseSizeOverflow (
 // The request layout, the command codes and the handler GUID all come from
 // Protocol/SanBench.h, shared with the module, so the two ends cannot drift apart.
 //
+//
+// The region SmmCommunicationBufferDxe publishes for exactly this purpose. Walked
+// through gST->ConfigurationTable rather than UefiLib's EfiGetSystemConfigurationTable
+// so this application keeps linking what it already linked.
+//
+STATIC
+UINT8 *
+SmmCommRegion (
+  IN UINTN  Needed
+  )
+{
+  EDKII_PI_SMM_COMMUNICATION_REGION_TABLE  *Table;
+  EFI_MEMORY_DESCRIPTOR                    *Entry;
+  UINTN                                    Index;
+
+  Table = NULL;
+  for (Index = 0; Index < gST->NumberOfTableEntries; Index++) {
+    if (CompareGuid (
+          &gST->ConfigurationTable[Index].VendorGuid,
+          &gEdkiiPiSmmCommunicationRegionTableGuid
+          ))
+    {
+      Table = (EDKII_PI_SMM_COMMUNICATION_REGION_TABLE *)
+              gST->ConfigurationTable[Index].VendorTable;
+      break;
+    }
+  }
+
+  if (Table == NULL) {
+    return NULL;
+  }
+
+  //
+  // Only an EfiConventionalMemory entry is free for a caller to use; the others are
+  // regions already handed out.
+  //
+  Entry = (EFI_MEMORY_DESCRIPTOR *)(Table + 1);
+  for (Index = 0; Index < Table->NumberOfEntries; Index++) {
+    if ((Entry->Type == EfiConventionalMemory) &&
+        (EFI_PAGES_TO_SIZE ((UINTN)Entry->NumberOfPages) >= Needed))
+    {
+      return (UINT8 *)(UINTN)Entry->PhysicalStart;
+    }
+
+    Entry = (EFI_MEMORY_DESCRIPTOR *)((UINT8 *)Entry + Table->DescriptorSize);
+  }
+
+  return NULL;
+}
+
+//
+// The low byte of the status, in hex. EFI_STATUS has the high bit set on an error, and
+// the codes this cares about -- 3 UNSUPPORTED, 14 NOT_FOUND, 15 ACCESS_DENIED, 2
+// INVALID_PARAMETER -- all fit in it.
+//
+STATIC
+VOID
+SmmRaiseStatus (
+  IN EFI_STATUS  Status
+  )
+{
+  CONST CHAR8  Digits[] = "0123456789ABCDEF";
+  CHAR8        Text[3];
+
+  Text[0] = Digits[(((UINTN)Status) >> 4) & 0xF];
+  Text[1] = Digits[((UINTN)Status) & 0xF];
+  Text[2] = '\0';
+  SerialOutput (Text);
+}
+
 STATIC
 VOID
 SmmRaise (
@@ -313,9 +385,25 @@ SmmRaise (
   }
 
   Total  = OFFSET_OF (EFI_SMM_COMMUNICATE_HEADER, Data) + sizeof (SAN_BENCH_SMM_COMM);
-  Buffer = AllocatePool (Total);
+  //
+  // NOT a boot services pool buffer. Being outside SMRAM is necessary and not
+  // sufficient: SmmMemLib's SmmIsBufferOutsideSmmValid -- which the SMM core entry
+  // calls on gSmmCorePrivate->CommunicationBuffer before it reaches SmiManage --
+  // requires the buffer to lie inside the region SmmCommunicationBufferDxe publishes
+  // as EDKII_PI_SMM_COMMUNICATION_REGION_TABLE. An AllocatePool buffer is rejected
+  // with EFI_ACCESS_DENIED and no handler is ever called. That is what this did for
+  // as long as the smm-* rows have existed, and the firmware said so on the debug
+  // port every time:
+  //
+  //   SmmIsBufferOutsideSmmValid: Not in ValidCommunicationRegion: Buffer (0x7988ADA8)
+  //   SmmCore: rejected CommBuffer 7988ADA8 size 96 overlap=0
+  //
+  // while the scoreboard read "the SMI did not arrive: it reached no handler" and the
+  // five SMM classes were never measured at all.
+  //
+  Buffer = SmmCommRegion (Total);
   if (Buffer == NULL) {
-    SerialOutput ("SanBenchDrive: no buffer for the SMI -- not attempted\n");
+    SerialOutput ("SanBenchDrive: no SMM communication region -- not attempted\n");
     return;
   }
 
@@ -323,12 +411,6 @@ SmmRaise (
     Buffer[Index] = 0;
   }
 
-  //
-  // A boot services pool buffer is outside SMRAM, which is what both the SMM core entry
-  // and the handler's own SmmIsBufferOutsideSmmValid require. It does NOT have to come
-  // from the published SMM communication region: SmmCommunicationCommunicate takes any
-  // non-NULL buffer and hands its address to the core through gSmmCorePrivate.
-  //
   Header = (EFI_SMM_COMMUNICATE_HEADER *)Buffer;
   //
   // Struct assignment rather than CopyGuid, and the fill below is a loop rather than
@@ -353,14 +435,20 @@ SmmRaise (
   Status = mSmmComm->Communicate (mSmmComm, Buffer, &Total);
   if (EFI_ERROR (Status)) {
     //
-    // EFI_NOT_FOUND here means SmiManage found no handler for the GUID, i.e. SanBenchSmm
-    // is not in this image. Not a detection failure, and not something to be silent
-    // about either.
+    // The status separates three different failures that used to print one line:
+    // EFI_NOT_FOUND is SmiManage finding no handler for the GUID, EFI_ACCESS_DENIED is
+    // the core refusing the buffer, and EFI_UNSUPPORTED is the SMI never triggering.
+    // Without it the scoreboard can only say the SMI did not arrive, which is how a
+    // rejected buffer read for weeks as a missing handler.
     //
-    SerialOutput ("SanBenchDrive: the SMI was not delivered -- not attempted\n");
+    SerialOutput ("SanBenchDrive: the SMI was not delivered, status=");
+    SmmRaiseStatus (Status);
+    SerialOutput (" -- not attempted\n");
   }
 
-  FreePool (Buffer);
+  //
+  // Deliberately not freed: this is firmware-published shared memory, not ours.
+  //
 }
 
 STATIC

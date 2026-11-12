@@ -31,6 +31,13 @@
   BaseMemoryLib
   DebugLib
 
+[Guids]
+  #
+  # The region SmmCommunicationBufferDxe publishes. An SMI raised from anywhere
+  # else is refused by the SMM core before it reaches a handler.
+  #
+  gEdkiiPiSmmCommunicationRegionTableGuid   ## SOMETIMES_CONSUMES ## SystemTable
+
 [Protocols]
   gSanBenchMemoryProtocolGuid         ## CONSUMES
   gSanBenchFirmwareProtocolGuid       ## CONSUMES
